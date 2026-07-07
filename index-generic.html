@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מערכת קבלות ועד בית</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700;900&family=Heebo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://apis.google.com/js/api.js"></script>
+<style>
+:root{
+  --ink:#1B2A4A; --ink-soft:#3A4B6B;
+  --gold:#B8902F; --gold-soft:#E4D6A8;
+  --paper:#FAF7EF; --paper-dark:#F0EADA;
+  --line:#D8CFB8; --slate:#5B6B82;
+  --good:#2F6E4F; --bad:#A33E3E;
+  --shadow:0 12px 32px -12px rgba(27,42,74,.25);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;background:var(--paper-dark);color:var(--ink);font-family:'Heebo',sans-serif;min-height:100vh;}
+
+/* ── TOPBAR ── */
+.topbar{background:var(--ink);color:var(--paper);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;box-shadow:var(--shadow);}
+.brand{display:flex;align-items:center;gap:12px;}
+.brand-logo{width:40px;height:40px;border-radius:50%;border:2px solid var(--gold-soft);display:flex;align-items:center;justify-content:center;font-family:'Frank Ruhl Libre',serif;font-weight:900;color:var(--gold-soft);font-size:18px;overflow:hidden;flex:none;}
+.brand-logo img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
+.brand h1{font-family:'Frank Ruhl Libre',serif;font-size:17px;margin:0;font-weight:700;}
+.brand p{margin:1px 0 0;font-size:12px;color:#C7CEDD;}
+.topbar-actions{display:flex;gap:8px;align-items:center;}
+.pill-btn{background:transparent;border:1px solid #4A5C82;color:#E7EAF2;padding:7px 14px;border-radius:999px;font-size:12.5px;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;transition:.15s;}
+.pill-btn:hover{background:#27365A;}
+.pill-btn.gold{border-color:var(--gold);color:var(--gold-soft);}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--bad);display:inline-block;transition:.3s;}
+.status-dot.on{background:#5FBE8B;}
+
+@media(max-width:640px){
+  .topbar{ flex-wrap:wrap; padding:14px 16px; gap:12px; }
+  .brand{ width:100%; }
+  .topbar-actions{ width:100%; flex-wrap:wrap; gap:8px; }
+  .pill-btn{ flex:1 1 auto; justify-content:center; white-space:nowrap; font-size:12px; padding:8px 10px; }
+}
+
+/* ── SETUP BANNER ── */
+.setup-banner{background:#FFF8E6;border-bottom:2px solid var(--gold-soft);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;}
+.setup-banner p{margin:0;font-size:13.5px;color:var(--ink);}
+.setup-banner button{background:var(--gold);color:#fff;border:none;border-radius:8px;padding:8px 18px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+
+/* ── LAYOUT ── */
+.wrap{max-width:1180px;margin:0 auto;padding:24px 20px 60px;display:grid;grid-template-columns:1fr 1fr;gap:24px;}
+@media(max-width:900px){.wrap{grid-template-columns:1fr;}}
+
+/* ── CARDS ── */
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:22px;}
+.card h2{font-family:'Frank Ruhl Libre',serif;font-size:16px;margin:0 0 16px;color:var(--ink);border-bottom:2px solid var(--paper-dark);padding-bottom:9px;display:flex;align-items:center;gap:8px;}
+.card h2 .num{font-family:'Heebo';background:var(--ink);color:var(--paper);font-size:11px;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+
+/* ── FORM FIELDS ── */
+label.field-label{display:block;font-size:12.5px;color:var(--slate);margin:0 0 5px;font-weight:500;}
+select,input[type=text],input[type=number],input[type=url],textarea{width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:9px;font-family:inherit;font-size:14px;background:var(--paper);color:var(--ink);}
+select:focus,input:focus,textarea:focus{outline:2px solid var(--gold-soft);border-color:var(--gold);}
+textarea{resize:vertical;min-height:70px;}
+.row{margin-bottom:16px;}
+.phone-box{margin-top:6px;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-soft);background:var(--paper);border:1px dashed var(--line);border-radius:8px;padding:7px 12px;}
+
+/* ── PAYMENT METHOD ── */
+.pay-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.pay-opt{border:1.5px solid var(--line);border-radius:10px;padding:9px 10px;cursor:pointer;font-size:13px;text-align:center;transition:.15s;user-select:none;background:var(--paper);}
+.pay-opt.active{border-color:var(--gold);background:var(--gold-soft);color:var(--ink);font-weight:600;}
+
+/* ── MONTHS ── */
+.months-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;}
+.month-box{border:1.5px solid var(--line);border-radius:9px;padding:9px 4px;text-align:center;font-size:12.5px;cursor:pointer;background:var(--paper);transition:.15s;user-select:none;}
+.month-box.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+.month-actions{display:flex;gap:8px;margin:10px 0 2px;}
+.small-btn{flex:1;padding:7px;border-radius:8px;border:1px solid var(--line);background:var(--paper);font-size:12px;cursor:pointer;font-family:inherit;color:var(--ink-soft);}
+.small-btn:hover{background:var(--paper-dark);}
+
+/* ── OTHER PURPOSE ── */
+.other-purpose-toggle{display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;color:var(--ink-soft);background:var(--paper);border:1.5px dashed var(--line);border-radius:10px;padding:11px 13px;user-select:none;line-height:1.5;}
+.other-purpose-toggle input{margin-top:3px;width:16px;height:16px;accent-color:var(--gold);flex:none;}
+
+/* ── TOTAL ── */
+.total-bar{margin-top:16px;display:flex;align-items:center;justify-content:space-between;background:var(--ink);color:var(--paper);border-radius:10px;padding:13px 16px;}
+.total-bar .lbl{font-size:12.5px;color:#C7CEDD;}
+.total-bar .amt{font-family:'Frank Ruhl Libre',serif;font-size:24px;font-weight:700;color:var(--gold-soft);}
+
+/* ── BUTTONS ── */
+.generate-btn{width:100%;margin-top:14px;padding:13px;border:none;border-radius:10px;background:var(--gold);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:'Heebo';transition:.15s;}
+.generate-btn:disabled{background:#C9BFA0;cursor:not-allowed;}
+.generate-btn:not(:disabled):hover{background:#9F7A24;}
+.post-actions{display:flex;gap:10px;margin-top:10px;}
+.post-actions button{flex:1;padding:10px;border-radius:9px;border:1.5px solid var(--ink);background:#fff;color:var(--ink);font-family:inherit;font-size:13px;cursor:pointer;font-weight:600;}
+.post-actions button:hover{background:var(--paper-dark);}
+
+/* ── MESSAGES ── */
+.msg{font-size:12.5px;margin-top:8px;padding:9px 12px;border-radius:8px;display:none;}
+.msg.show{display:block;}
+.msg.info{background:#EAF1FB;color:#2A547F;}
+.msg.error{background:#FBEAEA;color:var(--bad);}
+.msg.ok{background:#EAF7EE;color:var(--good);}
+
+/* ── RECEIPT PREVIEW ── */
+.receipt-paper{background:#FFFDF8;border:1px solid var(--line);position:relative;overflow:hidden;padding:28px 26px 22px;font-family:'Heebo';min-height:520px;display:flex;flex-direction:column;background-image:radial-gradient(circle at 10px 10px,rgba(184,144,47,.05) 1px,transparent 1px);background-size:14px 14px;}
+.receipt-paper::before{content:"";position:absolute;inset:10px;border:1.5px solid var(--gold-soft);border-radius:6px;pointer-events:none;}
+.r-head{text-align:center;margin-bottom:4px;display:flex;flex-direction:column;align-items:center;gap:8px;}
+.r-logo{width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid var(--gold-soft);}
+.r-logo-placeholder{width:56px;height:56px;border-radius:50%;border:2px solid var(--gold-soft);display:flex;align-items:center;justify-content:center;font-family:'Frank Ruhl Libre',serif;font-weight:900;font-size:22px;color:var(--gold);background:var(--paper-dark);}
+.r-head .bld{font-family:'Frank Ruhl Libre',serif;font-weight:900;font-size:20px;color:var(--ink);}
+.r-head .addr{font-size:12px;color:var(--slate);margin-top:1px;}
+.r-divider{height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:12px 0 16px;}
+.r-title{text-align:center;font-family:'Frank Ruhl Libre',serif;font-size:17px;font-weight:700;color:var(--ink);margin-bottom:3px;}
+.r-sub{text-align:center;font-size:11px;color:var(--gold);margin-bottom:16px;letter-spacing:1px;}
+.r-meta{display:flex;justify-content:space-between;font-size:12px;color:var(--slate);margin-bottom:14px;}
+.r-table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:12px;}
+.r-table td{padding:7px 4px;border-bottom:1px solid var(--paper-dark);vertical-align:top;}
+.r-table td.k{color:var(--slate);width:38%;font-size:12px;}
+.r-table td.v{font-weight:600;color:var(--ink);}
+.r-months{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px;}
+.r-month-chip{background:var(--paper-dark);border:1px solid var(--line);border-radius:5px;font-size:11px;padding:2px 7px;color:var(--ink-soft);}
+.r-total{margin-top:10px;display:flex;justify-content:space-between;align-items:center;border-top:2px solid var(--ink);padding-top:10px;}
+.r-total .lbl{font-family:'Frank Ruhl Libre',serif;font-size:14px;color:var(--ink);}
+.r-total .amt{font-family:'Frank Ruhl Libre',serif;font-size:22px;font-weight:900;color:var(--ink);}
+.r-foot{margin-top:auto;padding-top:24px;text-align:center;position:relative;}
+.r-thanks{font-family:'Frank Ruhl Libre',serif;font-size:14px;color:var(--ink-soft);font-style:italic;}
+.r-signoff{font-size:12.5px;color:var(--slate);margin-top:2px;}
+.seal{position:absolute;left:20px;bottom:-4px;width:68px;height:68px;border-radius:50%;border:2.5px solid var(--gold);display:flex;align-items:center;justify-content:center;transform:rotate(-12deg);opacity:.85;}
+.seal-inner{width:54px;height:54px;border-radius:50%;border:1px solid var(--gold);display:flex;align-items:center;justify-content:center;text-align:center;font-family:'Frank Ruhl Libre',serif;font-size:8.5px;color:var(--gold);line-height:1.3;font-weight:700;padding:3px;}
+.empty-hint{color:var(--slate);font-size:13px;text-align:center;padding:50px 20px;line-height:1.7;margin:auto;}
+
+/* ── SETTINGS MODAL ── */
+.modal-bg{position:fixed;inset:0;background:rgba(20,28,46,.6);display:none;align-items:flex-start;justify-content:center;z-index:50;overflow-y:auto;padding:20px;}
+.modal-bg.show{display:flex;}
+.modal{background:#fff;border-radius:16px;padding:28px;width:520px;max-width:94vw;box-shadow:var(--shadow);margin:auto;}
+.modal h3{font-family:'Frank Ruhl Libre',serif;margin:0 0 4px;font-size:20px;}
+.modal .modal-desc{font-size:12.5px;color:var(--slate);margin:0 0 20px;line-height:1.6;}
+.settings-section{border-top:2px solid var(--paper-dark);margin-top:20px;padding-top:16px;}
+.settings-section h4{font-size:13px;font-weight:700;color:var(--ink-soft);margin:0 0 12px;text-transform:uppercase;letter-spacing:.5px;}
+.modal label{font-size:12.5px;color:var(--slate);display:block;margin-bottom:4px;margin-top:12px;}
+.modal label:first-child{margin-top:0;}
+.modal input[type=text],.modal input[type=number],.modal input[type=url],.modal textarea{background:#fff;}
+.hint-link{color:var(--gold);text-decoration:none;font-weight:600;}
+.modal-actions{display:flex;gap:10px;margin-top:22px;}
+.modal-actions button{flex:1;padding:11px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13.5px;}
+.modal-actions .save{background:var(--ink);color:#fff;border:none;font-weight:700;}
+.modal-actions .cancel{background:#fff;border:1px solid var(--line);}
+.history-row{display:flex;justify-content:space-between;align-items:center;padding:10px 4px;border-bottom:1px solid var(--paper-dark);gap:10px;}
+.history-row:last-child{border-bottom:none;}
+.history-name{font-weight:700;font-size:13.5px;color:var(--ink);}
+.history-date{font-size:11.5px;color:var(--slate);}
+.history-amount{font-weight:700;font-size:14px;color:var(--ink);white-space:nowrap;}
+.history-empty{padding:20px 4px;text-align:center;color:var(--slate);font-size:13px;}
+.ltr-input{direction:ltr;text-align:left;}
+.logo-preview{width:48px;height:48px;border-radius:50%;border:2px solid var(--line);object-fit:cover;margin-top:6px;display:none;}
+.logo-preview.show{display:block;}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-logo" id="topLogo"><span id="topLogoText">?</span></div>
+    <div>
+      <h1 id="topBuildingName">מערכת קבלות ועד בית</h1>
+      <p id="topBuildingAddr">יש להגדיר את פרטי הבניין בהגדרות</p>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <button class="pill-btn" id="historyBtn">🧾 קבלות החודש</button>
+    <button class="pill-btn" id="settingsBtn">⚙ הגדרות</button>
+    <button class="pill-btn gold" id="authBtn">
+      <span class="status-dot" id="authDot"></span>
+      <span id="authLabel">התחברות עם Google</span>
+    </button>
+  </div>
+</div>
+
+<!-- SETUP BANNER -->
+<div class="setup-banner" id="setupBanner" style="display:none;">
+  <p>⚠️ האפליקציה טרם הוגדרה. יש להזין את פרטי הבניין ואת קישורי הגיליון והתיקייה ב"הגדרות" לפני השימוש.</p>
+  <button onclick="document.getElementById('settingsBtn').click()">פתח הגדרות</button>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div class="wrap">
+
+  <!-- FORM -->
+  <div class="card">
+    <h2><span class="num">1</span> פרטי תשלום</h2>
+
+    <div class="row">
+      <label class="field-label">בחירת דייר</label>
+      <select id="residentSelect"><option value="">— יש להתחבר ולטעון רשימת דיירים —</option></select>
+      <div class="phone-box" id="phoneBox">טלפון יוצג לאחר בחירת דייר</div>
+    </div>
+
+    <div class="row">
+      <label class="field-label">אמצעי תשלום</label>
+      <div class="pay-grid" id="payGrid">
+        <div class="pay-opt" data-val="העברה">העברה בנקאית</div>
+        <div class="pay-opt" data-val="צ'קים דחויים">צ'קים דחויים</div>
+        <div class="pay-opt" data-val="הוראת קבע">הוראת קבע</div>
+        <div class="pay-opt" data-val="מזומן">מזומן</div>
+      </div>
+    </div>
+
+    <div class="row">
+      <label class="other-purpose-toggle" id="otherPurposeToggle">
+        <input type="checkbox" id="otherPurposeCheck">
+        <span>תשלום למטרה אחרת (לדוגמה: שיפוץ)</span>
+      </label>
+    </div>
+
+    <div id="monthsSection">
+      <div class="row">
+        <label class="field-label">חודשי תשלום</label>
+        <div class="months-grid" id="monthsGrid"></div>
+        <div class="month-actions">
+          <button class="small-btn" id="selectAllBtn">✓ סמן הכל</button>
+          <button class="small-btn" id="clearAllBtn">✗ בטל הכל</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="otherPurposeSection" style="display:none;">
+      <div class="row">
+        <label class="field-label">מטרת התשלום</label>
+        <input type="text" id="purposeInput" placeholder="לדוגמה: שיפוץ חניון, החלפת דוד שמש...">
+      </div>
+      <div class="row">
+        <label class="field-label">סכום (₪)</label>
+        <input type="number" id="manualAmountInput" placeholder="הזן סכום בש״ח" min="0">
+      </div>
+    </div>
+
+    <div class="total-bar">
+      <span class="lbl" id="totalLbl">סכום לתשלום</span>
+      <span class="amt" id="totalAmt">0 ₪</span>
+    </div>
+
+    <button class="generate-btn" id="generateBtn" disabled>הפק קבלה</button>
+
+    <div class="post-actions" id="postActions" style="display:none;">
+      <button id="downloadBtn">⬇ הורדת PDF</button>
+      <button id="shareBtn">↗ שיתוף PDF</button>
+    </div>
+
+    <div class="msg" id="msgBox"></div>
+  </div>
+
+  <!-- RECEIPT PREVIEW -->
+  <div class="card">
+    <h2><span class="num">2</span> תצוגה מקדימה</h2>
+    <div class="receipt-paper" id="receiptPaper">
+      <div class="empty-hint">בחרו דייר, אמצעי תשלום וחודשים — התצוגה המקדימה תופיע כאן.</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- PDF SOURCE (hidden) -->
+<div id="pdfSource" style="position:fixed;top:-9999px;left:-9999px;width:760px;"></div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h3>⚙ הגדרות האפליקציה</h3>
+    <p class="modal-desc">הגדר את פרטי הבניין שלך, פרטי ה-Google לחיבור, ומחיר דמי הוועד. ההגדרות נשמרות במכשיר זה.</p>
+
+    <!-- BUILDING INFO -->
+    <div class="settings-section">
+      <h4>🏢 פרטי הבניין</h4>
+      <label>שם הבניין / ועד הבית</label>
+      <input type="text" id="cfg-buildingName" placeholder="לדוגמה: ועד בית קונגרס 17">
+      <label>כתובת הבניין</label>
+      <input type="text" id="cfg-buildingAddr" placeholder="לדוגמה: רחוב הקונגרס 17, פתח תקווה">
+      <label>קישור לתמונת הלוגו (URL, אופציונלי)</label>
+      <input type="url" id="cfg-logoUrl" placeholder="https://... (השאר ריק לאותיות ראשונות)">
+      <img id="logoPreview" class="logo-preview" alt="לוגו">
+    </div>
+
+    <!-- PRICING -->
+    <div class="settings-section">
+      <h4>💰 תמחור דמי ועד</h4>
+      <label>מחיר חודשי ברירת מחדל (₪) — לדיירים ללא מחיר אישי בגיליון</label>
+      <input type="number" id="cfg-defaultFee" placeholder="לדוגמה: 140" min="0">
+      <p style="font-size:11.5px;color:var(--slate);margin:6px 0 0;line-height:1.5;">אם בגיליון "אנשי קשר" יש עמודה בשם <strong>מחיר חודשי</strong> — הסכום ממנה יגבר על ברירת המחדל לאותו דייר.</p>
+    </div>
+
+    <!-- DATA LINKS -->
+    <div class="settings-section">
+      <h4>🔗 חיבור לגיליון ולתיקייה שלך</h4>
+      <p style="font-size:11.5px;color:var(--slate);margin:0 0 10px;line-height:1.6;">אין צורך בשום הגדרה טכנית. פשוט הדביקו כאן את הקישור לגיליון ה-Google Sheets שלכם ואת הקישור לתיקיית ה-Drive שבה יישמרו הקבלות — בדיוק כפי שהם מופיעים בשורת הכתובת של הדפדפן.</p>
+      <label>קישור לגיליון Google Sheets ("אנשי קשר")</label>
+      <input type="text" id="cfg-spreadsheetId" class="ltr-input" placeholder="https://docs.google.com/spreadsheets/d/...">
+      <label>קישור לתיקיית Drive (לשמירת קבלות)</label>
+      <input type="text" id="cfg-folderId" class="ltr-input" placeholder="https://drive.google.com/drive/folders/...">
+    </div>
+
+    <div class="modal-actions">
+      <button class="cancel" id="modalCancel">ביטול</button>
+      <button class="save" id="modalSave">שמירת הגדרות</button>
+    </div>
+  </div>
+</div>
+
+<!-- RECEIPT HISTORY MODAL -->
+<div class="modal-bg" id="historyModalBg">
+  <div class="modal">
+    <h3>🧾 קבלות החודש</h3>
+    <p class="modal-desc" id="historyMonthLabel"></p>
+    <div id="historyList" style="max-height:420px;overflow-y:auto;"></div>
+    <div class="modal-actions">
+      <button class="cancel" id="historyCloseBtn">סגירה</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════
+   SHARED APP CREDENTIALS (fixed — not per-customer)
+   These identify the *app* to Google, not any person's data. Every customer
+   authenticates with their own Google account; OAuth (drive.file scope) only
+   ever grants access to files that customer opens inside this app.
+═══════════════════════════════════════ */
+const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.googleusercontent.com';
+const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
+
+/* Accepts either a full Google Sheets/Drive URL or a bare ID and returns the ID. */
+function extractSheetId(input){
+  const s=(input||'').trim();
+  const m=s.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  return m ? m[1] : s;
+}
+function extractFolderId(input){
+  const s=(input||'').trim();
+  const m=s.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+  return m ? m[1] : s;
+}
+/* ═══════════════════════════════════════
+   CONFIG & STORAGE
+═══════════════════════════════════════ */
+const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file';
+const RESIDENTS_SHEET = 'אנשי קשר';
+const RECEIPTS_SHEET  = 'קבלות';
+const MONTH_NAMES = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+
+function loadCfg(){
+  try{ return JSON.parse(localStorage.getItem('vaad_generic_cfg')||'{}'); }
+  catch(e){ return {}; }
+}
+function saveCfg(c){ localStorage.setItem('vaad_generic_cfg', JSON.stringify(c)); }
+
+let CFG = loadCfg();
+
+function isConfigured(){
+  return !!(CFG.spreadsheetId && CFG.folderId && CFG.buildingName);
+}
+
+/* ═══════════════════════════════════════
+   STATE
+═══════════════════════════════════════ */
+let residents      = [];   // [{name, phone, fee}]
+let selectedMonths = new Set();
+let selectedPay    = null;
+let isOtherPurpose = false;
+let gapiReady      = false;
+let tokenClient    = null;
+let accessToken    = null;
+let lastPdfBlob    = null;
+let lastFileName   = null;
+
+/* ═══════════════════════════════════════
+   TOPBAR BRANDING
+═══════════════════════════════════════ */
+function applyBranding(){
+  const name = CFG.buildingName || 'מערכת קבלות ועד בית';
+  const addr = CFG.buildingAddr || 'יש להגדיר את פרטי הבניין בהגדרות';
+  document.getElementById('topBuildingName').textContent = name;
+  document.getElementById('topBuildingAddr').textContent = addr;
+  document.title = name;
+
+  const logoEl  = document.getElementById('topLogo');
+  const logoTxt = document.getElementById('topLogoText');
+  if(CFG.logoUrl){
+    logoEl.innerHTML = `<img src="${CFG.logoUrl}" alt="לוגו" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+  } else {
+    const initials = name.replace(/ועד בית|בניין|רחוב/g,'').trim().slice(0,2);
+    logoEl.innerHTML = `<span style="font-family:'Frank Ruhl Libre',serif;font-weight:900;color:var(--gold-soft);font-size:16px;">${initials}</span>`;
+  }
+
+  document.getElementById('setupBanner').style.display = isConfigured() ? 'none' : 'flex';
+}
+applyBranding();
+
+/* ═══════════════════════════════════════
+   SETTINGS MODAL
+═══════════════════════════════════════ */
+document.getElementById('settingsBtn').onclick = ()=>{
+  document.getElementById('cfg-buildingName').value = CFG.buildingName||'';
+  document.getElementById('cfg-buildingAddr').value = CFG.buildingAddr||'';
+  document.getElementById('cfg-logoUrl').value      = CFG.logoUrl||'';
+  document.getElementById('cfg-defaultFee').value   = CFG.defaultFee||'';
+  document.getElementById('cfg-spreadsheetId').value= CFG.spreadsheetId||'';
+  document.getElementById('cfg-folderId').value     = CFG.folderId||'';
+  updateLogoPreview();
+  document.getElementById('modalBg').classList.add('show');
+};
+document.getElementById('modalCancel').onclick = ()=> document.getElementById('modalBg').classList.remove('show');
+
+function updateLogoPreview(){
+  const url  = document.getElementById('cfg-logoUrl').value.trim();
+  const prev = document.getElementById('logoPreview');
+  if(url){ prev.src=url; prev.classList.add('show'); } else { prev.classList.remove('show'); }
+}
+document.getElementById('cfg-logoUrl').addEventListener('input', updateLogoPreview);
+
+document.getElementById('modalSave').onclick = ()=>{
+  CFG.buildingName  = document.getElementById('cfg-buildingName').value.trim();
+  CFG.buildingAddr  = document.getElementById('cfg-buildingAddr').value.trim();
+  CFG.logoUrl       = document.getElementById('cfg-logoUrl').value.trim();
+  CFG.defaultFee    = parseFloat(document.getElementById('cfg-defaultFee').value)||140;
+  CFG.spreadsheetId = extractSheetId(document.getElementById('cfg-spreadsheetId').value);
+  CFG.folderId      = extractFolderId(document.getElementById('cfg-folderId').value);
+  saveCfg(CFG);
+  document.getElementById('modalBg').classList.remove('show');
+  applyBranding();
+  refreshPreview();
+  initGoogle();
+  showMsg('ההגדרות נשמרו.','info');
+};
+
+/* ═══════════════════════════════════════
+   MONTHS GRID
+═══════════════════════════════════════ */
+const monthsGrid = document.getElementById('monthsGrid');
+MONTH_NAMES.forEach((m,idx)=>{
+  const el = document.createElement('div');
+  el.className='month-box'; el.textContent=m; el.dataset.idx=idx;
+  el.addEventListener('click',()=>{
+    if(selectedMonths.has(idx)) selectedMonths.delete(idx); else selectedMonths.add(idx);
+    el.classList.toggle('active');
+    refreshTotal(); refreshPreview();
+  });
+  monthsGrid.appendChild(el);
+});
+document.getElementById('selectAllBtn').onclick=()=>{
+  selectedMonths=new Set(MONTH_NAMES.map((_,i)=>i));
+  [...monthsGrid.children].forEach(c=>c.classList.add('active'));
+  refreshTotal(); refreshPreview();
+};
+document.getElementById('clearAllBtn').onclick=()=>{
+  selectedMonths.clear();
+  [...monthsGrid.children].forEach(c=>c.classList.remove('active'));
+  refreshTotal(); refreshPreview();
+};
+
+/* ═══════════════════════════════════════
+   OTHER PURPOSE TOGGLE
+═══════════════════════════════════════ */
+document.getElementById('otherPurposeCheck').addEventListener('change', e=>{
+  isOtherPurpose = e.target.checked;
+  document.getElementById('monthsSection').style.display      = isOtherPurpose ? 'none':'';
+  document.getElementById('otherPurposeSection').style.display= isOtherPurpose ? '':'none';
+  refreshTotal(); refreshPreview();
+});
+document.getElementById('purposeInput').addEventListener('input', refreshPreview);
+document.getElementById('manualAmountInput').addEventListener('input', ()=>{ refreshTotal(); refreshPreview(); });
+
+/* ═══════════════════════════════════════
+   PAYMENT METHOD
+═══════════════════════════════════════ */
+document.getElementById('payGrid').addEventListener('click', e=>{
+  const opt=e.target.closest('.pay-opt'); if(!opt) return;
+  document.querySelectorAll('.pay-opt').forEach(o=>o.classList.remove('active'));
+  opt.classList.add('active'); selectedPay=opt.dataset.val;
+  refreshPreview();
+});
+
+/* ═══════════════════════════════════════
+   RESIDENT SELECT
+═══════════════════════════════════════ */
+const residentSelect = document.getElementById('residentSelect');
+const phoneBox       = document.getElementById('phoneBox');
+residentSelect.addEventListener('change',()=>{
+  const r = residents[residentSelect.value];
+  phoneBox.textContent = r ? 'טלפון: '+(r.phone||'לא צויין') : 'טלפון יוצג לאחר בחירת דייר';
+  refreshTotal(); refreshPreview();
+});
+
+/* ═══════════════════════════════════════
+   TOTAL & VALIDATION
+═══════════════════════════════════════ */
+function residentFee(){
+  const r = residents[residentSelect.value];
+  if(!r) return CFG.defaultFee||140;
+  return r.fee || CFG.defaultFee || 140;
+}
+function manualAmount(){
+  const v=parseFloat((document.getElementById('manualAmountInput').value||'').replace(',','.'));
+  return isNaN(v)||v<0?0:v;
+}
+function refreshTotal(){
+  let total=0, lbl='סכום לתשלום';
+  if(isOtherPurpose){
+    total=manualAmount(); lbl='סכום לתשלום (מטרה אחרת)';
+  } else {
+    const fee=residentFee();
+    total=selectedMonths.size*fee;
+    lbl=`סכום לתשלום (${fee.toLocaleString('he-IL')} ₪ × חודשים)`;
+  }
+  document.getElementById('totalAmt').textContent=total.toLocaleString('he-IL')+' ₪';
+  document.getElementById('totalLbl').textContent=lbl;
+  validateForm();
+}
+function currentResident(){ return residents[residentSelect.value]; }
+function validateForm(){
+  let ok;
+  if(isOtherPurpose){
+    ok=currentResident()&&selectedPay&&document.getElementById('purposeInput').value.trim()&&manualAmount()>0&&accessToken;
+  } else {
+    ok=currentResident()&&selectedPay&&selectedMonths.size>0&&accessToken;
+  }
+  document.getElementById('generateBtn').disabled=!ok;
+}
+
+/* ═══════════════════════════════════════
+   RECEIPT HTML (used in preview & PDF)
+═══════════════════════════════════════ */
+function todayStr(){
+  return new Date().toLocaleDateString('he-IL',{year:'numeric',month:'long',day:'numeric'});
+}
+function sortedMonths(){ return [...selectedMonths].sort((a,b)=>a-b); }
+
+function receiptHTML(forPdf=false){
+  const r      = currentResident();
+  const months = sortedMonths();
+  const fee    = residentFee();
+  const total  = isOtherPurpose ? manualAmount() : months.length*fee;
+  const bName  = CFG.buildingName || 'ועד בית';
+  const bAddr  = CFG.buildingAddr || '';
+  const logoUrl= CFG.logoUrl||'';
+  const initials=(bName.replace(/ועד בית|בניין|רחוב/g,'').trim().slice(0,2))||'ו';
+
+  const logoHTML = logoUrl
+    ? `<img class="r-logo" src="${logoUrl}" alt="לוגו" crossorigin="anonymous">`
+    : `<div class="r-logo-placeholder">${initials}</div>`;
+
+  const monthsChips = months.map(i=>`<span class="r-month-chip">${MONTH_NAMES[i]}</span>`).join('');
+  const purposeRow  = isOtherPurpose
+    ? `<tr><td class="k">מטרת התשלום</td><td class="v">${document.getElementById('purposeInput').value||'—'}</td></tr>`
+    : `<tr><td class="k">חודשים ששולמו</td><td class="v"><div class="r-months">${monthsChips||'—'}</div></td></tr>`;
+
+  const minH = forPdf ? 'min-height:1040px;' : '';
+
+  return `
+  <div class="receipt-paper" style="${minH}">
+    <div class="r-head">
+      ${logoHTML}
+      <div class="bld">${bName}</div>
+      ${bAddr?`<div class="addr">${bAddr}</div>`:''}
+    </div>
+    <div class="r-divider"></div>
+    <div class="r-title">קבלה לדמי ועד בית</div>
+    <div class="r-sub">RECEIPT</div>
+    <div class="r-meta">
+      <span>תאריך: ${todayStr()}</span>
+      <span>מס׳ ${Date.now().toString().slice(-6)}</span>
+    </div>
+    <table class="r-table">
+      <tr><td class="k">שם הדייר</td><td class="v">${r?r.name:'—'}</td></tr>
+      <tr><td class="k">טלפון</td><td class="v">${r?(r.phone||'—'):'—'}</td></tr>
+      <tr><td class="k">אמצעי תשלום</td><td class="v">${selectedPay||'—'}</td></tr>
+      ${purposeRow}
+    </table>
+    <div class="r-total">
+      <span class="lbl">סכום לתשלום</span>
+      <span class="amt">${total.toLocaleString('he-IL')} ₪</span>
+    </div>
+    <div class="r-foot">
+      <div class="r-thanks">תודה רבה</div>
+      <div class="r-signoff">ועד הבית</div>
+      <div class="seal"><div class="seal-inner">${initials}<br>ועד בית</div></div>
+    </div>
+  </div>`;
+}
+
+function refreshPreview(){
+  const r   = currentResident();
+  const box = document.getElementById('receiptPaper');
+  if(!r && selectedMonths.size===0 && !selectedPay && !isOtherPurpose){
+    box.innerHTML='<div class="empty-hint">בחרו דייר, אמצעי תשלום וחודשים — התצוגה המקדימה תופיע כאן.</div>';
+  } else {
+    box.innerHTML=receiptHTML(false);
+  }
+  validateForm();
+}
+
+/* ═══════════════════════════════════════
+   MESSAGES
+═══════════════════════════════════════ */
+function showMsg(txt,type){
+  const b=document.getElementById('msgBox');
+  b.textContent=txt; b.className='msg show '+type;
+}
+function hideMsg(){ document.getElementById('msgBox').className='msg'; }
+
+/* ═══════════════════════════════════════
+   GOOGLE INIT / AUTH
+═══════════════════════════════════════ */
+const TOKEN_CACHE_KEY = 'vaad_generic_token';
+let silentAttempted = false;
+
+function saveTokenCache(token, expiresInSec){
+  const expiresAt = Date.now() + ((expiresInSec||3500)*1000) - 60000; // 1-min safety buffer
+  try{ localStorage.setItem(TOKEN_CACHE_KEY, JSON.stringify({token, expiresAt})); }catch(e){}
+}
+function loadTokenCache(){
+  try{
+    const c = JSON.parse(localStorage.getItem(TOKEN_CACHE_KEY)||'null');
+    if(c && c.token && c.expiresAt > Date.now()) return c.token;
+  }catch(e){}
+  return null;
+}
+function clearTokenCache(){
+  try{ localStorage.removeItem(TOKEN_CACHE_KEY); }catch(e){}
+}
+function markConnected(){
+  document.getElementById('authDot').classList.add('on');
+  document.getElementById('authLabel').textContent='מחובר ✓';
+}
+function markDisconnected(){
+  accessToken=null;
+  document.getElementById('authDot').classList.remove('on');
+  document.getElementById('authLabel').textContent='התחברות עם Google';
+}
+
+function initGoogle(){
+  if(typeof gapi==='undefined'){ setTimeout(initGoogle,300); return; }
+  gapi.load('client',async()=>{
+    try{
+      await gapi.client.init({
+        apiKey:APP_API_KEY,
+        discoveryDocs:[
+          'https://sheets.googleapis.com/$discovery/rest?version=v4',
+          'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'
+        ]
+      });
+      gapiReady=true;
+      // If a still-valid token is cached from a previous visit, reuse it immediately —
+      // no popup, no network round trip, no re-login needed.
+      const cached = loadTokenCache();
+      if(cached && CFG.spreadsheetId && CFG.folderId){
+        accessToken = cached;
+        gapi.client.setToken({access_token:accessToken});
+        markConnected();
+        await loadResidents();
+        await ensureReceiptsSheet();
+        validateForm();
+      }
+    }catch(e){ showMsg('שגיאה באתחול Google API: '+(e.message||e),'error'); }
+  });
+  if(typeof google!=='undefined'&&google.accounts){
+    tokenClient=google.accounts.oauth2.initTokenClient({
+      client_id:APP_CLIENT_ID,
+      scope:SCOPES,
+      callback:async(resp)=>{
+        const wasSilent = silentAttempted;
+        silentAttempted = false;
+        if(resp.error){
+          // A failed *silent* attempt is expected sometimes (e.g. no active Google
+          // session yet) — stay quiet and just wait for the user to click the button.
+          if(!wasSilent) showMsg('ההתחברות נכשלה: '+resp.error,'error');
+          return;
+        }
+        accessToken=resp.access_token;
+        gapi.client.setToken({access_token:accessToken});
+        saveTokenCache(accessToken, resp.expires_in);
+        markConnected();
+        if(!wasSilent) showMsg('התחברת בהצלחה. טוען רשימת דיירים…','info');
+        if(CFG.spreadsheetId && CFG.folderId){
+          await loadResidents();
+          await ensureReceiptsSheet();
+        }
+        validateForm();
+      }
+    });
+    // Try a silent, invisible re-auth in the background if we don't already have a
+    // valid cached token. This uses the browser's existing Google session — as long
+    // as the person approved this app before and hasn't revoked access, it refreshes
+    // the token with no popup and no click required.
+    if(!loadTokenCache()){
+      silentAttempted = true;
+      tokenClient.requestAccessToken({prompt:'none'});
+    }
+  }
+}
+
+document.getElementById('authBtn').onclick=()=>{
+  if(!CFG.spreadsheetId||!CFG.folderId){ document.getElementById('settingsBtn').click(); return; }
+  if(!tokenClient){ initGoogle(); setTimeout(()=>tokenClient&&tokenClient.requestAccessToken(),600); return; }
+  silentAttempted = false;
+  tokenClient.requestAccessToken();
+};
+
+/* ═══════════════════════════════════════
+   SHEETS: LOAD RESIDENTS
+═══════════════════════════════════════ */
+async function loadResidents(){
+  try{
+    const res = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId:CFG.spreadsheetId, range:`'${RESIDENTS_SHEET}'!A:Z`
+    });
+    const rows=res.result.values||[];
+    if(!rows.length){ showMsg('הגיליון "אנשי קשר" ריק.','error'); return; }
+
+    // detect header row
+    let header=rows[0].map(h=>(h||'').toString().trim().toLowerCase());
+    let nameIdx  = header.findIndex(h=>/שם|name/.test(h));
+    let phoneIdx = header.findIndex(h=>/טלפון|פלאפון|נייד|phone/.test(h));
+    let feeIdx   = header.findIndex(h=>/מחיר|fee|סכום/.test(h));
+    let startRow = 1;
+    if(nameIdx===-1){ nameIdx=0; startRow=0; }
+    if(phoneIdx===-1) phoneIdx=1;
+    // feeIdx may be -1 → use default
+
+    residents=rows.slice(startRow)
+      .filter(r=>r[nameIdx]&&r[nameIdx].toString().trim())
+      .map(r=>({
+        name: r[nameIdx].toString().trim(),
+        phone:(r[phoneIdx]||'').toString().trim(),
+        fee:  feeIdx>-1 ? (parseFloat(r[feeIdx])||0) : 0
+      }));
+
+    residentSelect.innerHTML='<option value="">— בחרו דייר —</option>'+
+      residents.map((r,i)=>`<option value="${i}">${r.name}${r.fee?` (${r.fee} ₪/חודש)`:''}</option>`).join('');
+    showMsg(`נטענו ${residents.length} דיירים.`,'ok');
+  }catch(e){
+    if(e.status===401||e.result?.error?.code===401){
+      // Cached token turned out to be invalid (revoked/expired) — clear it and ask
+      // the person to reconnect, rather than showing a confusing raw error.
+      clearTokenCache();
+      markDisconnected();
+      showMsg('החיבור לגוגל פג — יש ללחוץ שוב על "התחברות עם Google".','error');
+      return;
+    }
+    showMsg('שגיאה בטעינת הדיירים: '+(e.result?.error?.message||e.message||e),'error');
+  }
+}
+
+/* ═══════════════════════════════════════
+   SHEETS: ENSURE "קבלות" EXISTS
+═══════════════════════════════════════ */
+async function ensureReceiptsSheet(){
+  try{
+    const meta=await gapi.client.sheets.spreadsheets.get({spreadsheetId:CFG.spreadsheetId});
+    const exists=meta.result.sheets.some(s=>s.properties.title===RECEIPTS_SHEET);
+    if(!exists){
+      await gapi.client.sheets.spreadsheets.batchUpdate({
+        spreadsheetId:CFG.spreadsheetId,
+        resource:{requests:[{addSheet:{properties:{title:RECEIPTS_SHEET}}}]}
+      });
+      await gapi.client.sheets.spreadsheets.values.update({
+        spreadsheetId:CFG.spreadsheetId,
+        range:`'${RECEIPTS_SHEET}'!A1:I1`,
+        valueInputOption:'RAW',
+        resource:{values:[['תאריך הפקה','שם דייר','טלפון','חודשים/מטרה','מספר חודשים','סכום כולל','אמצעי תשלום','שם קובץ','קישור לקובץ']]}
+      });
+    }
+  }catch(e){
+    showMsg('שגיאה ביצירת גיליון "קבלות": '+(e.result?.error?.message||e.message),'error');
+  }
+}
+
+async function appendReceiptRow(row){
+  return gapi.client.sheets.spreadsheets.values.append({
+    spreadsheetId:CFG.spreadsheetId,
+    range:`'${RECEIPTS_SHEET}'!A:I`,
+    valueInputOption:'RAW',
+    insertDataOption:'INSERT_ROWS',
+    resource:{values:[row]}
+  });
+}
+
+/* ═══════════════════════════════════════
+   RECEIPT HISTORY (current-month list)
+═══════════════════════════════════════ */
+const HEBREW_MONTHS = {'ינואר':0,'פברואר':1,'מרץ':2,'אפריל':3,'מאי':4,'יוני':5,'יולי':6,'אוגוסט':7,'ספטמבר':8,'אוקטובר':9,'נובמבר':10,'דצמבר':11};
+function parseHebrewDate(s){
+  if(!s) return null;
+  const m=(''+s).match(/(\d{1,2})\s+ב?([\u0590-\u05FF]+)\s+(\d{4})/);
+  if(!m) return null;
+  const day=parseInt(m[1],10), monthName=m[2], year=parseInt(m[3],10);
+  const month=HEBREW_MONTHS[monthName];
+  if(month===undefined) return null;
+  return new Date(year,month,day);
+}
+
+document.getElementById('historyBtn').onclick=async()=>{
+  if(!CFG.spreadsheetId||!CFG.folderId){ showMsg('יש להגדיר קודם קישור לגיליון ולתיקייה בהגדרות.','error'); return; }
+  if(!accessToken){ showMsg('יש להתחבר עם Google לפני צפייה בהיסטוריה.','error'); return; }
+  const now=new Date();
+  document.getElementById('historyMonthLabel').textContent =
+    `קבלות שהופקו בחודש ${now.toLocaleDateString('he-IL',{month:'long',year:'numeric'})}`;
+  const listEl=document.getElementById('historyList');
+  listEl.innerHTML='<div class="history-empty">טוען…</div>';
+  document.getElementById('historyModalBg').classList.add('show');
+  try{
+    await ensureReceiptsSheet();
+    const res=await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId:CFG.spreadsheetId, range:`'${RECEIPTS_SHEET}'!A2:F`
+    });
+    const rows=res.result.values||[];
+    const thisMonth=rows.filter(r=>{
+      const d=parseHebrewDate(r[0]);
+      return d && d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
+    }).sort((a,b)=> (parseHebrewDate(b[0])||0) - (parseHebrewDate(a[0])||0));
+    if(thisMonth.length===0){
+      listEl.innerHTML='<div class="history-empty">אין קבלות שהופקו החודש.</div>';
+      return;
+    }
+    listEl.innerHTML = thisMonth.map(r=>{
+      const [date,name,,,,amount]=r;
+      const sum=parseFloat(amount)||0;
+      return `<div class="history-row">
+        <div><div class="history-name">${escapeHtml(name||'')}</div><div class="history-date">${escapeHtml(date||'')}</div></div>
+        <div class="history-amount">₪${sum.toLocaleString('he-IL')}</div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    listEl.innerHTML='<div class="history-empty">שגיאה בטעינת ההיסטוריה.</div>';
+  }
+};
+document.getElementById('historyCloseBtn').onclick=()=>{
+  document.getElementById('historyModalBg').classList.remove('show');
+};
+function escapeHtml(s){
+  return (''+s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ═══════════════════════════════════════
+   PDF BUILD
+═══════════════════════════════════════ */
+async function buildPdfBlob(){
+  const src=document.getElementById('pdfSource');
+  src.innerHTML=receiptHTML(true);
+  await new Promise(r=>setTimeout(r,100));
+  const node=src.firstElementChild;
+  const canvas=await html2canvas(node,{scale:2,backgroundColor:'#FFFDF8',useCORS:true,allowTaint:true});
+  const imgData=canvas.toDataURL('image/png');
+  const {jsPDF}=window.jspdf;
+  const pdf=new jsPDF({orientation:'p',unit:'mm',format:'a4'});
+  const pageW=pdf.internal.pageSize.getWidth();
+  const pageH=pdf.internal.pageSize.getHeight();
+  const margin=10, maxW=pageW-margin*2, maxH=pageH-margin*2;
+  const ratio=canvas.width/canvas.height;
+  let imgW=maxW, imgH=imgW/ratio;
+  if(imgH>maxH){ imgH=maxH; imgW=imgH*ratio; }
+  pdf.addImage(imgData,'PNG',(pageW-imgW)/2,(pageH-imgH)/2,imgW,imgH);
+  return pdf.output('blob');
+}
+
+/* ═══════════════════════════════════════
+   DRIVE UPLOAD
+═══════════════════════════════════════ */
+async function uploadToDrive(blob,filename){
+  const metadata={name:filename,parents:[CFG.folderId],mimeType:'application/pdf'};
+  const form=new FormData();
+  form.append('metadata',new Blob([JSON.stringify(metadata)],{type:'application/json'}));
+  form.append('file',blob);
+  const res=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',{
+    method:'POST', headers:{Authorization:'Bearer '+accessToken}, body:form
+  });
+  if(!res.ok) throw new Error('שגיאת העלאה ל-Drive: '+res.status);
+  return res.json();
+}
+
+/* ═══════════════════════════════════════
+   GENERATE RECEIPT
+═══════════════════════════════════════ */
+document.getElementById('generateBtn').onclick=async()=>{
+  hideMsg();
+  const r=currentResident();
+  if(isOtherPurpose){
+    if(!r||!selectedPay||!document.getElementById('purposeInput').value.trim()||manualAmount()<=0){
+      showMsg('יש למלא את כל השדות.','error'); return;
+    }
+  } else {
+    if(!r||!selectedPay||selectedMonths.size===0){ showMsg('יש למלא את כל השדות.','error'); return; }
+  }
+  const btn=document.getElementById('generateBtn');
+  btn.disabled=true; btn.textContent='מפיק קבלה…';
+  try{
+    const blob=await buildPdfBlob();
+    const filename=`${r.name} - קבלה לדמי ועד.pdf`;
+    lastPdfBlob=blob; lastFileName=filename;
+    const driveFile=await uploadToDrive(blob,filename);
+
+    const months=sortedMonths();
+    const fee=residentFee();
+    const total=isOtherPurpose?manualAmount():months.length*fee;
+    const monthsCell=isOtherPurpose
+      ?('מטרה אחרת: '+document.getElementById('purposeInput').value.trim())
+      :months.map(i=>MONTH_NAMES[i]).join(', ');
+
+    await appendReceiptRow([
+      todayStr(),r.name,r.phone||'',monthsCell,
+      isOtherPurpose?0:months.length,total,selectedPay,filename,driveFile.webViewLink||''
+    ]);
+
+    document.getElementById('postActions').style.display='flex';
+    showMsg('הקבלה הופקה, נשמרה ב-Drive ותועדה בגיליון "קבלות".','ok');
+  }catch(e){
+    showMsg('שגיאה: '+(e.result?.error?.message||e.message||e),'error');
+  }finally{
+    btn.disabled=false; btn.textContent='הפק קבלה';
+  }
+};
+
+/* ═══════════════════════════════════════
+   DOWNLOAD / SHARE
+═══════════════════════════════════════ */
+document.getElementById('downloadBtn').onclick=()=>{
+  if(!lastPdfBlob) return;
+  const url=URL.createObjectURL(lastPdfBlob);
+  const a=document.createElement('a');
+  a.href=url; a.download=lastFileName; a.click();
+  URL.revokeObjectURL(url);
+};
+
+function asciiSafeFilename(){
+  return `vaad-receipt-${new Date().toISOString().slice(0,10)}.pdf`;
+}
+document.getElementById('shareBtn').onclick=async()=>{
+  if(!lastPdfBlob) return;
+  const file=new File([lastPdfBlob],asciiSafeFilename(),{type:'application/pdf'});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file]}); } catch(e){}
+  } else {
+    showMsg('הדפדפן אינו תומך בשיתוף ישיר — ניתן להוריד ולשתף ידנית.','info');
+  }
+};
+
+/* ═══════════════════════════════════════
+   BOOT
+═══════════════════════════════════════ */
+window.addEventListener('load',()=>{
+  if(!isConfigured()){
+    showMsg('ברוכים הבאים! יש ללחוץ על ⚙ הגדרות, למלא את פרטי הבניין, ולהדביק קישור לגיליון Google Sheets ולתיקיית Drive שלכם.','info');
+  }
+  initGoogle();
+});
+</script>
+</body>
+</html>
