@@ -1,12 +1,19 @@
 {
-  "name": "קבלות דמי ועד - קונגרס 17",
-  "short_name": "קבלות ועד 17",
-  "start_url": "./index.html",
+  "name": "מערכת קבלות ועד בית",
+  "short_name": "קבלות ועד",
+  "description": "הפקת קבלות דמי ועד בית עם חיבור ל-Google Sheets ו-Google Drive",
+  "start_url": "index.html",
+  "scope": ".",
   "display": "standalone",
-  "background_color": "#F0EADA",
-  "theme_color": "#1B2A4A",
+  "orientation": "portrait",
+  "background_color": "#f5efe0",
+  "theme_color": "#152a4d",
+  "lang": "he",
+  "dir": "rtl",
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }
