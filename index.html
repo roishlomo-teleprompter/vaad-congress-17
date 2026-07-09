@@ -300,6 +300,9 @@ textarea{resize:vertical;min-height:70px;}
       <input type="text" id="cfg-buildingName" placeholder="לדוגמה: ועד בית קונגרס 17">
       <label>כתובת הבניין</label>
       <input type="text" id="cfg-buildingAddr" placeholder="לדוגמה: רחוב הקונגרס 17, פתח תקווה">
+      <label>קישור לתמונת לוגו (URL, אופציונלי)</label>
+      <input type="url" id="cfg-logoUrl" placeholder="https://... (השאר ריק להצגת הלוגו של קבקליק)">
+      <img id="logoPreview" class="logo-preview" alt="לוגו">
     </div>
 
     <!-- PRICING -->
@@ -432,7 +435,8 @@ function applyBranding(){
   }
 
   const logoEl  = document.getElementById('topLogo');
-  logoEl.innerHTML = `<img src="icon-mark-192.png" alt="לוגו" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+  const logoSrc = CFG.logoUrl || 'icon-mark-192.png';
+  logoEl.innerHTML = `<img src="${logoSrc}" alt="לוגו" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
 
   document.getElementById('setupBanner').style.display = isConfigured() ? 'none' : 'flex';
 }
@@ -444,16 +448,26 @@ applyBranding();
 document.getElementById('settingsBtn').onclick = ()=>{
   document.getElementById('cfg-buildingName').value = CFG.buildingName||'';
   document.getElementById('cfg-buildingAddr').value = CFG.buildingAddr||'';
+  document.getElementById('cfg-logoUrl').value      = CFG.logoUrl||'';
   document.getElementById('cfg-defaultFee').value   = CFG.defaultFee||'';
   document.getElementById('cfg-spreadsheetId').value= CFG.spreadsheetId||'';
   document.getElementById('cfg-folderId').value     = CFG.folderId||'';
+  updateLogoPreview();
   document.getElementById('modalBg').classList.add('show');
 };
 document.getElementById('modalCancel').onclick = ()=> document.getElementById('modalBg').classList.remove('show');
 
+function updateLogoPreview(){
+  const url  = document.getElementById('cfg-logoUrl').value.trim();
+  const prev = document.getElementById('logoPreview');
+  if(url){ prev.src=url; prev.classList.add('show'); } else { prev.classList.remove('show'); }
+}
+document.getElementById('cfg-logoUrl').addEventListener('input', updateLogoPreview);
+
 document.getElementById('modalSave').onclick = ()=>{
   CFG.buildingName  = document.getElementById('cfg-buildingName').value.trim();
   CFG.buildingAddr  = document.getElementById('cfg-buildingAddr').value.trim();
+  CFG.logoUrl       = document.getElementById('cfg-logoUrl').value.trim();
   CFG.defaultFee    = parseFloat(document.getElementById('cfg-defaultFee').value)||140;
   CFG.spreadsheetId = extractSheetId(document.getElementById('cfg-spreadsheetId').value);
   CFG.folderId      = extractFolderId(document.getElementById('cfg-folderId').value);
@@ -577,7 +591,7 @@ function receiptHTML(forPdf=false){
   const bAddr  = CFG.buildingAddr || '';
   const initials = (bName.replace(/ועד בית|בניין|רחוב/g,'').trim().slice(0,2)) || 'ו';
 
-  const logoHTML = `<img class="r-logo" src="icon-mark-512.png" alt="לוגו" crossorigin="anonymous">`;
+  const logoHTML = `<img class="r-logo" src="${CFG.logoUrl || 'icon-mark-512.png'}" alt="לוגו" crossorigin="anonymous">`;
 
   const monthsChips = months.map(i=>`<span class="r-month-chip">${MONTH_NAMES[i]}</span>`).join('');
   const purposeRow  = isOtherPurpose
