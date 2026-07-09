@@ -65,7 +65,8 @@ html,body{margin:0;background:var(--paper-dark);color:var(--ink);font-family:'He
 @media(max-width:900px){.wrap{grid-template-columns:1fr;}}
 
 /* ── CARDS ── */
-.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:30px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:22px;}
+@media (max-width:480px){ .card{ padding:16px 14px; } }
 .card h2{font-family:'Frank Ruhl Libre',serif;font-size:16px;margin:0 0 16px;color:var(--ink);border-bottom:2px solid var(--paper-dark);padding-bottom:9px;display:flex;align-items:center;gap:8px;}
 .card h2 .num{font-family:'Heebo';background:var(--ink);color:var(--paper);font-size:11px;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
 
@@ -116,6 +117,7 @@ textarea{resize:vertical;min-height:70px;}
 
 /* ── RECEIPT PREVIEW ── */
 .receipt-paper{background:#FFFDF8;border:1px solid var(--line);position:relative;overflow:hidden;padding:40px 36px 32px;font-family:'Heebo';min-height:520px;display:flex;flex-direction:column;background-image:radial-gradient(circle at 10px 10px,rgba(184,144,47,.05) 1px,transparent 1px);background-size:14px 14px;}
+@media (max-width:480px){ .receipt-paper{ padding:24px 18px 20px; } }
 .r-head{text-align:center;margin-bottom:4px;display:flex;flex-direction:column;align-items:center;gap:8px;}
 .r-logo{width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid var(--gold-soft);}
 .r-logo-placeholder{width:56px;height:56px;border-radius:50%;border:2px solid var(--gold-soft);display:flex;align-items:center;justify-content:center;font-family:'Frank Ruhl Libre',serif;font-weight:900;font-size:22px;color:var(--gold);background:var(--paper-dark);}
@@ -126,9 +128,19 @@ textarea{resize:vertical;min-height:70px;}
 .r-sub{text-align:center;font-size:11px;color:var(--gold);margin-bottom:16px;letter-spacing:1px;}
 .r-meta{display:flex;justify-content:space-between;font-size:12px;color:var(--slate);margin-bottom:14px;}
 .r-table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:12px;}
-.r-table td{padding:7px 4px;border-bottom:1px solid var(--paper-dark);vertical-align:top;}
+.r-table td{padding:10px 6px;vertical-align:middle;}
+.r-table tr{border-bottom:1px solid var(--paper-dark);}
+.r-table tr:last-child{border-bottom:none;}
 .r-table td.k{color:var(--slate);width:38%;font-size:12px;}
 .r-table td.v{font-weight:600;color:var(--ink);}
+
+@media (max-width:480px){
+  .r-table, .r-table tbody, .r-table tr{ display:block; width:100%; }
+  .r-table tr{ padding:10px 0; }
+  .r-table td{ display:block; width:100% !important; padding:2px 0; white-space:normal; }
+  .r-table td.k{ font-size:11px; }
+  .r-table td.v{ font-size:14px; }
+}
 .r-months{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px;}
 .r-month-chip{background:var(--paper-dark);border:1px solid var(--line);border-radius:5px;font-size:11px;padding:2px 7px;color:var(--ink-soft);}
 .r-total{margin-top:10px;display:flex;justify-content:space-between;align-items:center;border-top:2px solid var(--ink);padding-top:10px;}
