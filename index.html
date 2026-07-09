@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>מערכת קבלות ועד בית</title>
+<title>קבקליק</title>
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
@@ -12,7 +12,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="קבלות ועד">
+<meta name="apple-mobile-web-app-title" content="קבקליק">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700;900&family=Heebo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -36,8 +36,11 @@ html,body{margin:0;background:var(--paper-dark);color:var(--ink);font-family:'He
 .brand{display:flex;align-items:center;gap:12px;}
 .brand-logo{width:40px;height:40px;border-radius:50%;border:2px solid var(--gold-soft);display:flex;align-items:center;justify-content:center;font-family:'Frank Ruhl Libre',serif;font-weight:900;color:var(--gold-soft);font-size:18px;overflow:hidden;flex:none;}
 .brand-logo img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
-.brand h1{font-family:'Frank Ruhl Libre',serif;font-size:17px;margin:0;font-weight:700;}
-.brand p{margin:1px 0 0;font-size:12px;color:#C7CEDD;}
+.brand h1{font-family:'Frank Ruhl Libre',serif;font-size:19px;margin:0;font-weight:900;letter-spacing:.3px;}
+.brand h1 .gold{color:var(--gold-soft);}
+.brand p{margin:2px 0 0;font-size:12px;color:#C7CEDD;display:flex;align-items:center;gap:5px;}
+.brand p.tagline{color:var(--gold-soft);font-weight:500;letter-spacing:.2px;}
+.brand p .dot{color:var(--gold);font-size:10px;}
 .topbar-actions{display:flex;gap:8px;align-items:center;}
 .pill-btn{background:transparent;border:1px solid #4A5C82;color:#E7EAF2;padding:7px 14px;border-radius:999px;font-size:12.5px;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;transition:.15s;}
 .pill-btn:hover{background:#27365A;}
@@ -172,8 +175,8 @@ textarea{resize:vertical;min-height:70px;}
   <div class="brand">
     <div class="brand-logo" id="topLogo"><span id="topLogoText">?</span></div>
     <div>
-      <h1 id="topBuildingName">מערכת קבלות ועד בית</h1>
-      <p id="topBuildingAddr">יש להגדיר את פרטי הבניין בהגדרות</p>
+      <h1 id="topBuildingName">קבקליק</h1>
+      <p id="topBuildingAddr" class="tagline"><span class="dot">•</span>מפיקים קבלות בקלות ובמהירות</p>
     </div>
   </div>
   <div class="topbar-actions">
@@ -401,11 +404,20 @@ let lastFileName   = null;
    TOPBAR BRANDING
 ═══════════════════════════════════════ */
 function applyBranding(){
-  const name = CFG.buildingName || 'מערכת קבלות ועד בית';
-  const addr = CFG.buildingAddr || 'יש להגדיר את פרטי הבניין בהגדרות';
-  document.getElementById('topBuildingName').textContent = name;
-  document.getElementById('topBuildingAddr').textContent = addr;
-  document.title = name;
+  const nameEl = document.getElementById('topBuildingName');
+  const addrEl = document.getElementById('topBuildingAddr');
+
+  if(CFG.buildingName){
+    nameEl.textContent = CFG.buildingName;
+    addrEl.classList.remove('tagline');
+    addrEl.innerHTML = CFG.buildingAddr || 'יש להגדיר כתובת בהגדרות';
+    document.title = CFG.buildingName;
+  } else {
+    nameEl.innerHTML = '<span class="gold">קב</span>קליק';
+    addrEl.classList.add('tagline');
+    addrEl.innerHTML = '<span class="dot">•</span>מפיקים קבלות בקלות ובמהירות';
+    document.title = 'קבקליק';
+  }
 
   const logoEl  = document.getElementById('topLogo');
   logoEl.innerHTML = `<img src="icon-mark-192.png" alt="לוגו" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
