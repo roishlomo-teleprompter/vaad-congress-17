@@ -552,6 +552,7 @@ function receiptHTML(forPdf=false){
   const total  = isOtherPurpose ? manualAmount() : months.length*fee;
   const bName  = CFG.buildingName || 'ועד בית';
   const bAddr  = CFG.buildingAddr || '';
+  const initials = (bName.replace(/ועד בית|בניין|רחוב/g,'').trim().slice(0,2)) || 'ו';
 
   const logoHTML = `<img class="r-logo" src="icon-mark-512.png" alt="לוגו" crossorigin="anonymous">`;
 
