@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#152a4d">
+<meta name="theme-color" content="#1a1a1a">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -21,29 +21,29 @@
 <script src="https://apis.google.com/js/api.js"></script>
 <style>
 :root{
-  --ink:#1B2A4A; --ink-soft:#3A4B6B;
+  --ink:#1a1a1a; --ink-soft:#3a3a3a;
   --gold:#B8902F; --gold-soft:#E4D6A8;
   --paper:#FAF7EF; --paper-dark:#F0EADA;
-  --line:#D8CFB8; --slate:#5B6B82;
+  --line:#D8CFB8; --slate:#5c5c5c;
   --good:#2F6E4F; --bad:#A33E3E;
-  --shadow:0 12px 32px -12px rgba(27,42,74,.25);
+  --shadow:0 12px 32px -12px rgba(0,0,0,.25);
 }
 *{box-sizing:border-box;}
 html,body{margin:0;background:var(--paper-dark);color:var(--ink);font-family:'Heebo',sans-serif;min-height:100vh;}
 
 /* ── TOPBAR ── */
-.topbar{background:var(--ink);color:var(--paper);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;box-shadow:var(--shadow);}
+.topbar{background:#1a1a1a;color:var(--paper);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;box-shadow:var(--shadow);}
 .brand{display:flex;align-items:center;gap:12px;}
 .brand-logo{width:40px;height:40px;border-radius:50%;border:2px solid var(--gold-soft);display:flex;align-items:center;justify-content:center;font-family:'Frank Ruhl Libre',serif;font-weight:900;color:var(--gold-soft);font-size:18px;overflow:hidden;flex:none;}
 .brand-logo img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
 .brand h1{font-family:'Frank Ruhl Libre',serif;font-size:19px;margin:0;font-weight:900;letter-spacing:.3px;}
 .brand h1 .gold{color:var(--gold-soft);}
-.brand p{margin:2px 0 0;font-size:12px;color:#C7CEDD;display:flex;align-items:center;gap:5px;}
+.brand p{margin:2px 0 0;font-size:12px;color:#C9C9C9;display:flex;align-items:center;gap:5px;}
 .brand p.tagline{color:var(--gold-soft);font-weight:500;letter-spacing:.2px;}
 .brand p .dot{color:var(--gold);font-size:10px;}
 .topbar-actions{display:flex;gap:8px;align-items:center;}
-.pill-btn{background:transparent;border:1px solid #4A5C82;color:#E7EAF2;padding:7px 14px;border-radius:999px;font-size:12.5px;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;transition:.15s;}
-.pill-btn:hover{background:#27365A;}
+.pill-btn{background:transparent;border:1px solid #4a4a4a;color:#EDEDED;padding:7px 14px;border-radius:999px;font-size:12.5px;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;transition:.15s;}
+.pill-btn:hover{background:#2e2e2e;}
 .pill-btn.gold{border-color:var(--gold);color:var(--gold-soft);}
 .status-dot{width:8px;height:8px;border-radius:50%;background:var(--bad);display:inline-block;transition:.3s;}
 .status-dot.on{background:#5FBE8B;}
@@ -65,8 +65,8 @@ html,body{margin:0;background:var(--paper-dark);color:var(--ink);font-family:'He
 @media(max-width:900px){.wrap{grid-template-columns:1fr;}}
 
 /* ── CARDS ── */
-.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:22px;}
-@media (max-width:480px){ .card{ padding:16px 14px; } }
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:30px;}
+@media (max-width:480px){ .card{ padding:20px 18px; } }
 .card h2{font-family:'Frank Ruhl Libre',serif;font-size:16px;margin:0 0 16px;color:var(--ink);border-bottom:2px solid var(--paper-dark);padding-bottom:9px;display:flex;align-items:center;gap:8px;}
 .card h2 .num{font-family:'Heebo';background:var(--ink);color:var(--paper);font-size:11px;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
 
@@ -96,8 +96,8 @@ textarea{resize:vertical;min-height:70px;}
 .other-purpose-toggle input{margin-top:3px;width:16px;height:16px;accent-color:var(--gold);flex:none;}
 
 /* ── TOTAL ── */
-.total-bar{margin-top:16px;display:flex;align-items:center;justify-content:space-between;background:var(--ink);color:var(--paper);border-radius:10px;padding:13px 16px;}
-.total-bar .lbl{font-size:12.5px;color:#C7CEDD;}
+.total-bar{margin-top:16px;display:flex;align-items:center;justify-content:space-between;background:#1a1a1a;color:var(--paper);border-radius:10px;padding:13px 16px;}
+.total-bar .lbl{font-size:12.5px;color:#C9C9C9;}
 .total-bar .amt{font-family:'Frank Ruhl Libre',serif;font-size:24px;font-weight:700;color:var(--gold-soft);}
 
 /* ── BUTTONS ── */
@@ -111,7 +111,7 @@ textarea{resize:vertical;min-height:70px;}
 /* ── MESSAGES ── */
 .msg{font-size:12.5px;margin-top:8px;padding:9px 12px;border-radius:8px;display:none;}
 .msg.show{display:block;}
-.msg.info{background:#EAF1FB;color:#2A547F;}
+.msg.info{background:#EDEDED;color:#3a3a3a;}
 .msg.error{background:#FBEAEA;color:var(--bad);}
 .msg.ok{background:#EAF7EE;color:var(--good);}
 
