@@ -326,8 +326,8 @@ textarea{resize:vertical;min-height:70px;}
     <!-- EMAIL SENDER INFO -->
     <div class="settings-section">
       <h4>📧 שליחת קבלות במייל</h4>
-      <p style="font-size:11.5px;color:var(--slate);margin:0 0 6px;line-height:1.6;">כשמסמנים "שלח קבלה גם למייל" בטופס, הקבלה נשלחת ישירות מחשבון ה-Google שאיתו התחברתם:</p>
-      <p style="font-size:13px;font-weight:700;color:var(--ink);direction:ltr;text-align:left;background:var(--paper-dark);border-radius:8px;padding:8px 10px;" id="senderEmailDisplay">יש להתחבר עם Google כדי לראות את הכתובת</p>
+      <p style="font-size:11.5px;color:var(--slate);margin:0 0 6px;line-height:1.6;">כשמסמנים "שלח קבלה גם למייל" בטופס, הקבלה נשלחת מחשבון ה-Gmail שמפעיל את האפליקציה:</p>
+      <p style="font-size:13px;font-weight:700;color:var(--ink);direction:ltr;text-align:left;background:var(--paper-dark);border-radius:8px;padding:8px 10px;" id="senderEmailDisplay">לא ידוע (יתעדכן לאחר התחברות)</p>
     </div>
 
     <!-- DATA LINKS -->
@@ -402,7 +402,7 @@ function extractFolderId(input){
 /* ═══════════════════════════════════════
    CONFIG & STORAGE
 ═══════════════════════════════════════ */
-const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/gmail.send';
+const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email';
 const RESIDENTS_SHEET = 'אנשי קשר';
 const RECEIPTS_SHEET  = 'קבלות';
 const MONTH_NAMES = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
@@ -753,16 +753,19 @@ function hideLicenseBlock(){
 let senderEmailAddr = '';
 function updateSenderEmailDisplay(){
   const el = document.getElementById('senderEmailDisplay');
-  if(el) el.textContent = senderEmailAddr || 'יש להתחבר עם Google כדי לראות את הכתובת';
+  if(el) el.textContent = senderEmailAddr || 'לא ידוע (יתעדכן לאחר התחברות)';
 }
 /* Returns true if allowed to proceed, false if blocked (and shows the block screen). */
 async function enforceLicense(token){
+  if(!LICENSE_API_URL) return true; // licensing not configured yet — no-op
   try{
     const email = await getUserEmail(token);
-    if(email){ senderEmailAddr = email; updateSenderEmailDisplay(); }
-    if(!LICENSE_API_URL) return true; // licensing not configured yet — no-op
     if(!email) return true; // couldn't determine email — fail open rather than lock out on a glitch
     const result = await checkLicense(email);
+    if(result.senderEmail){
+      senderEmailAddr = result.senderEmail;
+      updateSenderEmailDisplay();
+    }
     if(result.allowed){ hideLicenseBlock(); return true; }
     showLicenseBlock(result.message);
     return false;
@@ -1017,10 +1020,8 @@ async function uploadToDrive(blob,filename){
 }
 
 /* ═══════════════════════════════════════
-   GENERATE RECEIPT
-═══════════════════════════════════════ */
-/* ═══════════════════════════════════════
-   EMAIL RECEIPT (sent directly from the connected Google account via Gmail API)
+   EMAIL RECEIPT (via Apps Script, sent from Roi's Gmail — no extra
+   OAuth scope, no consent screen shown to the customer)
 ═══════════════════════════════════════ */
 function blobToBase64(blob){
   return new Promise((resolve,reject)=>{
@@ -1030,67 +1031,28 @@ function blobToBase64(blob){
     reader.readAsDataURL(blob);
   });
 }
-function utf8ToBase64(str){
-  return btoa(unescape(encodeURIComponent(str)));
-}
-function toBase64Url(str){
-  return utf8ToBase64(str).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-}
-function buildMimeMessage(to, subject, bodyText, pdfBase64, filename){
-  const boundary = 'kabklik_' + Date.now();
-  const encodedSubject = '=?UTF-8?B?' + utf8ToBase64(subject) + '?=';
-  const lines = [
-    `To: ${to}`,
-    `Subject: ${encodedSubject}`,
-    'MIME-Version: 1.0',
-    `Content-Type: multipart/mixed; boundary="${boundary}"`,
-    '',
-    `--${boundary}`,
-    'Content-Type: text/plain; charset="UTF-8"',
-    'Content-Transfer-Encoding: base64',
-    '',
-    utf8ToBase64(bodyText),
-    '',
-    `--${boundary}`,
-    `Content-Type: application/pdf; name="${filename}"`,
-    'Content-Transfer-Encoding: base64',
-    `Content-Disposition: attachment; filename="${filename}"`,
-    '',
-    pdfBase64,
-    '',
-    `--${boundary}--`
-  ];
-  return lines.join('\r\n');
-}
 async function sendReceiptByEmail(resident, pdfBlob, filename, total){
-  if(!accessToken){ throw new Error('יש להתחבר עם Google לפני שליחת מייל.'); }
-  const pdfBase64 = await blobToBase64(pdfBlob);
-  const buildingName = CFG.buildingName || 'קבקליק';
-  const subject = `קבלה לדמי ועד - ${buildingName}`;
-  const bodyText =
-    `שלום ${resident.name},\n\n` +
-    `מצורפת קבלה על תשלום דמי ועד בית בסך ${total} ₪.\n\n` +
-    `תודה רבה,\n${buildingName}`;
-
-  const raw = toBase64Url(buildMimeMessage(resident.email, subject, bodyText, pdfBase64, filename));
-
-  const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
-    method:'POST',
-    headers:{
-      Authorization:'Bearer '+accessToken,
-      'Content-Type':'application/json'
-    },
-    body: JSON.stringify({ raw })
-  });
-  if(!res.ok){
-    const errData = await res.json().catch(()=>({}));
-    const errMsg = errData.error?.message || ('שגיאת Gmail API: '+res.status);
-    if(res.status===403 || /insufficient|scope/i.test(errMsg)){
-      throw new Error('חסרה הרשאת שליחת מייל. יש להתנתק ולהתחבר מחדש עם Google כדי לאשר את ההרשאה החדשה.');
-    }
-    throw new Error(errMsg);
+  if(!LICENSE_API_URL){
+    throw new Error('שליחת מייל טרם הוגדרה (LICENSE_API_URL ריק).');
   }
-  return res.json();
+  const pdfBase64 = await blobToBase64(pdfBlob);
+  const res = await fetch(LICENSE_API_URL, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'}, // avoids CORS preflight to Apps Script
+    body: JSON.stringify({
+      action:'sendReceipt',
+      key: LICENSE_SECRET,
+      to: resident.email,
+      residentName: resident.name,
+      buildingName: CFG.buildingName || 'קבקליק',
+      total: total,
+      filename: filename,
+      pdfBase64: pdfBase64
+    })
+  });
+  const data = await res.json();
+  if(!data.ok){ throw new Error(data.message || 'שגיאה לא ידועה בשליחת המייל.'); }
+  return data;
 }
 
 document.getElementById('generateBtn').onclick=async()=>{
