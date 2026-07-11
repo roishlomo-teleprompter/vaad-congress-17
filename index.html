@@ -99,6 +99,11 @@ textarea{resize:vertical;min-height:70px;}
 .total-bar{margin-top:16px;display:flex;align-items:center;justify-content:space-between;background:#1a1a1a;color:var(--paper);border-radius:10px;padding:13px 16px;}
 .total-bar .lbl{font-size:12.5px;color:#C9C9C9;}
 .total-bar .amt{font-family:'Frank Ruhl Libre',serif;font-size:24px;font-weight:700;color:var(--gold-soft);}
+.email-check-row{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;color:var(--ink-soft);cursor:pointer;user-select:none;}
+.email-check-row input[type="checkbox"]{width:17px;height:17px;accent-color:var(--gold);cursor:pointer;}
+.email-check-row input[type="checkbox"]:disabled{cursor:not-allowed;}
+.email-check-row.disabled{color:var(--slate);opacity:.65;cursor:not-allowed;}
+.email-check-row .hint{font-size:11.5px;color:var(--slate);}
 
 /* ── BUTTONS ── */
 .generate-btn{width:100%;margin-top:14px;padding:13px;border:none;border-radius:10px;background:var(--gold);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:'Heebo';transition:.15s;}
@@ -263,6 +268,11 @@ textarea{resize:vertical;min-height:70px;}
       <span class="lbl" id="totalLbl">סכום לתשלום</span>
       <span class="amt" id="totalAmt">0 ₪</span>
     </div>
+
+    <label class="email-check-row" id="emailCheckRow">
+      <input type="checkbox" id="emailSendCheckbox" disabled>
+      <span>📧 שלח קבלה גם למייל <span id="emailCheckHint" class="hint"></span></span>
+    </label>
 
     <button class="generate-btn" id="generateBtn" disabled>הפק קבלה</button>
 
@@ -535,8 +545,20 @@ const phoneBox       = document.getElementById('phoneBox');
 residentSelect.addEventListener('change',()=>{
   const r = residents[residentSelect.value];
   phoneBox.textContent = r ? 'טלפון: '+(r.phone||'לא צויין') : 'טלפון יוצג לאחר בחירת דייר';
+  updateEmailCheckbox(r);
   refreshTotal(); refreshPreview();
 });
+
+function updateEmailCheckbox(r){
+  const cb   = document.getElementById('emailSendCheckbox');
+  const row  = document.getElementById('emailCheckRow');
+  const hint = document.getElementById('emailCheckHint');
+  const hasEmail = !!(r && r.email);
+  cb.disabled = !hasEmail;
+  if(!hasEmail){ cb.checked = false; }
+  row.classList.toggle('disabled', !hasEmail);
+  hint.textContent = hasEmail ? `(${r.email})` : '(לא הוגדר מייל לדייר זה)';
+}
 
 /* ═══════════════════════════════════════
    TOTAL & VALIDATION
@@ -822,17 +844,19 @@ async function loadResidents(){
     let nameIdx  = header.findIndex(h=>/שם|name/.test(h));
     let phoneIdx = header.findIndex(h=>/טלפון|פלאפון|נייד|phone/.test(h));
     let feeIdx   = header.findIndex(h=>/מחיר|fee|סכום/.test(h));
+    let emailIdx = header.findIndex(h=>/מייל|אימייל|email/.test(h));
     let startRow = 1;
     if(nameIdx===-1){ nameIdx=0; startRow=0; }
     if(phoneIdx===-1) phoneIdx=1;
-    // feeIdx may be -1 → use default
+    // feeIdx / emailIdx may be -1 → optional, no default column guess
 
     residents=rows.slice(startRow)
       .filter(r=>r[nameIdx]&&r[nameIdx].toString().trim())
       .map(r=>({
         name: r[nameIdx].toString().trim(),
         phone:(r[phoneIdx]||'').toString().trim(),
-        fee:  feeIdx>-1 ? (parseFloat(r[feeIdx])||0) : 0
+        fee:  feeIdx>-1 ? (parseFloat(r[feeIdx])||0) : 0,
+        email: emailIdx>-1 ? (r[emailIdx]||'').toString().trim() : ''
       }));
 
     residentSelect.innerHTML='<option value="">— בחרו דייר —</option>'+
@@ -981,6 +1005,41 @@ async function uploadToDrive(blob,filename){
 /* ═══════════════════════════════════════
    GENERATE RECEIPT
 ═══════════════════════════════════════ */
+/* ═══════════════════════════════════════
+   EMAIL RECEIPT (via Apps Script mail backend)
+═══════════════════════════════════════ */
+function blobToBase64(blob){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=> resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+async function sendReceiptByEmail(resident, pdfBlob, filename, total){
+  if(!LICENSE_API_URL){
+    throw new Error('שליחת מייל טרם הוגדרה (LICENSE_API_URL ריק).');
+  }
+  const pdfBase64 = await blobToBase64(pdfBlob);
+  const res = await fetch(LICENSE_API_URL, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'}, // avoids CORS preflight to Apps Script
+    body: JSON.stringify({
+      action:'sendReceipt',
+      key: LICENSE_SECRET,
+      to: resident.email,
+      residentName: resident.name,
+      buildingName: CFG.buildingName || 'קבקליק',
+      total: total,
+      filename: filename,
+      pdfBase64: pdfBase64
+    })
+  });
+  const data = await res.json();
+  if(!data.ok){ throw new Error(data.message || 'שגיאה לא ידועה בשליחת המייל.'); }
+  return data;
+}
+
 document.getElementById('generateBtn').onclick=async()=>{
   hideMsg();
   const r=currentResident();
@@ -1012,7 +1071,18 @@ document.getElementById('generateBtn').onclick=async()=>{
     ]);
 
     document.getElementById('postActions').style.display='flex';
-    showMsg('הקבלה הופקה, נשמרה ב-Drive ותועדה בגיליון "קבלות".','ok');
+
+    const wantsEmail = document.getElementById('emailSendCheckbox').checked && r.email;
+    if(wantsEmail){
+      try{
+        await sendReceiptByEmail(r, blob, filename, total);
+        showMsg('הקבלה הופקה, נשמרה ב-Drive ונשלחה למייל '+r.email+'.','ok');
+      }catch(emailErr){
+        showMsg('הקבלה הופקה ונשמרה, אך שליחת המייל נכשלה: '+(emailErr.message||emailErr),'error');
+      }
+    } else {
+      showMsg('הקבלה הופקה, נשמרה ב-Drive ותועדה בגיליון "קבלות".','ok');
+    }
   }catch(e){
     showMsg('שגיאה: '+(e.result?.error?.message||e.message||e),'error');
   }finally{
