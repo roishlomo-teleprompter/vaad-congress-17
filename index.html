@@ -863,13 +863,17 @@ async function loadResidents(){
 
     // detect header row
     let header=rows[0].map(h=>(h||'').toString().trim().toLowerCase());
-    let nameIdx  = header.findIndex(h=>/שם|name/.test(h));
+    let nameIdx  = header.findIndex(h=>/שם|name|איש קשר|דייר|תושב/.test(h));
     let phoneIdx = header.findIndex(h=>/טלפון|פלאפון|נייד|phone/.test(h));
     let feeIdx   = header.findIndex(h=>/מחיר|fee|סכום/.test(h));
     let emailIdx = header.findIndex(h=>/מייל|אימייל|email/.test(h));
-    let startRow = 1;
-    if(nameIdx===-1){ nameIdx=0; startRow=0; }
-    if(phoneIdx===-1) phoneIdx=1;
+    // If ANY column header was recognized, row 0 is a header row and should be
+    // skipped — not just when the name column specifically was found. This
+    // avoids accidentally treating the header itself as a resident.
+    const headerRecognized = nameIdx>-1 || phoneIdx>-1 || feeIdx>-1 || emailIdx>-1;
+    let startRow = headerRecognized ? 1 : 0;
+    if(nameIdx===-1)  nameIdx = 0;
+    if(phoneIdx===-1) phoneIdx = 1;
     // feeIdx / emailIdx may be -1 → optional, no default column guess
 
     residents=rows.slice(startRow)
