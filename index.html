@@ -75,6 +75,17 @@ html,body{margin:0;background:var(--paper-dark);color:var(--ink);font-family:'He
 label.field-label{display:block;font-size:12.5px;color:var(--slate);margin:0 0 5px;font-weight:500;}
 select,input[type=text],input[type=number],input[type=url],textarea{width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:9px;font-family:inherit;font-size:14px;background:var(--paper);color:var(--ink);}
 select:focus,input:focus,textarea:focus{outline:2px solid var(--gold-soft);border-color:var(--gold);}
+.resident-picker{position:relative;}
+.resident-picker input:disabled{opacity:.6;cursor:not-allowed;}
+.resident-dropdown{display:none;position:absolute;z-index:20;top:calc(100% + 4px);right:0;left:0;max-height:260px;overflow-y:auto;background:#fff;border:1.5px solid var(--line);border-radius:9px;box-shadow:var(--shadow);}
+.resident-dropdown.show{display:block;}
+.resident-option{padding:10px 12px;font-size:13.5px;cursor:pointer;border-bottom:1px solid var(--paper-dark);display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.resident-option:last-child{border-bottom:none;}
+.resident-option:hover,.resident-option.active{background:var(--paper-dark);}
+.resident-option .rname{font-weight:600;color:var(--ink);}
+.resident-option .rname mark{background:var(--gold-soft);color:var(--ink);border-radius:3px;padding:0 1px;}
+.resident-option .rphone{font-size:11.5px;color:var(--slate);direction:ltr;}
+.resident-empty{padding:14px 12px;font-size:13px;color:var(--slate);text-align:center;}
 textarea{resize:vertical;min-height:70px;}
 .row{margin-bottom:16px;}
 .phone-box{margin-top:6px;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-soft);background:var(--paper);border:1px dashed var(--line);border-radius:8px;padding:7px 12px;}
@@ -222,7 +233,11 @@ textarea{resize:vertical;min-height:70px;}
 
     <div class="row">
       <label class="field-label">בחירת דייר</label>
-      <select id="residentSelect"><option value="">— יש להתחבר ולטעון רשימת דיירים —</option></select>
+      <div class="resident-picker" id="residentPicker">
+        <input type="text" id="residentSearchInput" autocomplete="off" placeholder="יש להתחבר ולטעון רשימת דיירים" disabled>
+        <div class="resident-dropdown" id="residentDropdown"></div>
+      </div>
+      <select id="residentSelect" style="display:none;"><option value="">— יש להתחבר ולטעון רשימת דיירים —</option></select>
       <div class="phone-box" id="phoneBox">טלפון יוצג לאחר בחירת דייר</div>
     </div>
 
@@ -574,6 +589,103 @@ function updateEmailCheckbox(r){
 }
 
 /* ═══════════════════════════════════════
+   RESIDENT LIVE SEARCH (autocomplete over the hidden <select>)
+═══════════════════════════════════════ */
+const residentSearchInput = document.getElementById('residentSearchInput');
+const residentDropdown    = document.getElementById('residentDropdown');
+let residentActiveIdx = -1;   // index within the currently *filtered* list
+let residentFiltered  = [];   // [{i, r}] currently shown, in display order
+
+function escapeHtml2(s){
+  return (''+s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function highlightMatch(name, query){
+  if(!query) return escapeHtml2(name);
+  const idx = name.toLowerCase().indexOf(query.toLowerCase());
+  if(idx===-1) return escapeHtml2(name);
+  return escapeHtml2(name.slice(0,idx)) + '<mark>' + escapeHtml2(name.slice(idx,idx+query.length)) + '</mark>' + escapeHtml2(name.slice(idx+query.length));
+}
+function renderResidentDropdown(query){
+  const q = (query||'').trim();
+  // Prefix match first (what the person asked for — typing 'א' shows names
+  // starting with א), falling back to "contains" so a middle-of-name typo
+  // still finds someone rather than showing nothing.
+  const starts = [];
+  const contains = [];
+  residents.forEach((r,i)=>{
+    if(!q){ starts.push({i,r}); return; }
+    const n = r.name.toLowerCase();
+    const qq = q.toLowerCase();
+    if(n.startsWith(qq)) starts.push({i,r});
+    else if(n.includes(qq)) contains.push({i,r});
+  });
+  residentFiltered = starts.concat(contains);
+  residentActiveIdx = residentFiltered.length ? 0 : -1;
+
+  if(!residentFiltered.length){
+    residentDropdown.innerHTML = `<div class="resident-empty">לא נמצא דייר תואם${q?` ל-"${escapeHtml2(q)}"`:''}</div>`;
+  } else {
+    residentDropdown.innerHTML = residentFiltered.map((item,pos)=>
+      `<div class="resident-option${pos===0?' active':''}" data-pos="${pos}">
+         <span class="rname">${highlightMatch(item.r.name, q)}</span>
+         <span class="rphone">${escapeHtml2(item.r.phone||'')}</span>
+       </div>`
+    ).join('');
+  }
+  residentDropdown.classList.add('show');
+}
+function closeResidentDropdown(){
+  residentDropdown.classList.remove('show');
+  residentActiveIdx = -1;
+}
+function selectResidentByFilteredPos(pos){
+  const item = residentFiltered[pos];
+  if(!item) return;
+  residentSelect.value = item.i;
+  residentSelect.dispatchEvent(new Event('change'));
+  residentSearchInput.value = item.r.name;
+  closeResidentDropdown();
+}
+function updateActiveHighlight(){
+  residentDropdown.querySelectorAll('.resident-option').forEach(el=>{
+    el.classList.toggle('active', +el.dataset.pos === residentActiveIdx);
+  });
+  const activeEl = residentDropdown.querySelector('.resident-option.active');
+  if(activeEl) activeEl.scrollIntoView({block:'nearest'});
+}
+
+residentSearchInput.addEventListener('input', ()=>{
+  renderResidentDropdown(residentSearchInput.value);
+});
+residentSearchInput.addEventListener('focus', ()=>{
+  if(residentSelect.options.length>1) renderResidentDropdown(residentSearchInput.value);
+});
+residentSearchInput.addEventListener('keydown', e=>{
+  if(!residentDropdown.classList.contains('show')) return;
+  if(e.key==='ArrowDown'){
+    e.preventDefault();
+    if(residentFiltered.length){ residentActiveIdx=(residentActiveIdx+1)%residentFiltered.length; updateActiveHighlight(); }
+  } else if(e.key==='ArrowUp'){
+    e.preventDefault();
+    if(residentFiltered.length){ residentActiveIdx=(residentActiveIdx-1+residentFiltered.length)%residentFiltered.length; updateActiveHighlight(); }
+  } else if(e.key==='Enter'){
+    e.preventDefault();
+    if(residentActiveIdx>-1) selectResidentByFilteredPos(residentActiveIdx);
+  } else if(e.key==='Escape'){
+    closeResidentDropdown();
+  }
+});
+residentDropdown.addEventListener('mousedown', e=>{
+  // mousedown (not click) so this fires before the input's blur handler
+  const opt = e.target.closest('.resident-option');
+  if(!opt) return;
+  selectResidentByFilteredPos(+opt.dataset.pos);
+});
+document.addEventListener('click', e=>{
+  if(!document.getElementById('residentPicker').contains(e.target)) closeResidentDropdown();
+});
+
+/* ═══════════════════════════════════════
    TOTAL & VALIDATION
 ═══════════════════════════════════════ */
 function residentFee(){
@@ -887,6 +999,12 @@ async function loadResidents(){
 
     residentSelect.innerHTML='<option value="">— בחרו דייר —</option>'+
       residents.map((r,i)=>`<option value="${i}">${r.name}${r.fee?` (${r.fee} ₪/חודש)`:''}</option>`).join('');
+
+    const searchInput = document.getElementById('residentSearchInput');
+    searchInput.disabled = false;
+    searchInput.placeholder = 'הקלידו שם דייר לחיפוש...';
+    searchInput.value = '';
+
     showMsg(`נטענו ${residents.length} דיירים.`,'ok');
   }catch(e){
     if(e.status===401||e.result?.error?.code===401){
