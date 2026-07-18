@@ -15,37 +15,39 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="קבקליק">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700;900&family=Heebo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700;900&family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://apis.google.com/js/api.js"></script>
 <style>
 :root{
-  --ink:#1a1a1a; --ink-soft:#3a3a3a;
-  --gold:#B8902F; --gold-soft:#E4D6A8;
-  --paper:#FAF7EF; --paper-dark:#F0EADA;
-  --line:#D8CFB8; --slate:#5c5c5c;
-  --good:#2F6E4F; --bad:#A33E3E;
-  --shadow:0 12px 32px -12px rgba(0,0,0,.25);
+  --ink:#101828; --ink-soft:#3a3a3a;
+  --blue:#2563EB; --blue-dark:#1D4ED8; --blue-soft:#EAF1FE;
+  --gold:#E0A72E; --gold-soft:#FBEED1;
+  --paper:#FFFFFF; --paper-dark:#F5F8FB;
+  --line:#E3E9F0; --slate:#667085;
+  --good:#0E9F6E; --good-soft:#E7F7F1; --bad:#A33E3E;
+  --shadow:0 12px 32px -12px rgba(16,24,40,.16);
+  --app-bg:#F5F8FB; --card-line:#E3E9F0; --card-shadow:0 8px 24px -14px rgba(16,24,40,.18);
 }
 *{box-sizing:border-box;}
-html,body{margin:0;background:var(--paper-dark);color:var(--ink);font-family:'Heebo',sans-serif;min-height:100vh;}
+html,body{margin:0;background:var(--app-bg);color:var(--ink);font-family:'Heebo',sans-serif;min-height:100vh;}
 
 /* ── TOPBAR ── */
-.topbar{background:#1a1a1a;color:var(--paper);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;box-shadow:var(--shadow);}
+.topbar{background:#fff;color:var(--ink);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1.5px solid var(--card-line);}
 .brand{display:flex;align-items:center;gap:12px;}
-.brand-logo{width:40px;height:40px;border-radius:50%;border:2px solid var(--gold-soft);display:flex;align-items:center;justify-content:center;font-family:'Frank Ruhl Libre',serif;font-weight:900;color:var(--gold-soft);font-size:18px;overflow:hidden;flex:none;}
-.brand-logo img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
-.brand h1{font-family:'Frank Ruhl Libre',serif;font-size:19px;margin:0;font-weight:900;letter-spacing:.3px;}
-.brand h1 .gold{color:var(--gold-soft);}
-.brand p{margin:2px 0 0;font-size:12px;color:#C9C9C9;display:flex;align-items:center;gap:5px;}
-.brand p.tagline{color:var(--gold-soft);font-weight:500;letter-spacing:.2px;}
+.brand-logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#3B82F6,#1D4ED8);display:flex;align-items:center;justify-content:center;font-family:'Frank Ruhl Libre',serif;font-weight:900;color:#fff;font-size:18px;overflow:hidden;flex:none;}
+.brand-logo img{width:100%;height:100%;object-fit:cover;border-radius:12px;}
+.brand h1{font-family:'Heebo',sans-serif;font-size:20px;margin:0;font-weight:900;letter-spacing:.2px;color:var(--blue);}
+.brand h1 .gold{color:#000;}
+.brand p{margin:2px 0 0;font-size:12px;color:var(--slate);display:flex;align-items:center;gap:5px;}
+.brand p.tagline{color:#000;font-weight:600;letter-spacing:.2px;}
 .brand p .dot{color:var(--gold);font-size:10px;}
 .topbar-actions{display:flex;gap:8px;align-items:center;}
-.pill-btn{background:transparent;border:1px solid #4a4a4a;color:#EDEDED;padding:7px 14px;border-radius:999px;font-size:12.5px;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;transition:.15s;}
-.pill-btn:hover{background:#2e2e2e;}
-.pill-btn.gold{border-color:var(--gold);color:var(--gold-soft);}
+.pill-btn{background:#fff;border:1.5px solid var(--card-line);color:var(--ink-soft);padding:8px 15px;border-radius:999px;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:600;display:flex;align-items:center;gap:6px;transition:.15s;}
+.pill-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-soft);}
+.pill-btn.gold{border-color:var(--blue);color:var(--blue);background:var(--blue-soft);}
 .status-dot{width:8px;height:8px;border-radius:50%;background:var(--bad);display:inline-block;transition:.3s;}
 .status-dot.on{background:#5FBE8B;}
 
@@ -57,92 +59,100 @@ html,body{margin:0;background:var(--paper-dark);color:var(--ink);font-family:'He
 }
 
 /* ── SETUP BANNER ── */
-.setup-banner{background:#FFF8E6;border-bottom:2px solid var(--gold-soft);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;}
+.setup-banner{background:var(--blue-soft);border-bottom:2px solid #C9DCFB;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;}
 .setup-banner p{margin:0;font-size:13.5px;color:var(--ink);}
-.setup-banner button{background:var(--gold);color:#fff;border:none;border-radius:8px;padding:8px 18px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+.setup-banner button{background:var(--blue);color:#fff;border:none;border-radius:8px;padding:8px 18px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+.setup-banner button:hover{background:var(--blue-dark);}
 
 /* ── LAYOUT ── */
 .wrap{max-width:1180px;margin:0 auto;padding:24px 20px 60px;display:grid;grid-template-columns:1fr 1fr;gap:24px;}
 @media(max-width:900px){.wrap{grid-template-columns:1fr;}}
 
 /* ── CARDS ── */
-.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:30px;}
+.card{background:#fff;border:1.5px solid var(--card-line);border-radius:18px;box-shadow:var(--card-shadow);padding:28px;}
 @media (max-width:480px){ .card{ padding:20px 18px; } }
-.card h2{font-family:'Frank Ruhl Libre',serif;font-size:16px;margin:0 0 16px;color:var(--ink);border-bottom:2px solid var(--paper-dark);padding-bottom:9px;display:flex;align-items:center;gap:8px;}
-.card h2 .num{font-family:'Heebo';background:var(--ink);color:var(--paper);font-size:11px;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+.card h2{font-family:'Heebo';font-weight:800;font-size:17px;margin:0 0 18px;color:var(--ink);border-bottom:none;padding-bottom:0;display:flex;align-items:center;gap:9px;}
+.card h2 .num{font-family:'Heebo';background:var(--blue);color:#fff;font-size:12px;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;}
 
 /* ── FORM FIELDS ── */
-label.field-label{display:block;font-size:12.5px;color:var(--slate);margin:0 0 5px;font-weight:500;}
-select,input[type=text],input[type=number],input[type=url],textarea{width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:9px;font-family:inherit;font-size:14px;background:var(--paper);color:var(--ink);}
-select:focus,input:focus,textarea:focus{outline:2px solid var(--gold-soft);border-color:var(--gold);}
+label.field-label{display:block;font-size:13.5px;color:var(--ink);margin:0 0 6px;font-weight:600;}
+select,input[type=text],input[type=number],input[type=url],textarea{width:100%;padding:12px 14px;border:1.5px solid var(--card-line);border-radius:10px;font-family:inherit;font-size:15px;background:#fff;color:var(--ink);transition:.15s;}
+select:focus,input:focus,textarea:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-soft);}
 .resident-picker{position:relative;}
 .resident-picker input:disabled{opacity:.6;cursor:not-allowed;}
-.resident-dropdown{display:none;position:absolute;z-index:20;top:calc(100% + 4px);right:0;left:0;max-height:260px;overflow-y:auto;background:#fff;border:1.5px solid var(--line);border-radius:9px;box-shadow:var(--shadow);}
+.resident-dropdown{display:none;position:absolute;z-index:20;top:calc(100% + 4px);right:0;left:0;max-height:260px;overflow-y:auto;background:#fff;border:1.5px solid var(--card-line);border-radius:10px;box-shadow:var(--card-shadow);}
 .resident-dropdown.show{display:block;}
-.resident-option{padding:10px 12px;font-size:13.5px;cursor:pointer;border-bottom:1px solid var(--paper-dark);display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.resident-option{padding:10px 12px;font-size:13.5px;cursor:pointer;border-bottom:1px solid var(--app-bg);display:flex;justify-content:space-between;align-items:center;gap:8px;}
 .resident-option:last-child{border-bottom:none;}
-.resident-option:hover,.resident-option.active{background:var(--paper-dark);}
+.resident-option:hover,.resident-option.active{background:var(--blue-soft);}
 .resident-option .rname{font-weight:600;color:var(--ink);}
-.resident-option .rname mark{background:var(--gold-soft);color:var(--ink);border-radius:3px;padding:0 1px;}
+.resident-option .rname mark{background:var(--blue-soft);color:var(--blue-dark);border-radius:3px;padding:0 1px;}
 .resident-option .rphone{font-size:11.5px;color:var(--slate);direction:ltr;}
 .resident-empty{padding:14px 12px;font-size:13px;color:var(--slate);text-align:center;}
 textarea{resize:vertical;min-height:70px;}
 .row{margin-bottom:16px;}
-.phone-box{margin-top:6px;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-soft);background:var(--paper);border:1px dashed var(--line);border-radius:8px;padding:7px 12px;}
+.phone-box{margin-top:6px;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-soft);background:var(--app-bg);border:1px dashed var(--card-line);border-radius:9px;padding:8px 12px;}
 
 /* ── PAYMENT METHOD ── */
 .pay-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-.pay-opt{border:1.5px solid var(--line);border-radius:10px;padding:9px 10px;cursor:pointer;font-size:13px;text-align:center;transition:.15s;user-select:none;background:var(--paper);}
-.pay-opt.active{border-color:var(--gold);background:var(--gold-soft);color:var(--ink);font-weight:600;}
+.pay-opt{border:1.5px solid var(--card-line);border-radius:10px;padding:10px 10px;cursor:pointer;font-size:13.5px;text-align:center;transition:.15s;user-select:none;background:#fff;font-weight:500;}
+.pay-opt.active{border-color:var(--blue);background:var(--blue-soft);color:var(--blue-dark);font-weight:700;}
 
 /* ── MONTHS ── */
-.months-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;}
-.month-box{border:1.5px solid var(--line);border-radius:9px;padding:9px 4px;text-align:center;font-size:12.5px;cursor:pointer;background:var(--paper);transition:.15s;user-select:none;}
-.month-box.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+.months-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.month-box{position:relative;border:1.5px solid var(--card-line);border-radius:10px;padding:11px 6px;text-align:center;font-size:13px;font-weight:600;cursor:pointer;background:#fff;color:var(--ink);transition:.15s;user-select:none;}
+.month-box .month-dot{position:absolute;top:5px;left:6px;width:6px;height:6px;border-radius:50%;background:transparent;}
+.month-box.paid{background:var(--good-soft);border-color:transparent;color:var(--good);}
+.month-box.paid .month-dot{background:var(--good);}
+.month-box.selected{background:var(--blue);border-color:var(--blue);color:#fff;box-shadow:0 6px 14px -4px rgba(30,102,245,.45);}
+.month-box.future{color:var(--slate);background:var(--app-bg);}
+.month-legend{display:flex;gap:16px;margin-top:10px;font-size:12px;color:var(--slate);flex-wrap:wrap;}
+.month-legend span{display:flex;align-items:center;gap:5px;}
+.month-legend .dot{width:7px;height:7px;border-radius:50%;}
 .month-actions{display:flex;gap:8px;margin:10px 0 2px;}
-.small-btn{flex:1;padding:7px;border-radius:8px;border:1px solid var(--line);background:var(--paper);font-size:12px;cursor:pointer;font-family:inherit;color:var(--ink-soft);}
-.small-btn:hover{background:var(--paper-dark);}
+.small-btn{flex:1;padding:8px;border-radius:9px;border:1.5px solid var(--card-line);background:#fff;font-size:12px;cursor:pointer;font-family:inherit;color:var(--ink-soft);font-weight:600;}
+.small-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-soft);}
 
 /* ── OTHER PURPOSE ── */
-.other-purpose-toggle{display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;color:var(--ink-soft);background:var(--paper);border:1.5px dashed var(--line);border-radius:10px;padding:11px 13px;user-select:none;line-height:1.5;}
-.other-purpose-toggle input{margin-top:3px;width:16px;height:16px;accent-color:var(--gold);flex:none;}
+.other-purpose-toggle{display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;color:var(--ink-soft);background:var(--app-bg);border:1.5px dashed var(--card-line);border-radius:10px;padding:11px 13px;user-select:none;line-height:1.5;}
+.other-purpose-toggle input{margin-top:3px;width:16px;height:16px;accent-color:var(--blue);flex:none;}
 
 /* ── TOTAL ── */
-.total-bar{margin-top:16px;display:flex;align-items:center;justify-content:space-between;background:#1a1a1a;color:var(--paper);border-radius:10px;padding:13px 16px;}
+.total-bar{margin-top:16px;display:flex;align-items:center;justify-content:space-between;background:var(--ink);color:var(--paper);border-radius:12px;padding:14px 18px;}
 .total-bar .lbl{font-size:12.5px;color:#C9C9C9;}
-.total-bar .amt{font-family:'Frank Ruhl Libre',serif;font-size:24px;font-weight:700;color:var(--gold-soft);}
+.total-bar .amt{font-family:'Frank Ruhl Libre',serif;font-size:25px;font-weight:700;color:#fff;}
 .email-check-row{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;color:var(--ink-soft);cursor:pointer;user-select:none;}
-.email-check-row input[type="checkbox"]{width:17px;height:17px;accent-color:var(--gold);cursor:pointer;}
+.email-check-row input[type="checkbox"]{width:17px;height:17px;accent-color:var(--blue);cursor:pointer;}
 .email-check-row input[type="checkbox"]:disabled{cursor:not-allowed;}
 .email-check-row.disabled{color:var(--slate);opacity:.65;cursor:not-allowed;}
 .email-check-row .hint{font-size:11.5px;color:var(--slate);}
 
 /* ── BUTTONS ── */
-.generate-btn{width:100%;margin-top:14px;padding:13px;border:none;border-radius:10px;background:var(--gold);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:'Heebo';transition:.15s;}
-.generate-btn:disabled{background:#C9BFA0;cursor:not-allowed;}
-.generate-btn:not(:disabled):hover{background:#9F7A24;}
+.generate-btn{width:100%;margin-top:14px;padding:15px;border:none;border-radius:12px;background:var(--blue);color:#fff;font-size:16px;font-weight:700;cursor:pointer;font-family:'Heebo';transition:.15s;}
+.generate-btn:disabled{background:#B9C7E8;cursor:not-allowed;}
+.generate-btn:not(:disabled):hover{background:var(--blue-dark);}
 .post-actions{display:flex;gap:10px;margin-top:10px;}
-.post-actions button{flex:1;padding:10px;border-radius:9px;border:1.5px solid var(--ink);background:#fff;color:var(--ink);font-family:inherit;font-size:13px;cursor:pointer;font-weight:600;}
-.post-actions button:hover{background:var(--paper-dark);}
+.post-actions button{flex:1;padding:11px;border-radius:10px;border:1.5px solid var(--card-line);background:#fff;color:var(--ink);font-family:inherit;font-size:13.5px;cursor:pointer;font-weight:600;}
+.post-actions button:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-soft);}
 
 /* ── MESSAGES ── */
-.msg{font-size:12.5px;margin-top:8px;padding:9px 12px;border-radius:8px;display:none;}
+.msg{font-size:12.5px;margin-top:8px;padding:10px 12px;border-radius:9px;display:none;}
 .msg.show{display:block;}
-.msg.info{background:#EDEDED;color:#3a3a3a;}
+.msg.info{background:var(--blue-soft);color:var(--blue-dark);}
 .msg.error{background:#FBEAEA;color:var(--bad);}
 .msg.ok{background:#EAF7EE;color:var(--good);}
 
 /* ── RECEIPT PREVIEW ── */
-.receipt-paper{background:#FFFDF8;border:1px solid var(--line);position:relative;overflow:hidden;padding:40px 36px 32px;font-family:'Heebo';min-height:520px;display:flex;flex-direction:column;background-image:radial-gradient(circle at 10px 10px,rgba(184,144,47,.05) 1px,transparent 1px);background-size:14px 14px;}
+.receipt-paper{background:#fff;border:1px solid var(--line);position:relative;overflow:hidden;padding:40px 36px 32px;font-family:'Heebo';min-height:520px;display:flex;flex-direction:column;background-image:radial-gradient(circle at 10px 10px,rgba(30,102,245,.035) 1px,transparent 1px);background-size:14px 14px;}
 @media (max-width:480px){ .receipt-paper{ padding:24px 18px 20px; } }
 .r-head{text-align:center;margin-bottom:4px;display:flex;flex-direction:column;align-items:center;gap:8px;}
-.r-logo{width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid var(--gold-soft);}
-.r-logo-placeholder{width:56px;height:56px;border-radius:50%;border:2px solid var(--gold-soft);display:flex;align-items:center;justify-content:center;font-family:'Frank Ruhl Libre',serif;font-weight:900;font-size:22px;color:var(--gold);background:var(--paper-dark);}
+.r-logo{width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid var(--blue-soft);}
+.r-logo-placeholder{width:56px;height:56px;border-radius:50%;border:2px solid var(--blue-soft);display:flex;align-items:center;justify-content:center;font-family:'Frank Ruhl Libre',serif;font-weight:900;font-size:22px;color:var(--blue);background:var(--paper-dark);}
 .r-head .bld{font-family:'Frank Ruhl Libre',serif;font-weight:900;font-size:20px;color:var(--ink);}
 .r-head .addr{font-size:12px;color:var(--slate);margin-top:1px;}
-.r-divider{height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:12px 0 16px;}
+.r-divider{height:2px;background:linear-gradient(90deg,transparent,var(--blue),transparent);margin:12px 0 16px;}
 .r-title{text-align:center;font-family:'Frank Ruhl Libre',serif;font-size:17px;font-weight:700;color:var(--ink);margin-bottom:3px;}
-.r-sub{text-align:center;font-size:11px;color:var(--gold);margin-bottom:16px;letter-spacing:1px;}
+.r-sub{text-align:center;font-size:11px;color:var(--blue);margin-bottom:16px;letter-spacing:1px;}
 .r-meta{display:flex;justify-content:space-between;font-size:12px;color:var(--slate);margin-bottom:14px;}
 .r-table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:12px;}
 .r-table td{padding:10px 6px;vertical-align:middle;}
@@ -166,8 +176,8 @@ textarea{resize:vertical;min-height:70px;}
 .r-foot{margin-top:auto;padding-top:24px;text-align:center;position:relative;}
 .r-thanks{font-family:'Frank Ruhl Libre',serif;font-size:14px;color:var(--ink-soft);font-style:italic;}
 .r-signoff{font-size:12.5px;color:var(--slate);margin-top:2px;}
-.seal{position:absolute;left:20px;bottom:-4px;width:68px;height:68px;border-radius:50%;border:2.5px solid var(--gold);display:flex;align-items:center;justify-content:center;transform:rotate(-12deg);opacity:.85;}
-.seal-inner{width:54px;height:54px;border-radius:50%;border:1px solid var(--gold);display:flex;align-items:center;justify-content:center;text-align:center;font-family:'Frank Ruhl Libre',serif;font-size:8.5px;color:var(--gold);line-height:1.3;font-weight:700;padding:3px;}
+.seal{position:absolute;left:20px;bottom:-4px;width:68px;height:68px;border-radius:50%;border:2.5px solid var(--blue);display:flex;align-items:center;justify-content:center;transform:rotate(-12deg);opacity:.85;}
+.seal-inner{width:54px;height:54px;border-radius:50%;border:1px solid var(--blue);display:flex;align-items:center;justify-content:center;text-align:center;font-family:'Frank Ruhl Libre',serif;font-size:8.5px;color:var(--blue);line-height:1.3;font-weight:700;padding:3px;}
 .empty-hint{color:var(--slate);font-size:13px;text-align:center;padding:50px 20px;line-height:1.7;margin:auto;}
 
 /* ── SETTINGS MODAL ── */
@@ -176,24 +186,25 @@ textarea{resize:vertical;min-height:70px;}
 .modal{background:#fff;border-radius:16px;padding:28px;width:520px;max-width:94vw;box-shadow:var(--shadow);margin:auto;}
 .modal h3{font-family:'Frank Ruhl Libre',serif;margin:0 0 4px;font-size:20px;}
 .modal .modal-desc{font-size:12.5px;color:var(--slate);margin:0 0 20px;line-height:1.6;}
-.settings-section{border-top:2px solid var(--paper-dark);margin-top:20px;padding-top:16px;}
+.settings-section{border-top:1.5px solid var(--card-line);margin-top:20px;padding-top:16px;}
 .settings-section h4{font-size:13px;font-weight:700;color:var(--ink-soft);margin:0 0 12px;text-transform:uppercase;letter-spacing:.5px;}
 .modal label{font-size:12.5px;color:var(--slate);display:block;margin-bottom:4px;margin-top:12px;}
 .modal label:first-child{margin-top:0;}
 .modal input[type=text],.modal input[type=number],.modal input[type=url],.modal textarea{background:#fff;}
-.hint-link{color:var(--gold);text-decoration:none;font-weight:600;}
+.hint-link{color:var(--blue);text-decoration:none;font-weight:600;}
 .modal-actions{display:flex;gap:10px;margin-top:22px;}
-.modal-actions button{flex:1;padding:11px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13.5px;}
-.modal-actions .save{background:var(--ink);color:#fff;border:none;font-weight:700;}
-.modal-actions .cancel{background:#fff;border:1px solid var(--line);}
-.history-row{display:flex;justify-content:space-between;align-items:center;padding:10px 4px;border-bottom:1px solid var(--paper-dark);gap:10px;}
+.modal-actions button{flex:1;padding:12px;border-radius:10px;cursor:pointer;font-family:inherit;font-size:13.5px;}
+.modal-actions .save{background:var(--blue);color:#fff;border:none;font-weight:700;}
+.modal-actions .save:hover{background:var(--blue-dark);}
+.modal-actions .cancel{background:#fff;border:1.5px solid var(--card-line);}
+.history-row{display:flex;justify-content:space-between;align-items:center;padding:10px 4px;border-bottom:1px solid var(--app-bg);gap:10px;}
 .history-row:last-child{border-bottom:none;}
 .history-name{font-weight:700;font-size:13.5px;color:var(--ink);}
 .history-date{font-size:11.5px;color:var(--slate);}
-.history-amount{font-weight:700;font-size:14px;color:var(--ink);white-space:nowrap;}
+.history-amount{font-weight:700;font-size:14px;color:var(--blue-dark);white-space:nowrap;}
 .history-empty{padding:20px 4px;text-align:center;color:var(--slate);font-size:13px;}
 .ltr-input{direction:ltr;text-align:left;}
-.logo-preview{width:48px;height:48px;border-radius:50%;border:2px solid var(--line);object-fit:cover;margin-top:6px;display:none;}
+.logo-preview{width:48px;height:48px;border-radius:50%;border:2px solid var(--card-line);object-fit:cover;margin-top:6px;display:none;}
 .logo-preview.show{display:block;}
 </style>
 </head>
@@ -229,7 +240,8 @@ textarea{resize:vertical;min-height:70px;}
 
   <!-- FORM -->
   <div class="card">
-    <h2><span class="num">1</span> פרטי תשלום</h2>
+    <h2 style="margin-bottom:4px;"><span class="num">1</span> הפקת קבלה</h2>
+    <p style="margin:0 0 18px;font-size:13px;color:var(--slate);line-height:1.6;">בחרו דייר, חודש וסכום — הקבלה תישמר אוטומטית ותהיה זמינה תמיד לשליחה.</p>
 
     <div class="row">
       <label class="field-label">בחירת דייר</label>
@@ -262,6 +274,11 @@ textarea{resize:vertical;min-height:70px;}
       <div class="row">
         <label class="field-label">חודשי תשלום</label>
         <div class="months-grid" id="monthsGrid"></div>
+        <div class="month-legend">
+          <span><span class="dot" style="background:var(--good)"></span>שולם</span>
+          <span><span class="dot" style="background:var(--blue)"></span>נבחר</span>
+          <span><span class="dot" style="background:var(--slate)"></span>עתידי</span>
+        </div>
         <div class="month-actions">
           <button class="small-btn" id="selectAllBtn">✓ סמן הכל</button>
           <button class="small-btn" id="clearAllBtn">✗ בטל הכל</button>
@@ -522,24 +539,36 @@ document.getElementById('modalSave').onclick = ()=>{
    MONTHS GRID
 ═══════════════════════════════════════ */
 const monthsGrid = document.getElementById('monthsGrid');
+let paidMonthsSet = new Set();
 MONTH_NAMES.forEach((m,idx)=>{
   const el = document.createElement('div');
-  el.className='month-box'; el.textContent=m; el.dataset.idx=idx;
+  el.className='month-box'; el.dataset.idx=idx;
+  el.innerHTML = `<span class="month-dot"></span>${m}`;
   el.addEventListener('click',()=>{
     if(selectedMonths.has(idx)) selectedMonths.delete(idx); else selectedMonths.add(idx);
-    el.classList.toggle('active');
+    paintMonthsGrid();
     refreshTotal(); refreshPreview();
   });
   monthsGrid.appendChild(el);
 });
+function paintMonthsGrid(){
+  const curMonth = new Date().getMonth();
+  [...monthsGrid.children].forEach(el=>{
+    const idx = +el.dataset.idx;
+    el.classList.remove('paid','selected','future');
+    if(selectedMonths.has(idx)) el.classList.add('selected');
+    else if(paidMonthsSet.has(idx)) el.classList.add('paid');
+    else if(idx>curMonth) el.classList.add('future');
+  });
+}
 document.getElementById('selectAllBtn').onclick=()=>{
   selectedMonths=new Set(MONTH_NAMES.map((_,i)=>i));
-  [...monthsGrid.children].forEach(c=>c.classList.add('active'));
+  paintMonthsGrid();
   refreshTotal(); refreshPreview();
 };
 document.getElementById('clearAllBtn').onclick=()=>{
   selectedMonths.clear();
-  [...monthsGrid.children].forEach(c=>c.classList.remove('active'));
+  paintMonthsGrid();
   refreshTotal(); refreshPreview();
 };
 
@@ -574,6 +603,8 @@ residentSelect.addEventListener('change',()=>{
   const r = residents[residentSelect.value];
   phoneBox.textContent = r ? 'טלפון: '+(r.phone||'לא צויין') : 'טלפון יוצג לאחר בחירת דייר';
   updateEmailCheckbox(r);
+  paidMonthsSet = getPaidMonthsForResident(r);
+  paintMonthsGrid();
   refreshTotal(); refreshPreview();
 });
 
@@ -913,6 +944,7 @@ function initGoogle(){
         if(await enforceLicense(accessToken)){
           await loadResidents();
           await ensureReceiptsSheet();
+          await loadAllReceiptRows();
           validateForm();
         }
       }
@@ -940,6 +972,7 @@ function initGoogle(){
         if(CFG.spreadsheetId && CFG.folderId){
           await loadResidents();
           await ensureReceiptsSheet();
+          await loadAllReceiptRows();
         }
         validateForm();
       }
@@ -1054,6 +1087,35 @@ async function appendReceiptRow(row){
 }
 
 /* ═══════════════════════════════════════
+   SHEETS: RECEIPT ROWS CACHE (drives the "שולם" state in the months grid)
+═══════════════════════════════════════ */
+let allReceiptRows = [];
+async function loadAllReceiptRows(){
+  try{
+    const res = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId:CFG.spreadsheetId, range:`'${RECEIPTS_SHEET}'!A2:I`
+    });
+    allReceiptRows = res.result.values||[];
+  }catch(e){ allReceiptRows = []; }
+}
+function getPaidMonthsForResident(resident){
+  const paid = new Set();
+  if(!resident) return paid;
+  const year = new Date().getFullYear();
+  allReceiptRows.forEach(row=>{
+    const date=row[0], name=row[1], monthsCell=row[3];
+    if((name||'').trim() !== resident.name) return;
+    const d = parseHebrewDate(date);
+    if(!d || d.getFullYear()!==year) return;
+    (monthsCell||'').split(',').map(s=>s.trim()).forEach(mn=>{
+      const idx = MONTH_NAMES.indexOf(mn);
+      if(idx>-1) paid.add(idx);
+    });
+  });
+  return paid;
+}
+
+/* ═══════════════════════════════════════
    RECEIPT HISTORY (current-month list)
 ═══════════════════════════════════════ */
 const HEBREW_MONTHS = {'ינואר':0,'פברואר':1,'מרץ':2,'אפריל':3,'מאי':4,'יוני':5,'יולי':6,'אוגוסט':7,'ספטמבר':8,'אוקטובר':9,'נובמבר':10,'דצמבר':11};
@@ -1117,7 +1179,7 @@ async function buildPdfBlob(){
   src.innerHTML=receiptHTML(true);
   await new Promise(r=>setTimeout(r,100));
   const node=src.firstElementChild;
-  const canvas=await html2canvas(node,{scale:2,backgroundColor:'#FFFDF8',useCORS:true,allowTaint:true});
+  const canvas=await html2canvas(node,{scale:2,backgroundColor:'#FFFFFF',useCORS:true,allowTaint:true});
   const imgData=canvas.toDataURL('image/png');
   const {jsPDF}=window.jspdf;
   const pdf=new jsPDF({orientation:'p',unit:'mm',format:'a4'});
@@ -1211,6 +1273,9 @@ document.getElementById('generateBtn').onclick=async()=>{
       todayStr(),r.name,r.phone||'',monthsCell,
       isOtherPurpose?0:months.length,total,selectedPay,filename,driveFile.webViewLink||''
     ]);
+    allReceiptRows.push([todayStr(),r.name,r.phone||'',monthsCell,isOtherPurpose?0:months.length,total,selectedPay,filename,driveFile.webViewLink||'']);
+    paidMonthsSet = getPaidMonthsForResident(r);
+    paintMonthsGrid();
 
     document.getElementById('postActions').style.display='flex';
 
