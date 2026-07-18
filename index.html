@@ -100,7 +100,9 @@ textarea{resize:vertical;min-height:70px;}
 .row{margin-bottom:16px;}
 .phone-box{margin-top:6px;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-soft);background:var(--app-bg);border:1px dashed var(--card-line);border-radius:9px;padding:8px 12px;}
 .resident-info-row{display:flex;gap:8px;margin-top:6px;}
-.resident-info-row .phone-box{margin-top:0;flex:1;min-width:0;}
+.resident-info-row .phone-box{margin-top:0;min-width:0;}
+.resident-info-row #phoneBox{flex:1.6;}
+.resident-info-row #aptBox{flex:1;}
 .apt-box.empty{color:var(--slate);opacity:.65;}
 
 /* ── PAYMENT METHOD ── */
@@ -662,11 +664,25 @@ function toggleResidentClearBtn(){
   residentClearBtn.classList.toggle('show', !!residentSearchInput.value);
 }
 function clearResidentSelection(){
-  residentSelect.value = '';
-  residentSelect.dispatchEvent(new Event('change'));  // resets phone/months/preview, doesn't touch the sheet
   residentSearchInput.value = '';
   toggleResidentClearBtn();
   closeResidentDropdown();
+
+  // Clear whatever the person had already picked for this receipt too, so
+  // switching to a different resident starts the form fresh instead of
+  // carrying over stale selections (months, payment method, etc.).
+  selectedMonths.clear();
+  selectedPay = null;
+  document.querySelectorAll('.pay-opt').forEach(o=>o.classList.remove('active'));
+  isOtherPurpose = false;
+  document.getElementById('otherPurposeCheck').checked = false;
+  document.getElementById('monthsSection').style.display = '';
+  document.getElementById('otherPurposeSection').style.display = 'none';
+  document.getElementById('purposeInput').value = '';
+  document.getElementById('manualAmountInput').value = '';
+
+  residentSelect.value = '';
+  residentSelect.dispatchEvent(new Event('change'));  // resets phone/apt/months/preview, doesn't touch the sheet
   residentSearchInput.focus();
 }
 residentClearBtn.addEventListener('click', e=>{
