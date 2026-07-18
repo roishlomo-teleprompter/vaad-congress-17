@@ -45,6 +45,8 @@ html,body{margin:0;background:var(--app-bg);color:var(--ink);font-family:'Heebo'
 .brand p.tagline{color:#000;font-weight:600;letter-spacing:.2px;}
 .brand p .dot{color:var(--gold);font-size:10px;}
 .topbar-actions{display:flex;gap:8px;align-items:center;}
+.building-badge{background:var(--app-bg);border:1px dashed var(--card-line);border-radius:9px;padding:8px 14px;font-size:13px;color:var(--slate);white-space:nowrap;}
+.building-badge span{color:var(--ink);font-weight:700;}
 .pill-btn{background:#fff;border:1.5px solid var(--card-line);color:var(--ink-soft);padding:8px 15px;border-radius:999px;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:600;display:flex;align-items:center;gap:6px;transition:.15s;}
 .pill-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-soft);}
 .pill-btn.gold{border-color:var(--blue);color:var(--blue);background:var(--blue-soft);}
@@ -55,6 +57,7 @@ html,body{margin:0;background:var(--app-bg);color:var(--ink);font-family:'Heebo'
   .topbar{ flex-wrap:wrap; padding:14px 16px; gap:12px; }
   .brand{ width:100%; }
   .topbar-actions{ width:100%; flex-wrap:wrap; gap:8px; }
+  .building-badge{ flex:1 1 100%; text-align:center; order:-1; }
   .pill-btn{ flex:1 1 auto; justify-content:center; white-space:nowrap; font-size:12px; padding:8px 10px; }
 }
 
@@ -224,6 +227,7 @@ textarea{resize:vertical;min-height:70px;}
     </div>
   </div>
   <div class="topbar-actions">
+    <div class="building-badge" id="buildingBadge" style="display:none;">בניין: <span id="buildingBadgeText"></span></div>
     <button class="pill-btn" id="historyBtn">🧾 קבלות החודש</button>
     <button class="pill-btn" id="settingsBtn">⚙ הגדרות</button>
     <button class="pill-btn gold" id="authBtn">
@@ -344,10 +348,8 @@ textarea{resize:vertical;min-height:70px;}
     <!-- BUILDING INFO -->
     <div class="settings-section">
       <h4>🏢 פרטי הבניין</h4>
-      <label>שם הבניין / ועד הבית</label>
-      <input type="text" id="cfg-buildingName" placeholder="לדוגמה: ועד בית קונגרס 17">
-      <label>כתובת הבניין</label>
-      <input type="text" id="cfg-buildingAddr" placeholder="לדוגמה: רחוב הקונגרס 17, פתח תקווה">
+      <label>שם/כתובת הבניין</label>
+      <input type="text" id="cfg-buildingInfo" placeholder="לדוגמה: קונגרס 17, פתח תקווה">
       <label>קישור לתמונת לוגו (URL, אופציונלי)</label>
       <input type="url" id="cfg-logoUrl" placeholder="https://... (השאר ריק להצגת הלוגו של קבקליק)">
       <img id="logoPreview" class="logo-preview" alt="לוגו">
@@ -450,15 +452,22 @@ const RECEIPTS_SHEET  = 'קבלות';
 const MONTH_NAMES = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
 
 function loadCfg(){
-  try{ return JSON.parse(localStorage.getItem('vaad_generic_cfg')||'{}'); }
-  catch(e){ return {}; }
+  let c;
+  try{ c = JSON.parse(localStorage.getItem('vaad_generic_cfg')||'{}'); }
+  catch(e){ c = {}; }
+  // Migrate old installs that still have separate buildingName/buildingAddr
+  // into the new single buildingInfo field, so existing setups keep working.
+  if(!c.buildingInfo && (c.buildingName || c.buildingAddr)){
+    c.buildingInfo = [c.buildingName, c.buildingAddr].filter(Boolean).join(', ');
+  }
+  return c;
 }
 function saveCfg(c){ localStorage.setItem('vaad_generic_cfg', JSON.stringify(c)); }
 
 let CFG = loadCfg();
 
 function isConfigured(){
-  return !!(CFG.spreadsheetId && CFG.folderId && CFG.buildingName);
+  return !!(CFG.spreadsheetId && CFG.folderId && CFG.buildingInfo);
 }
 
 /* ═══════════════════════════════════════
@@ -478,19 +487,22 @@ let lastFileName   = null;
    TOPBAR BRANDING
 ═══════════════════════════════════════ */
 function applyBranding(){
-  const nameEl = document.getElementById('topBuildingName');
-  const addrEl = document.getElementById('topBuildingAddr');
+  const nameEl  = document.getElementById('topBuildingName');
+  const addrEl  = document.getElementById('topBuildingAddr');
+  const badgeEl = document.getElementById('buildingBadge');
+  const badgeTxt= document.getElementById('buildingBadgeText');
 
-  if(CFG.buildingName){
-    nameEl.textContent = CFG.buildingName;
-    addrEl.classList.remove('tagline');
-    addrEl.innerHTML = CFG.buildingAddr || 'יש להגדיר כתובת בהגדרות';
-    document.title = CFG.buildingName;
+  // Brand identity is always קבקליק — the building's name/address never overrides it.
+  nameEl.innerHTML = '<span class="gold">קב</span>קליק';
+  addrEl.classList.add('tagline');
+  addrEl.innerHTML = '<span class="dot">•</span>מפיקים קבלות בקלות ובמהירות';
+  document.title = 'קבקליק';
+
+  if(CFG.buildingInfo){
+    badgeTxt.textContent = CFG.buildingInfo;
+    badgeEl.style.display = 'block';
   } else {
-    nameEl.innerHTML = '<span class="gold">קב</span>קליק';
-    addrEl.classList.add('tagline');
-    addrEl.innerHTML = '<span class="dot">•</span>מפיקים קבלות בקלות ובמהירות';
-    document.title = 'קבקליק';
+    badgeEl.style.display = 'none';
   }
 
   const logoEl  = document.getElementById('topLogo');
@@ -505,8 +517,7 @@ applyBranding();
    SETTINGS MODAL
 ═══════════════════════════════════════ */
 document.getElementById('settingsBtn').onclick = ()=>{
-  document.getElementById('cfg-buildingName').value = CFG.buildingName||'';
-  document.getElementById('cfg-buildingAddr').value = CFG.buildingAddr||'';
+  document.getElementById('cfg-buildingInfo').value = CFG.buildingInfo||'';
   document.getElementById('cfg-logoUrl').value      = CFG.logoUrl||'';
   document.getElementById('cfg-defaultFee').value   = CFG.defaultFee||'';
   document.getElementById('cfg-spreadsheetId').value= CFG.spreadsheetId||'';
@@ -525,8 +536,7 @@ function updateLogoPreview(){
 document.getElementById('cfg-logoUrl').addEventListener('input', updateLogoPreview);
 
 document.getElementById('modalSave').onclick = ()=>{
-  CFG.buildingName  = document.getElementById('cfg-buildingName').value.trim();
-  CFG.buildingAddr  = document.getElementById('cfg-buildingAddr').value.trim();
+  CFG.buildingInfo  = document.getElementById('cfg-buildingInfo').value.trim();
   CFG.logoUrl       = document.getElementById('cfg-logoUrl').value.trim();
   CFG.defaultFee    = parseFloat(document.getElementById('cfg-defaultFee').value)||140;
   CFG.spreadsheetId = extractSheetId(document.getElementById('cfg-spreadsheetId').value);
@@ -789,9 +799,8 @@ function receiptHTML(forPdf=false){
   const months = sortedMonths();
   const fee    = residentFee();
   const total  = isOtherPurpose ? manualAmount() : months.length*fee;
-  const bName  = CFG.buildingName || 'ועד בית';
-  const bAddr  = CFG.buildingAddr || '';
-  const initials = (bName.replace(/ועד בית|בניין|רחוב/g,'').trim().slice(0,2)) || 'ו';
+  const bInfo = CFG.buildingInfo || 'ועד בית';
+  const initials = (bInfo.replace(/ועד בית|בניין|רחוב/g,'').trim().slice(0,2)) || 'ו';
 
   const logoHTML = `<img class="r-logo" src="${CFG.logoUrl || 'icon-mark-512.png'}" alt="לוגו" crossorigin="anonymous">`;
 
@@ -806,8 +815,7 @@ function receiptHTML(forPdf=false){
   <div class="receipt-paper" style="${minH}">
     <div class="r-head">
       ${logoHTML}
-      <div class="bld">${bName}</div>
-      ${bAddr?`<div class="addr">${bAddr}</div>`:''}
+      <div class="bld">${bInfo}</div>
     </div>
     <div class="r-divider"></div>
     <div class="r-title">קבלה לדמי ועד בית</div>
@@ -1258,7 +1266,7 @@ async function sendReceiptByEmail(resident, pdfBlob, filename, total){
       key: LICENSE_SECRET,
       to: resident.email,
       residentName: resident.name,
-      buildingName: CFG.buildingName || 'קבקליק',
+      buildingName: CFG.buildingInfo || 'קבקליק',
       total: total,
       filename: filename,
       pdfBase64: pdfBase64
