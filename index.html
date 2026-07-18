@@ -73,7 +73,7 @@ html,body{margin:0;background:var(--app-bg);color:var(--ink);font-family:'Heebo'
 
 /* ── CARDS ── */
 .card{background:#fff;border:1.5px solid var(--card-line);border-radius:18px;box-shadow:var(--card-shadow);padding:28px;}
-@media (max-width:480px){ .card{ padding:20px 18px; } }
+@media (max-width:480px){ .card{ padding:20px 18px; } .resident-info-row{ flex-wrap:wrap; } }
 .card h2{font-family:'Heebo';font-weight:800;font-size:17px;margin:0 0 18px;color:var(--ink);border-bottom:none;padding-bottom:0;display:flex;align-items:center;gap:9px;}
 .card h2 .num{font-family:'Heebo';background:var(--blue);color:#fff;font-size:12px;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;}
 
@@ -99,6 +99,9 @@ select:focus,input:focus,textarea:focus{outline:none;border-color:var(--blue);bo
 textarea{resize:vertical;min-height:70px;}
 .row{margin-bottom:16px;}
 .phone-box{margin-top:6px;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-soft);background:var(--app-bg);border:1px dashed var(--card-line);border-radius:9px;padding:8px 12px;}
+.resident-info-row{display:flex;gap:8px;margin-top:6px;}
+.resident-info-row .phone-box{margin-top:0;flex:1;min-width:0;}
+.apt-box.empty{color:var(--slate);opacity:.65;}
 
 /* ── PAYMENT METHOD ── */
 .pay-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
@@ -259,13 +262,16 @@ textarea{resize:vertical;min-height:70px;}
         <div class="resident-dropdown" id="residentDropdown"></div>
       </div>
       <select id="residentSelect" style="display:none;"><option value="">— יש להתחבר ולטעון רשימת דיירים —</option></select>
-      <div class="phone-box" id="phoneBox">טלפון יוצג לאחר בחירת דייר</div>
+      <div class="resident-info-row">
+        <div class="phone-box" id="phoneBox">טלפון יוצג לאחר בחירת דייר</div>
+        <div class="phone-box apt-box" id="aptBox">דירה תוצג לאחר בחירת דייר</div>
+      </div>
     </div>
 
     <div class="row">
       <label class="field-label">אמצעי תשלום</label>
       <div class="pay-grid" id="payGrid">
-        <div class="pay-opt" data-val="העברה">העברה בנקאית</div>
+        <div class="pay-opt" data-val="העברה בנקאית">העברה בנקאית</div>
         <div class="pay-opt" data-val="צ'קים דחויים">צ'קים דחויים</div>
         <div class="pay-opt" data-val="הוראת קבע">הוראת קבע</div>
         <div class="pay-opt" data-val="מזומן">מזומן</div>
@@ -614,9 +620,18 @@ document.getElementById('payGrid').addEventListener('click', e=>{
 ═══════════════════════════════════════ */
 const residentSelect = document.getElementById('residentSelect');
 const phoneBox       = document.getElementById('phoneBox');
+const aptBox         = document.getElementById('aptBox');
 residentSelect.addEventListener('change',()=>{
   const r = residents[residentSelect.value];
   phoneBox.textContent = r ? 'טלפון: '+(r.phone||'לא צויין') : 'טלפון יוצג לאחר בחירת דייר';
+  if(r){
+    const hasApt = !!(r.apartment && r.apartment.trim());
+    aptBox.textContent = hasApt ? 'דירה: '+r.apartment : 'דירה: לא צויין';
+    aptBox.classList.toggle('empty', !hasApt);
+  } else {
+    aptBox.textContent = 'דירה תוצג לאחר בחירת דייר';
+    aptBox.classList.remove('empty');
+  }
   updateEmailCheckbox(r);
   paidMonthsSet = getPaidMonthsForResident(r);
   paintMonthsGrid();
@@ -826,6 +841,7 @@ function receiptHTML(forPdf=false){
     </div>
     <table class="r-table">
       <tr><td class="k">שם הדייר</td><td class="v">${r?r.name:'—'}</td></tr>
+      ${(r && r.apartment && r.apartment.trim()) ? `<tr><td class="k">דירה</td><td class="v">${r.apartment}</td></tr>` : ''}
       <tr><td class="k">טלפון</td><td class="v">${r?(r.phone||'—'):'—'}</td></tr>
       <tr><td class="k">אמצעי תשלום</td><td class="v">${selectedPay||'—'}</td></tr>
       ${purposeRow}
@@ -1044,14 +1060,15 @@ async function loadResidents(){
     let phoneIdx = header.findIndex(h=>/טלפון|פלאפון|נייד|phone/.test(h));
     let feeIdx   = header.findIndex(h=>/מחיר|fee|סכום/.test(h));
     let emailIdx = header.findIndex(h=>/מייל|אימייל|email/.test(h));
+    let aptIdx   = header.findIndex(h=>/דירה|apartment|apt/.test(h));
     // If ANY column header was recognized, row 0 is a header row and should be
     // skipped — not just when the name column specifically was found. This
     // avoids accidentally treating the header itself as a resident.
-    const headerRecognized = nameIdx>-1 || phoneIdx>-1 || feeIdx>-1 || emailIdx>-1;
+    const headerRecognized = nameIdx>-1 || phoneIdx>-1 || feeIdx>-1 || emailIdx>-1 || aptIdx>-1;
     let startRow = headerRecognized ? 1 : 0;
     if(nameIdx===-1)  nameIdx = 0;
     if(phoneIdx===-1) phoneIdx = 1;
-    // feeIdx / emailIdx may be -1 → optional, no default column guess
+    // feeIdx / emailIdx / aptIdx may be -1 → optional, no default column guess
 
     residents=rows.slice(startRow)
       .filter(r=>r[nameIdx]&&r[nameIdx].toString().trim())
@@ -1059,7 +1076,8 @@ async function loadResidents(){
         name: r[nameIdx].toString().trim(),
         phone:(r[phoneIdx]||'').toString().trim(),
         fee:  feeIdx>-1 ? (parseFloat(r[feeIdx])||0) : 0,
-        email: emailIdx>-1 ? (r[emailIdx]||'').toString().trim() : ''
+        email: emailIdx>-1 ? (r[emailIdx]||'').toString().trim() : '',
+        apartment: aptIdx>-1 ? (r[aptIdx]||'').toString().trim() : ''
       }));
 
     residentSelect.innerHTML='<option value="">— בחרו דייר —</option>'+
