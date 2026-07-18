@@ -80,6 +80,10 @@ select,input[type=text],input[type=number],input[type=url],textarea{width:100%;p
 select:focus,input:focus,textarea:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-soft);}
 .resident-picker{position:relative;}
 .resident-picker input:disabled{opacity:.6;cursor:not-allowed;}
+.resident-picker input{padding-left:34px;}
+.resident-clear{display:none;position:absolute;left:8px;top:50%;transform:translateY(-50%);width:22px;height:22px;border-radius:50%;background:var(--app-bg);border:none;color:var(--slate);font-size:12px;line-height:1;cursor:pointer;align-items:center;justify-content:center;padding:0;transition:.15s;}
+.resident-clear.show{display:flex;}
+.resident-clear:hover{background:var(--card-line);color:var(--ink);}
 .resident-dropdown{display:none;position:absolute;z-index:20;top:calc(100% + 4px);right:0;left:0;max-height:260px;overflow-y:auto;background:#fff;border:1.5px solid var(--card-line);border-radius:10px;box-shadow:var(--card-shadow);}
 .resident-dropdown.show{display:block;}
 .resident-option{padding:10px 12px;font-size:13.5px;cursor:pointer;border-bottom:1px solid var(--app-bg);display:flex;justify-content:space-between;align-items:center;gap:8px;}
@@ -247,6 +251,7 @@ textarea{resize:vertical;min-height:70px;}
       <label class="field-label">בחירת דייר</label>
       <div class="resident-picker" id="residentPicker">
         <input type="text" id="residentSearchInput" autocomplete="off" placeholder="יש להתחבר ולטעון רשימת דיירים" disabled>
+        <button type="button" id="residentClearBtn" class="resident-clear" title="נקה בחירה" aria-label="נקה בחירת דייר">✕</button>
         <div class="resident-dropdown" id="residentDropdown"></div>
       </div>
       <select id="residentSelect" style="display:none;"><option value="">— יש להתחבר ולטעון רשימת דיירים —</option></select>
@@ -624,8 +629,25 @@ function updateEmailCheckbox(r){
 ═══════════════════════════════════════ */
 const residentSearchInput = document.getElementById('residentSearchInput');
 const residentDropdown    = document.getElementById('residentDropdown');
+const residentClearBtn    = document.getElementById('residentClearBtn');
 let residentActiveIdx = -1;   // index within the currently *filtered* list
 let residentFiltered  = [];   // [{i, r}] currently shown, in display order
+
+function toggleResidentClearBtn(){
+  residentClearBtn.classList.toggle('show', !!residentSearchInput.value);
+}
+function clearResidentSelection(){
+  residentSelect.value = '';
+  residentSelect.dispatchEvent(new Event('change'));  // resets phone/months/preview, doesn't touch the sheet
+  residentSearchInput.value = '';
+  toggleResidentClearBtn();
+  closeResidentDropdown();
+  residentSearchInput.focus();
+}
+residentClearBtn.addEventListener('click', e=>{
+  e.stopPropagation();
+  clearResidentSelection();
+});
 
 function escapeHtml2(s){
   return (''+s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -675,6 +697,7 @@ function selectResidentByFilteredPos(pos){
   residentSelect.value = item.i;
   residentSelect.dispatchEvent(new Event('change'));
   residentSearchInput.value = item.r.name;
+  toggleResidentClearBtn();
   closeResidentDropdown();
 }
 function updateActiveHighlight(){
@@ -687,6 +710,7 @@ function updateActiveHighlight(){
 
 residentSearchInput.addEventListener('input', ()=>{
   renderResidentDropdown(residentSearchInput.value);
+  toggleResidentClearBtn();
 });
 residentSearchInput.addEventListener('focus', ()=>{
   if(residentSelect.options.length>1) renderResidentDropdown(residentSearchInput.value);
@@ -1037,6 +1061,7 @@ async function loadResidents(){
     searchInput.disabled = false;
     searchInput.placeholder = 'הקלידו שם דייר לחיפוש...';
     searchInput.value = '';
+    toggleResidentClearBtn();
 
     showMsg(`נטענו ${residents.length} דיירים.`,'ok');
   }catch(e){
