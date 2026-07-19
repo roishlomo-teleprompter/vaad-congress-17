@@ -857,8 +857,7 @@ function receiptHTML(forPdf=false){
       <span>מס׳ ${Date.now().toString().slice(-6)}</span>
     </div>
     <table class="r-table">
-      <tr><td class="k">שם הדייר</td><td class="v">${r?r.name:'—'}</td></tr>
-      ${(r && r.apartment && r.apartment.trim()) ? `<tr><td class="k">דירה</td><td class="v">${r.apartment}</td></tr>` : ''}
+      <tr><td class="k">שם הדייר</td><td class="v">${r?r.name:'—'}${(r && r.apartment && r.apartment.trim()) ? ` (דירה ${r.apartment})` : ''}</td></tr>
       <tr><td class="k">טלפון</td><td class="v">${r?(r.phone||'—'):'—'}</td></tr>
       <tr><td class="k">אמצעי תשלום</td><td class="v">${selectedPay||'—'}</td></tr>
       ${purposeRow}
