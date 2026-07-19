@@ -457,6 +457,7 @@ function extractFolderId(input){
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email';
 const RESIDENTS_SHEET = 'אנשי קשר';
 const RECEIPTS_SHEET  = 'קבלות';
+const SETTINGS_SHEET  = 'הגדרות';
 const MONTH_NAMES = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
 
 function loadCfg(){
@@ -554,6 +555,7 @@ document.getElementById('modalSave').onclick = ()=>{
   applyBranding();
   refreshPreview();
   initGoogle();
+  pushSettingsToSheet();
   showMsg('ההגדרות נשמרו.','info');
 };
 
@@ -1008,6 +1010,7 @@ function initGoogle(){
         if(await enforceLicense(accessToken)){
           await loadResidents();
           await ensureReceiptsSheet();
+          await syncSettingsFromSheet();
           await loadAllReceiptRows();
           validateForm();
         }
@@ -1036,6 +1039,7 @@ function initGoogle(){
         if(CFG.spreadsheetId && CFG.folderId){
           await loadResidents();
           await ensureReceiptsSheet();
+          await syncSettingsFromSheet();
           await loadAllReceiptRows();
         }
         validateForm();
@@ -1116,6 +1120,90 @@ async function loadResidents(){
       return;
     }
     showMsg('שגיאה בטעינת הדיירים: '+(e.result?.error?.message||e.message||e),'error');
+  }
+}
+
+/* ═══════════════════════════════════════
+   SHEETS: SETTINGS SYNC ACROSS DEVICES
+   Building name/logo/default fee are mirrored into a "הגדרות" tab inside
+   the same spreadsheet, so changing them on one device updates every other
+   device that opens the app. spreadsheetId/folderId stay local-only on
+   purpose — the app needs those *before* it can know which sheet to read.
+═══════════════════════════════════════ */
+function buildSettingsRows(){
+  return [
+    ['מפתח','ערך'],
+    ['שם/כתובת בניין', CFG.buildingInfo || ''],
+    ['קישור ללוגו',     CFG.logoUrl     || ''],
+    ['מחיר ברירת מחדל', CFG.defaultFee  || '']
+  ];
+}
+
+async function ensureSettingsSheet(){
+  const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:CFG.spreadsheetId});
+  const exists = meta.result.sheets.some(s=>s.properties.title===SETTINGS_SHEET);
+  if(!exists){
+    await gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId:CFG.spreadsheetId,
+      resource:{requests:[{addSheet:{properties:{title:SETTINGS_SHEET}}}]}
+    });
+  }
+  return exists;
+}
+
+async function syncSettingsFromSheet(){
+  if(!CFG.spreadsheetId) return;
+  try{
+    const existed = await ensureSettingsSheet();
+    if(!existed){
+      // Brand-new tab — seed it with whatever this device already has locally,
+      // so the first device to connect defines the shared starting point.
+      await gapi.client.sheets.spreadsheets.values.update({
+        spreadsheetId:CFG.spreadsheetId,
+        range:`'${SETTINGS_SHEET}'!A1:B4`,
+        valueInputOption:'RAW',
+        resource:{values: buildSettingsRows()}
+      });
+      return;
+    }
+    const res = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId:CFG.spreadsheetId, range:`'${SETTINGS_SHEET}'!A:B`
+    });
+    const rows = res.result.values || [];
+    if(!rows.length) return; // tab exists but is empty — keep local values as-is
+
+    let changed = false;
+    rows.forEach(row=>{
+      const key = (row[0]||'').toString().trim();
+      const val = (row[1]||'').toString().trim();
+      if(/שם.*בניין|כתובת|building/i.test(key)){ if(CFG.buildingInfo!==val){ CFG.buildingInfo=val; changed=true; } }
+      else if(/לוגו|logo/i.test(key)){ if(CFG.logoUrl!==val){ CFG.logoUrl=val; changed=true; } }
+      else if(/מחיר.*ברירת|ברירת.*מחדל|default.*fee/i.test(key)){ if(CFG.defaultFee!==val){ CFG.defaultFee=val; changed=true; } }
+    });
+    if(changed){
+      saveCfg(CFG);
+      applyBranding();
+    }
+  }catch(e){
+    // Non-fatal — the app keeps working with whatever settings are already local.
+    console.warn('שגיאה בסנכרון הגדרות מהגיליון:', e);
+  }
+}
+
+async function pushSettingsToSheet(){
+  if(!CFG.spreadsheetId) return;
+  try{
+    await ensureSettingsSheet();
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId:CFG.spreadsheetId,
+      range:`'${SETTINGS_SHEET}'!A1:B4`,
+      valueInputOption:'RAW',
+      resource:{values: buildSettingsRows()}
+    });
+  }catch(e){
+    // Non-fatal — local settings are already saved; this device just couldn't
+    // push them to the sheet right now (e.g. offline, or not signed in yet).
+    console.warn('שגיאה בשמירת ההגדרות לגיליון:', e);
   }
 }
 
