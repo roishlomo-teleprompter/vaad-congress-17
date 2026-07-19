@@ -186,10 +186,9 @@ textarea{resize:vertical;min-height:70px;}
 .r-total .lbl{font-family:'Frank Ruhl Libre',serif;font-size:14px;color:var(--ink);}
 .r-total .amt{font-family:'Frank Ruhl Libre',serif;font-size:22px;font-weight:900;color:var(--ink);}
 .r-foot{margin-top:auto;padding-top:24px;text-align:center;position:relative;}
-.r-thanks{font-family:'Frank Ruhl Libre',serif;font-size:14px;color:var(--ink-soft);font-style:italic;}
-.r-signoff{font-size:12.5px;color:var(--slate);margin-top:2px;}
-.seal{position:absolute;left:20px;bottom:-4px;width:68px;height:68px;border-radius:50%;border:2.5px solid var(--blue);display:flex;align-items:center;justify-content:center;transform:rotate(-12deg);opacity:.85;}
-.seal-inner{width:54px;height:54px;border-radius:50%;border:1px solid var(--blue);display:flex;align-items:center;justify-content:center;text-align:center;font-family:'Frank Ruhl Libre',serif;font-size:8.5px;color:var(--blue);line-height:1.3;font-weight:700;padding:3px;}
+.r-thanks{font-family:'Frank Ruhl Libre',serif;font-size:14px;color:var(--ink-soft);position:relative;display:inline-block;}
+.seal{position:absolute;left:6%;top:50%;width:68px;height:68px;border-radius:50%;border:2.5px solid var(--blue);display:flex;align-items:center;justify-content:center;transform:translate(-50%,-72%) rotate(-12deg);opacity:.85;}
+.seal-inner{width:54px;height:54px;border-radius:50%;border:1px solid var(--blue);display:flex;align-items:center;justify-content:center;text-align:center;font-family:'Frank Ruhl Libre',serif;font-size:11px;color:var(--blue);line-height:1.3;font-weight:800;padding:3px;}
 .empty-hint{color:var(--slate);font-size:13px;text-align:center;padding:50px 20px;line-height:1.7;margin:auto;}
 
 /* ── SETTINGS MODAL ── */
@@ -834,8 +833,6 @@ function receiptHTML(forPdf=false){
   const fee    = residentFee();
   const total  = isOtherPurpose ? manualAmount() : months.length*fee;
   const bInfo = CFG.buildingInfo || 'ועד בית';
-  const initials = (bInfo.replace(/ועד בית|בניין|רחוב/g,'').trim().slice(0,2)) || 'ו';
-
   const logoHTML = `<img class="r-logo" src="${CFG.logoUrl || 'icon-mark-512.png'}" alt="לוגו" crossorigin="anonymous">`;
 
   const monthsChips = months.map(i=>`<span class="r-month-chip">${MONTH_NAMES[i]}</span>`).join('');
@@ -869,9 +866,7 @@ function receiptHTML(forPdf=false){
       <span class="amt">${total.toLocaleString('he-IL')} ₪</span>
     </div>
     <div class="r-foot">
-      <div class="r-thanks">תודה רבה</div>
-      <div class="r-signoff">ועד הבית</div>
-      <div class="seal"><div class="seal-inner">${initials}<br>ועד בית</div></div>
+      <div class="r-thanks">תודה רבה<div class="seal"><div class="seal-inner">ועד בית</div></div></div>
     </div>
   </div>`;
 }
