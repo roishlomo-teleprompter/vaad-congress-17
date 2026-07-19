@@ -114,7 +114,7 @@ textarea{resize:vertical;min-height:70px;}
 .months-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
 .month-box{position:relative;border:1.5px solid var(--card-line);border-radius:10px;padding:11px 6px;text-align:center;font-size:13px;font-weight:600;cursor:pointer;background:#fff;color:var(--ink);transition:.15s;user-select:none;}
 .month-box .month-dot{position:absolute;top:5px;left:6px;width:6px;height:6px;border-radius:50%;background:transparent;}
-.month-box.paid{background:var(--good-soft);border-color:transparent;color:var(--good);}
+.month-box.paid{background:var(--good-soft);border-color:transparent;color:var(--good);cursor:not-allowed;}
 .month-box.paid .month-dot{background:var(--good);}
 .month-box.selected{background:var(--blue);border-color:var(--blue);color:#fff;box-shadow:0 6px 14px -4px rgba(30,102,245,.45);}
 .month-box.future{color:var(--slate);background:var(--app-bg);}
@@ -568,6 +568,7 @@ MONTH_NAMES.forEach((m,idx)=>{
   el.className='month-box'; el.dataset.idx=idx;
   el.innerHTML = `<span class="month-dot"></span>${m}`;
   el.addEventListener('click',()=>{
+    if(paidMonthsSet.has(idx)) return; // already marked as paid — not selectable
     if(selectedMonths.has(idx)) selectedMonths.delete(idx); else selectedMonths.add(idx);
     paintMonthsGrid();
     refreshTotal(); refreshPreview();
@@ -585,7 +586,7 @@ function paintMonthsGrid(){
   });
 }
 document.getElementById('selectAllBtn').onclick=()=>{
-  selectedMonths=new Set(MONTH_NAMES.map((_,i)=>i));
+  selectedMonths=new Set(MONTH_NAMES.map((_,i)=>i).filter(i=>!paidMonthsSet.has(i)));
   paintMonthsGrid();
   refreshTotal(); refreshPreview();
 };
