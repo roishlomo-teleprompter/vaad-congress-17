@@ -1141,14 +1141,25 @@ function buildSettingsRows(){
 
 async function ensureSettingsSheet(){
   const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:CFG.spreadsheetId});
-  const exists = meta.result.sheets.some(s=>s.properties.title===SETTINGS_SHEET);
-  if(!exists){
+  const sheet = meta.result.sheets.find(s=>s.properties.title===SETTINGS_SHEET);
+  if(!sheet){
     await gapi.client.sheets.spreadsheets.batchUpdate({
       spreadsheetId:CFG.spreadsheetId,
-      resource:{requests:[{addSheet:{properties:{title:SETTINGS_SHEET}}}]}
+      resource:{requests:[{addSheet:{properties:{title:SETTINGS_SHEET, hidden:true}}}]}
+    });
+    return false;
+  }
+  if(!sheet.properties.hidden){
+    // Tab already existed (e.g. created before hiding was added) — hide it now.
+    await gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId:CFG.spreadsheetId,
+      resource:{requests:[{updateSheetProperties:{
+        properties:{sheetId:sheet.properties.sheetId, hidden:true},
+        fields:'hidden'
+      }}]}
     });
   }
-  return exists;
+  return true;
 }
 
 async function syncSettingsFromSheet(){
