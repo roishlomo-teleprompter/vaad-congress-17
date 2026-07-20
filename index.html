@@ -411,7 +411,17 @@ textarea{resize:vertical;min-height:70px;}
   <div class="modal" style="text-align:center;">
     <h3>🔒 גישה לא זמינה</h3>
     <p class="modal-desc" id="licenseBlockMsg" style="text-align:center;">חשבון זה אינו רשום כלקוח פעיל.</p>
-    <p class="modal-desc" style="text-align:center;">לחידוש או הפעלת המנוי, יש ליצור קשר עם ספק האפליקציה.</p>
+
+    <div id="licenseRegisterSection" style="display:none;text-align:right;margin-top:14px;">
+      <label style="display:block;font-size:12.5px;color:var(--slate);margin-bottom:6px;">שם הבניין / הרחוב</label>
+      <input type="text" id="regBuildingName" placeholder="לדוגמה: קונגרס 17, פתח תקווה">
+      <button type="button" id="regSubmitBtn" class="generate-btn" style="margin-top:12px;">🚀 הרשמה לניסיון חינם (14 יום)</button>
+      <p id="regStatusMsg" style="font-size:12.5px;margin-top:10px;text-align:center;min-height:1em;"></p>
+    </div>
+
+    <div id="licenseContactSection">
+      <p class="modal-desc" style="text-align:center;">לחידוש או הפעלת המנוי, יש ליצור קשר עם ספק האפליקציה.</p>
+    </div>
   </div>
 </div>
 
@@ -935,6 +945,10 @@ function loadLicenseCache(email){
 function saveLicenseCache(email, result){
   try{ localStorage.setItem(LICENSE_CACHE_KEY, JSON.stringify({email, ...result, checkedAt:Date.now()})); }catch(e){}
 }
+function clearLicenseCache(){
+  try{ localStorage.removeItem(LICENSE_CACHE_KEY); }catch(e){}
+}
+let lastCheckedEmail = ''; // set by enforceLicense — used by the self-registration form below
 async function getUserEmail(token){
   const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
     headers:{Authorization:'Bearer '+token}
@@ -952,8 +966,10 @@ async function checkLicense(email){
   saveLicenseCache(email, result);
   return result;
 }
-function showLicenseBlock(message){
+function showLicenseBlock(message, notFound){
   document.getElementById('licenseBlockMsg').textContent = message || 'חשבון זה אינו רשום כלקוח פעיל.';
+  document.getElementById('licenseRegisterSection').style.display = notFound ? 'block' : 'none';
+  document.getElementById('licenseContactSection').style.display  = notFound ? 'none'  : 'block';
   document.getElementById('licenseBlockBg').classList.add('show');
 }
 function hideLicenseBlock(){
@@ -970,18 +986,85 @@ async function enforceLicense(token){
   try{
     const email = await getUserEmail(token);
     if(!email) return true; // couldn't determine email — fail open rather than lock out on a glitch
+    lastCheckedEmail = email;
     const result = await checkLicense(email);
     if(result.senderEmail){
       senderEmailAddr = result.senderEmail;
       updateSenderEmailDisplay();
     }
     if(result.allowed){ hideLicenseBlock(); return true; }
-    showLicenseBlock(result.message);
+    showLicenseBlock(result.message, !!result.notFound);
     return false;
   }catch(e){
     return true; // license service unreachable — fail open, don't lock out customers over a network hiccup
   }
 }
+
+/**
+ * Called right after a successful self-registration — the person already has
+ * a valid accessToken from the Google sign-in that got them to the license
+ * block in the first place, so we can pick up exactly where the normal
+ * sign-in flow would have continued, without asking them to reconnect.
+ */
+async function resumeAfterLicenseGranted(){
+  if(!accessToken) return;
+  gapi.client.setToken({access_token:accessToken});
+  markConnected();
+  if(CFG.spreadsheetId && CFG.folderId){
+    await loadResidents();
+    await ensureReceiptsSheet();
+    await syncSettingsFromSheet();
+    await loadAllReceiptRows();
+  }
+  validateForm();
+}
+
+document.getElementById('regSubmitBtn').addEventListener('click', async ()=>{
+  const buildingName = document.getElementById('regBuildingName').value.trim();
+  const statusEl = document.getElementById('regStatusMsg');
+  const btn = document.getElementById('regSubmitBtn');
+
+  if(!buildingName){
+    statusEl.style.color = 'var(--bad)';
+    statusEl.textContent = 'נא להזין שם בניין.';
+    return;
+  }
+  if(!lastCheckedEmail){
+    statusEl.style.color = 'var(--bad)';
+    statusEl.textContent = 'לא זוהה מייל מחובר — יש להתחבר מחדש עם Google ולנסות שוב.';
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = 'נרשם…';
+  statusEl.textContent = '';
+
+  try{
+    const res = await fetch(LICENSE_API_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'}, // avoids CORS preflight to Apps Script
+      body: JSON.stringify({ key: LICENSE_SECRET, action:'register', email: lastCheckedEmail, buildingName })
+    });
+    const data = await res.json();
+
+    if(data.ok){
+      clearLicenseCache();
+      statusEl.style.color = 'var(--good)';
+      statusEl.textContent = `נרשמת בהצלחה! תוקף הניסיון עד ${data.expiry||''}. טוען את האפליקציה…`;
+      setTimeout(async ()=>{
+        hideLicenseBlock();
+        await resumeAfterLicenseGranted();
+      }, 1200);
+    } else {
+      statusEl.style.color = 'var(--bad)';
+      statusEl.textContent = data.message || 'שגיאה בהרשמה.';
+      btn.disabled = false; btn.textContent = '🚀 הרשמה לניסיון חינם (14 יום)';
+    }
+  }catch(err){
+    statusEl.style.color = 'var(--bad)';
+    statusEl.textContent = 'שגיאת רשת — נסה שוב.';
+    btn.disabled = false; btn.textContent = '🚀 הרשמה לניסיון חינם (14 יום)';
+  }
+});
 
 function initGoogle(){
   if(typeof gapi==='undefined'){ setTimeout(initGoogle,300); return; }
