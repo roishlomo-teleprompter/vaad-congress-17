@@ -1061,8 +1061,35 @@ document.getElementById('authBtn').onclick=()=>{
 /* ═══════════════════════════════════════
    SHEETS: LOAD RESIDENTS
 ═══════════════════════════════════════ */
+async function ensureResidentsSheetName(){
+  try{
+    const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:CFG.spreadsheetId});
+    const sheets = meta.result.sheets || [];
+    if(sheets.some(s=>s.properties.title===RESIDENTS_SHEET)) return; // already named correctly
+
+    // Look for a still-default-named tab (e.g. "Sheet1" / "גיליון1") that the
+    // person forgot to rename. Only auto-rename if there's exactly one such
+    // tab — if it's ambiguous, leave it alone rather than guess wrong.
+    const defaultNamed = sheets.filter(s=>/^(sheet\s*\d*|גיליון\s*\d*)$/i.test((s.properties.title||'').trim()));
+    if(defaultNamed.length!==1) return;
+
+    await gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId:CFG.spreadsheetId,
+      resource:{requests:[{updateSheetProperties:{
+        properties:{sheetId:defaultNamed[0].properties.sheetId, title:RESIDENTS_SHEET},
+        fields:'title'
+      }}]}
+    });
+  }catch(e){
+    // Non-fatal — if this fails, loadResidents() below will show its normal
+    // "sheet not found" error and the person can rename the tab manually.
+    console.warn('שגיאה בבדיקת/שינוי שם לשונית אנשי קשר:', e);
+  }
+}
+
 async function loadResidents(){
   try{
+    await ensureResidentsSheetName();
     const res = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId:CFG.spreadsheetId, range:`'${RESIDENTS_SHEET}'!A:Z`
     });
@@ -1114,7 +1141,12 @@ async function loadResidents(){
       showMsg('החיבור לגוגל פג — יש ללחוץ שוב על "התחברות עם Google".','error');
       return;
     }
-    showMsg('שגיאה בטעינת הדיירים: '+(e.result?.error?.message||e.message||e),'error');
+    const msg = e.result?.error?.message || e.message || String(e);
+    if(/unable to parse range|not found/i.test(msg)){
+      showMsg('לא נמצאה לשונית "אנשי קשר" בגיליון — יש לוודא שקיימת לשונית בשם הזה עם שמות ומספרי טלפון של הדיירים.', 'error');
+    } else {
+      showMsg('שגיאה בטעינת הדיירים: '+msg, 'error');
+    }
   }
 }
 
