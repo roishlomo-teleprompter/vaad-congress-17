@@ -1714,7 +1714,7 @@ const TOUR_STEPS = [
   { target:'#settingsBtn', title:'שלב 2 · הגדרות',
     text:'לאחר ההתחברות, פותחים כאן את ההגדרות כדי לחבר את הגיליון והתיקייה שלכם.' },
   { target:'#autoCreateBtn', title:'אין גיליון עדיין?', inModal:true,
-    text:'כבר יש לכם גיליון עם רשימת הדיירים ותיקיית Drive לקבלות? אין צורך ליצור חדשים — מדביקים את הקישורים אליהם בשדות למטה. חשוב: הגיליון חייב לכלול לשונית בשם "אנשי קשר" עם עמודות שם וטלפון.\n\nאם לא לוחצים על הכפתור הזה, לא ייווצרו לא גיליון ולא תיקייה — צריך להביא קישורים קיימים משלכם.\n\nאין לכם עדיין? לוחצים כאן — ניצור עבורכם גם גיליון (עם הלשונית והכותרות הנכונות) וגם תיקיית Drive, בלחיצה אחת.' },
+    text:'כבר יש לכם גיליון עם רשימת דיירים ותיקיית Drive? מדביקים את הקישורים בשדות למטה. חשוב: לשונית בשם "אנשי קשר" עם עמודות שם וטלפון (מייל ומחיר — אופציונלי).\n\nבלי לחיצה כאן, לא ייווצר גיליון או תיקייה — צריך קישורים משלכם.\n\nאין לכם עדיין? לוחצים כאן ליצירה אוטומטית של שניהם.' },
   { target:'#cfg-buildingInfo', title:'פרטי הבניין', inModal:true,
     text:'מזינים כאן את שם/כתובת הבניין. זה מה שיופיע בכותרת ובקבלות עצמן.' },
   { target:'#modalSave', title:'שמירה', inModal:true,
@@ -1743,7 +1743,7 @@ function tourPositionSpotlight(el){
     return;
   }
 
-  el.scrollIntoView({block:'center', behavior:'auto'});
+  el.scrollIntoView({block:'start', behavior:'auto'});
   setTimeout(()=>{
     const r = el.getBoundingClientRect();
     const pad = 6;
@@ -1755,9 +1755,18 @@ function tourPositionSpotlight(el){
 
     tooltip.style.transform = 'none';
     const spaceBelow = window.innerHeight - r.bottom;
-    let top = spaceBelow > 170
-      ? (r.bottom + pad + 10)
-      : Math.max(10, r.top - pad - 10 - tooltip.offsetHeight);
+    const spaceAbove = r.top;
+    const gap = pad + 10;
+    let top;
+    if(spaceBelow >= tooltip.offsetHeight + gap){
+      top = r.bottom + gap;
+    } else if(spaceAbove >= tooltip.offsetHeight + gap){
+      top = r.top - gap - tooltip.offsetHeight;
+    } else if(spaceBelow >= spaceAbove){
+      top = r.bottom + gap; // best available side, even if it needs the tooltip's own internal scroll
+    } else {
+      top = r.top - gap - tooltip.offsetHeight;
+    }
     top = Math.min(top, window.innerHeight - tooltip.offsetHeight - 10);
     top = Math.max(top, 10);
     tooltip.style.top = top + 'px';
