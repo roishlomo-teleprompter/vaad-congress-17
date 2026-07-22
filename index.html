@@ -217,6 +217,17 @@ textarea{resize:vertical;min-height:70px;}
 .ltr-input{direction:ltr;text-align:left;}
 .logo-preview{width:48px;height:48px;border-radius:50%;border:2px solid var(--card-line);object-fit:cover;margin-top:6px;display:none;}
 .logo-preview.show{display:block;}
+.tour-overlay{position:fixed;inset:0;z-index:300;display:none;}
+.tour-overlay.show{display:block;}
+.tour-spotlight{position:fixed;border-radius:10px;box-shadow:0 0 0 9999px rgba(15,23,42,.6);transition:top .3s,left .3s,width .3s,height .3s;pointer-events:none;display:none;}
+.tour-tooltip{position:fixed;width:290px;max-width:calc(100vw - 20px);background:#fff;border-radius:14px;padding:18px 20px;box-shadow:0 20px 45px -10px rgba(0,0,0,.35);transition:top .3s,left .3s;}
+.tour-step-counter{font-size:11px;color:var(--slate);font-weight:700;margin-bottom:4px;letter-spacing:.02em;}
+.tour-tooltip h4{margin:0 0 6px;font-size:15px;color:var(--ink);}
+.tour-tooltip p{margin:0 0 14px;font-size:13px;color:var(--ink-soft);line-height:1.6;white-space:pre-line;}
+.tour-tooltip-actions{display:flex;align-items:center;gap:8px;}
+.tour-btn-ghost{background:none;border:none;color:var(--slate);font-size:12.5px;cursor:pointer;font-family:inherit;padding:6px 4px;}
+.tour-btn-ghost:hover{color:var(--ink);}
+.tour-btn-primary{background:var(--blue);color:#fff;border:none;border-radius:999px;padding:8px 18px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;}
 </style>
 </head>
 <body>
@@ -232,6 +243,7 @@ textarea{resize:vertical;min-height:70px;}
   </div>
   <div class="topbar-actions">
     <div class="building-badge" id="buildingBadge" style="display:none;">בניין: <span id="buildingBadgeText"></span></div>
+    <button class="pill-btn" id="tourBtn">❓ הדרכה</button>
     <button class="pill-btn" id="historyBtn">🧾 קבלות החודש</button>
     <button class="pill-btn" id="settingsBtn">⚙ הגדרות</button>
     <button class="pill-btn gold" id="authBtn">
@@ -425,6 +437,22 @@ textarea{resize:vertical;min-height:70px;}
 
     <div id="licenseContactSection">
       <p class="modal-desc" style="text-align:center;">לחידוש או הפעלת המנוי, יש ליצור קשר עם ספק האפליקציה.</p>
+    </div>
+  </div>
+</div>
+
+<!-- GUIDED TOUR OVERLAY -->
+<div class="tour-overlay" id="tourOverlay">
+  <div class="tour-spotlight" id="tourSpotlight"></div>
+  <div class="tour-tooltip" id="tourTooltip">
+    <div class="tour-step-counter" id="tourStepCounter"></div>
+    <h4 id="tourTitle"></h4>
+    <p id="tourText"></p>
+    <div class="tour-tooltip-actions">
+      <button type="button" id="tourSkipBtn" class="tour-btn-ghost">דילוג</button>
+      <div style="flex:1"></div>
+      <button type="button" id="tourPrevBtn" class="tour-btn-ghost">הקודם</button>
+      <button type="button" id="tourNextBtn" class="tour-btn-primary">הבא</button>
     </div>
   </div>
 </div>
@@ -1664,6 +1692,123 @@ document.getElementById('shareBtn').onclick=async()=>{
 };
 
 /* ═══════════════════════════════════════
+   GUIDED TOUR (first-visit walkthrough)
+   A non-interactive, step-by-step spotlight tour — the person only ever
+   advances via the tooltip's own buttons, never by touching the real UI
+   underneath, so it can't be broken by an accidental click mid-tour.
+═══════════════════════════════════════ */
+const TOUR_SEEN_KEY = 'vaad_tour_seen';
+
+function tourOpenSettings(){ document.getElementById('settingsBtn').click(); }
+function tourCloseSettings(){ document.getElementById('modalBg').classList.remove('show'); }
+
+const TOUR_STEPS = [
+  { title:'ברוכים הבאים לקבקליק 👋',
+    text:'תוך פחות מדקה נראה לכם איך להתחיל להפיק קבלות. אפשר לדלג בכל שלב.' },
+  { target:'#authBtn', title:'שלב 1 · התחברות',
+    text:'מתחברים כאן עם חשבון ה-Google שלכם.' },
+  { target:'#settingsBtn', title:'שלב 2 · הגדרות',
+    text:'לאחר ההתחברות, פותחים כאן את ההגדרות כדי לחבר את הגיליון והתיקייה שלכם.',
+    onEnter: tourOpenSettings },
+  { target:'#autoCreateBtn', title:'אין גיליון עדיין?',
+    text:'כבר יש לכם גיליון עם רשימת הדיירים ותיקיית Drive לקבלות? אין צורך ליצור חדשים — מדביקים את הקישורים אליהם בשדות למטה. חשוב: הגיליון חייב לכלול לשונית בשם "אנשי קשר" עם עמודות שם וטלפון.\n\nאם לא לוחצים על הכפתור הזה, לא ייווצרו לא גיליון ולא תיקייה — צריך להביא קישורים קיימים משלכם.\n\nאין לכם עדיין? לוחצים כאן — ניצור עבורכם גם גיליון (עם הלשונית והכותרות הנכונות) וגם תיקיית Drive, בלחיצה אחת.' },
+  { target:'#cfg-buildingInfo', title:'פרטי הבניין',
+    text:'מזינים כאן את שם/כתובת הבניין. זה מה שיופיע בכותרת ובקבלות עצמן.' },
+  { target:'#modalSave', title:'שמירה',
+    text:'לא לשכוח ללחוץ כאן לשמירת ההגדרות בסיום.',
+    onExit: tourCloseSettings },
+  { target:'#residentPicker', title:'בחירת דייר',
+    text:'כאן בוחרים את הדייר שעבורו מפיקים את הקבלה.' },
+  { target:'#monthsGrid', title:'חודשי תשלום',
+    text:'מסמנים את החודשים ששולם עבורם. חודשים ירוקים כבר שולמו בעבר ולא ניתנים לבחירה.' },
+  { target:'#generateBtn', title:'הפקת קבלה',
+    text:'לוחצים כאן ליצירת קובץ ה-PDF של הקבלה, מוכן לשליחה.' },
+  { title:'זהו, מוכנים! 🎉',
+    text:'אפשר לפתוח את המדריך הזה שוב בכל רגע דרך כפתור "❓ הדרכה" למעלה.' }
+];
+
+let tourIndex = 0;
+
+function tourPositionSpotlight(el){
+  const spotlight = document.getElementById('tourSpotlight');
+  const tooltip   = document.getElementById('tourTooltip');
+
+  if(!el){
+    spotlight.style.display = 'none';
+    tooltip.style.top  = '50%';
+    tooltip.style.left = '50%';
+    tooltip.style.transform = 'translate(-50%,-50%)';
+    return;
+  }
+
+  el.scrollIntoView({block:'center', behavior:'auto'});
+  setTimeout(()=>{
+    const r = el.getBoundingClientRect();
+    const pad = 6;
+    spotlight.style.display = 'block';
+    spotlight.style.top    = (r.top - pad) + 'px';
+    spotlight.style.left   = (r.left - pad) + 'px';
+    spotlight.style.width  = (r.width + pad*2) + 'px';
+    spotlight.style.height = (r.height + pad*2) + 'px';
+
+    tooltip.style.transform = 'none';
+    const spaceBelow = window.innerHeight - r.bottom;
+    tooltip.style.top = spaceBelow > 170
+      ? (r.bottom + pad + 10) + 'px'
+      : Math.max(10, r.top - pad - 10 - tooltip.offsetHeight) + 'px';
+
+    let left = r.left;
+    left = Math.min(Math.max(10, left), window.innerWidth - tooltip.offsetWidth - 10);
+    tooltip.style.left = left + 'px';
+  }, 60);
+}
+
+function tourShowStep(i){
+  tourIndex = i;
+  const step = TOUR_STEPS[i];
+
+  document.getElementById('tourStepCounter').textContent = `${i+1} / ${TOUR_STEPS.length}`;
+  document.getElementById('tourTitle').textContent = step.title;
+  document.getElementById('tourText').textContent  = step.text;
+  document.getElementById('tourPrevBtn').style.visibility = i===0 ? 'hidden' : 'visible';
+  document.getElementById('tourNextBtn').textContent = i===TOUR_STEPS.length-1 ? 'סיום' : 'הבא';
+
+  if(step.onEnter) step.onEnter();
+  tourPositionSpotlight(step.target ? document.querySelector(step.target) : null);
+}
+
+function tourStart(){
+  document.getElementById('tourOverlay').classList.add('show');
+  tourShowStep(0);
+}
+function tourFinish(){
+  document.getElementById('tourOverlay').classList.remove('show');
+  try{ localStorage.setItem(TOUR_SEEN_KEY, '1'); }catch(e){}
+}
+function tourNext(){
+  const step = TOUR_STEPS[tourIndex];
+  if(step.onExit) step.onExit();
+  if(tourIndex >= TOUR_STEPS.length - 1){ tourFinish(); return; }
+  tourShowStep(tourIndex + 1);
+}
+function tourPrev(){
+  if(tourIndex <= 0) return;
+  const step = TOUR_STEPS[tourIndex];
+  if(step.onExit) step.onExit();
+  tourShowStep(tourIndex - 1);
+}
+function tourSkip(){
+  const step = TOUR_STEPS[tourIndex];
+  if(step.onExit) step.onExit();
+  tourFinish();
+}
+
+document.getElementById('tourBtn').addEventListener('click', tourStart);
+document.getElementById('tourNextBtn').addEventListener('click', tourNext);
+document.getElementById('tourPrevBtn').addEventListener('click', tourPrev);
+document.getElementById('tourSkipBtn').addEventListener('click', tourSkip);
+
+/* ═══════════════════════════════════════
    BOOT
 ═══════════════════════════════════════ */
 window.addEventListener('load',()=>{
@@ -1671,6 +1816,13 @@ window.addEventListener('load',()=>{
     showMsg('ברוכים הבאים! יש ללחוץ על ⚙ הגדרות, למלא את פרטי הבניין, ולהדביק קישור לגיליון Google Sheets ולתיקיית Drive שלכם.','info');
   }
   initGoogle();
+
+  // Auto-start the guided tour once, the very first time someone opens the app.
+  try{
+    if(!localStorage.getItem(TOUR_SEEN_KEY)){
+      setTimeout(tourStart, 900);
+    }
+  }catch(e){}
 });
 </script>
 </body>
