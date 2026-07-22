@@ -415,7 +415,7 @@ textarea{resize:vertical;min-height:70px;}
     <div id="licenseRegisterSection" style="display:none;text-align:right;margin-top:14px;">
       <label style="display:block;font-size:12.5px;color:var(--slate);margin-bottom:6px;">שם הבניין / הרחוב</label>
       <input type="text" id="regBuildingName" placeholder="לדוגמה: קונגרס 17, פתח תקווה">
-      <button type="button" id="regSubmitBtn" class="generate-btn" style="margin-top:12px;">🚀 הרשמה לניסיון חינם (14 יום)</button>
+      <button type="button" id="regSubmitBtn" class="generate-btn" style="margin-top:12px;">🚀 הרשמה לניסיון חינם (90 יום)</button>
       <p id="regStatusMsg" style="font-size:12.5px;margin-top:10px;text-align:center;min-height:1em;"></p>
     </div>
 
@@ -1057,12 +1057,12 @@ document.getElementById('regSubmitBtn').addEventListener('click', async ()=>{
     } else {
       statusEl.style.color = 'var(--bad)';
       statusEl.textContent = data.message || 'שגיאה בהרשמה.';
-      btn.disabled = false; btn.textContent = '🚀 הרשמה לניסיון חינם (14 יום)';
+      btn.disabled = false; btn.textContent = '🚀 הרשמה לניסיון חינם (90 יום)';
     }
   }catch(err){
     statusEl.style.color = 'var(--bad)';
     statusEl.textContent = 'שגיאת רשת — נסה שוב.';
-    btn.disabled = false; btn.textContent = '🚀 הרשמה לניסיון חינם (14 יום)';
+    btn.disabled = false; btn.textContent = '🚀 הרשמה לניסיון חינם (90 יום)';
   }
 });
 
