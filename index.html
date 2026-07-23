@@ -92,7 +92,7 @@ html,body{margin:0;background:var(--app-bg);color:var(--ink);font-family:'Heebo'
 .wizard-nav{display:flex;gap:10px;margin-top:20px;}
 .wizard-back-btn{flex:0 0 110px;background:#fff;border:1.5px solid var(--card-line);border-radius:12px;padding:14px;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;color:var(--ink);}
 .wizard-back-btn:hover{background:var(--app-bg);}
-.wizard-cancel-btn{flex:0 0 100px;background:#fff;border:1.5px solid var(--bad);color:var(--bad);border-radius:12px;padding:14px 8px;font-family:inherit;font-weight:700;font-size:13.5px;cursor:pointer;}
+.wizard-cancel-btn{flex:1;background:#fff;border:1.5px solid var(--bad);color:var(--bad);border-radius:12px;padding:14px;font-family:inherit;font-weight:700;font-size:15px;cursor:pointer;}
 .wizard-cancel-btn:hover{background:#FBEAEA;}
 .wizard-next-btn{flex:1;background:var(--blue);color:#fff;border:none;border-radius:12px;padding:14px;font-family:inherit;font-weight:700;font-size:15px;cursor:pointer;transition:.15s;}
 .wizard-next-btn:hover:not(:disabled){background:var(--blue-dark);}
@@ -396,9 +396,9 @@ textarea{resize:vertical;min-height:70px;}
     </div>
 
     <div class="wizard-nav">
-      <button class="wizard-back-btn" id="wizardBackBtn" style="visibility:hidden;">← חזרה</button>
-      <button class="wizard-cancel-btn" id="wizardCancelBtn" style="display:none;">✕ ביטול</button>
-      <button class="wizard-next-btn" id="wizardNextBtn" disabled>המשך →</button>
+      <button class="wizard-back-btn" id="wizardBackBtn" style="visibility:hidden;">חזרה →</button>
+      <button class="wizard-cancel-btn" id="wizardCancelBtn" style="display:none;">ביטול</button>
+      <button class="wizard-next-btn" id="wizardNextBtn" disabled>← המשך</button>
     </div>
   </div>
 
