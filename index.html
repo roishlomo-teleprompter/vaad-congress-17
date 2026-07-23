@@ -403,7 +403,7 @@ textarea{resize:vertical;min-height:70px;}
   </div>
 
   <!-- RECEIPT PREVIEW -->
-  <div class="card">
+  <div class="card" id="previewCard" style="display:none;">
     <h2><span class="num">2</span> תצוגה מקדימה</h2>
     <div class="receipt-paper" id="receiptPaper">
       <div class="empty-hint">בחרו דייר, אמצעי תשלום וחודשים — התצוגה המקדימה תופיע כאן.</div>
@@ -1036,6 +1036,8 @@ function wizardShowStep(i){
   document.getElementById('wizardBackBtn').style.visibility = wizardIndex===0 ? 'hidden' : 'visible';
   document.getElementById('wizardNextBtn').style.display    = wizardIndex===WIZARD_STEP_COUNT-1 ? 'none' : '';
   document.getElementById('wizardCancelBtn').style.display  = wizardIndex===WIZARD_STEP_COUNT-1 ? '' : 'none';
+  document.getElementById('previewCard').style.display      = wizardIndex===WIZARD_STEP_COUNT-1 ? '' : 'none';
+  document.querySelector('.wizard-card').style.gridColumn   = wizardIndex===WIZARD_STEP_COUNT-1 ? 'auto' : '1 / -1';
 
   if(wizardIndex === WIZARD_STEP_COUNT-1) wizardUpdateSummary();
   wizardRefreshNextBtn();
