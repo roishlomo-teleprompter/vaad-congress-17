@@ -68,7 +68,7 @@ html,body{margin:0;background:var(--app-bg);color:var(--ink);font-family:'Heebo'
 .setup-banner button:hover{background:var(--blue-dark);}
 
 /* ── LAYOUT ── */
-.wrap{max-width:1180px;margin:0 auto;padding:24px 20px 60px;display:grid;grid-template-columns:1fr 1fr;gap:24px;}
+.wrap{max-width:1180px;margin:0 auto;padding:24px 20px 20px;display:grid;grid-template-columns:1fr 1fr;gap:24px;}
 @media(max-width:900px){.wrap{grid-template-columns:1fr;}}
 
 /* ── CARDS ── */
@@ -92,6 +92,8 @@ html,body{margin:0;background:var(--app-bg);color:var(--ink);font-family:'Heebo'
 .wizard-nav{display:flex;gap:10px;margin-top:20px;}
 .wizard-back-btn{flex:0 0 110px;background:#fff;border:1.5px solid var(--card-line);border-radius:12px;padding:14px;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;color:var(--ink);}
 .wizard-back-btn:hover{background:var(--app-bg);}
+.wizard-cancel-btn{flex:0 0 100px;background:#fff;border:1.5px solid var(--bad);color:var(--bad);border-radius:12px;padding:14px 8px;font-family:inherit;font-weight:700;font-size:13.5px;cursor:pointer;}
+.wizard-cancel-btn:hover{background:#FBEAEA;}
 .wizard-next-btn{flex:1;background:var(--blue);color:#fff;border:none;border-radius:12px;padding:14px;font-family:inherit;font-weight:700;font-size:15px;cursor:pointer;transition:.15s;}
 .wizard-next-btn:hover:not(:disabled){background:var(--blue-dark);}
 .wizard-next-btn:disabled{opacity:.45;cursor:not-allowed;}
@@ -395,6 +397,7 @@ textarea{resize:vertical;min-height:70px;}
 
     <div class="wizard-nav">
       <button class="wizard-back-btn" id="wizardBackBtn" style="visibility:hidden;">← חזרה</button>
+      <button class="wizard-cancel-btn" id="wizardCancelBtn" style="display:none;">✕ ביטול</button>
       <button class="wizard-next-btn" id="wizardNextBtn" disabled>המשך →</button>
     </div>
   </div>
@@ -511,7 +514,7 @@ textarea{resize:vertical;min-height:70px;}
   </div>
 </div>
 
-<footer style="max-width:640px;margin:28px auto 0;padding:14px 20px 28px;font-size:11.5px;line-height:1.6;color:var(--slate);text-align:center;opacity:.75;">
+<footer style="max-width:640px;margin:8px auto 0;padding:14px 20px 28px;font-size:11.5px;line-height:1.6;color:var(--slate);text-align:center;opacity:.75;">
   קבקליק היא אפליקציה להפקת קבלות דמי ועד בית. היא מתחברת לחשבון ה-Google שלכם כדי לקרוא את רשימת הדיירים מ-Google Sheets וכדי לשמור את קובצי ה-PDF של הקבלות שהופקו ב-Google Drive שלכם - כל הנתונים נשארים בחשבון שלכם בלבד.
 </footer>
 
@@ -1032,6 +1035,7 @@ function wizardShowStep(i){
 
   document.getElementById('wizardBackBtn').style.visibility = wizardIndex===0 ? 'hidden' : 'visible';
   document.getElementById('wizardNextBtn').style.display    = wizardIndex===WIZARD_STEP_COUNT-1 ? 'none' : '';
+  document.getElementById('wizardCancelBtn').style.display  = wizardIndex===WIZARD_STEP_COUNT-1 ? '' : 'none';
 
   if(wizardIndex === WIZARD_STEP_COUNT-1) wizardUpdateSummary();
   wizardRefreshNextBtn();
@@ -1047,6 +1051,11 @@ function wizardBack(){
 
 document.getElementById('wizardNextBtn').addEventListener('click', wizardNext);
 document.getElementById('wizardBackBtn').addEventListener('click', wizardBack);
+document.getElementById('wizardCancelBtn').addEventListener('click', ()=>{
+  document.getElementById('postActions').style.display = 'none';
+  hideMsg();
+  clearResidentSelection(); // clears resident/months/purpose/payment and returns to step 1
+});
 
 /* ═══════════════════════════════════════
    RECEIPT HTML (used in preview & PDF)
@@ -1848,8 +1857,10 @@ const TOUR_STEPS = [
     text:'כאן בוחרים את הדייר שעבורו מפיקים את הקבלה.' },
   { target:'#monthsGrid', title:'חודשי תשלום', wizardStep:1,
     text:'מסמנים את החודשים ששולם עבורם. חודשים ירוקים כבר שולמו בעבר ולא ניתנים לבחירה.' },
+  { target:'#emailCheckRow', title:'שליחה אוטומטית במייל', wizardStep:2,
+    text:'רוצים שהקבלה תישלח אוטומטית גם למייל הדייר? יש לסמן כאן את התיבה. האפשרות מופיעה רק אם יש לדייר כתובת מייל שמורה בגיליון "אנשי קשר".' },
   { target:'#generateBtn', title:'הפקת קבלה', wizardStep:3,
-    text:'לוחצים כאן ליצירת קובץ ה-PDF של הקבלה, מוכן לשליחה.' },
+    text:'לוחצים כאן ליצירת קובץ ה-PDF של הקבלה. הקבלה נשמרת אוטומטית בתיקיית ה-Drive שהוגדרה, ונרשמת גם בלשונית "קבלות" בגיליון — לתיעוד מלא של כל הקבלות שהופקו.' },
   { title:'זהו, מוכנים! 🎉',
     text:'אפשר לפתוח את המדריך הזה שוב בכל רגע דרך כפתור "❓ הדרכה" למעלה.' }
 ];
