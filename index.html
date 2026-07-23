@@ -73,7 +73,34 @@ html,body{margin:0;background:var(--app-bg);color:var(--ink);font-family:'Heebo'
 
 /* ── CARDS ── */
 .card{background:#fff;border:1.5px solid var(--card-line);border-radius:18px;box-shadow:var(--card-shadow);padding:28px;}
-@media (max-width:480px){ .card{ padding:20px 18px; } .resident-info-row{ flex-wrap:wrap; } }
+.wizard-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.wizard-counter{font-size:12.5px;color:var(--slate);font-weight:700;}
+.wizard-progress-track{height:5px;border-radius:3px;background:var(--card-line);margin-bottom:20px;overflow:hidden;}
+.wizard-progress-fill{height:100%;width:0%;background:var(--blue);border-radius:3px;transition:width .3s ease;}
+.wizard-dots{display:flex;justify-content:space-between;margin-bottom:22px;}
+.wizard-dot{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;position:relative;}
+.wizard-dot .circ{width:26px;height:26px;border-radius:50%;background:#fff;color:var(--slate);border:2px solid var(--card-line);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;transition:.2s;}
+.wizard-dot .lbl{font-size:11px;color:var(--slate);font-weight:600;text-align:center;}
+.wizard-dot.current .circ{background:var(--blue);color:#fff;border-color:var(--blue);box-shadow:0 0 0 4px var(--blue-soft);}
+.wizard-dot.current .lbl{color:var(--ink);}
+.wizard-dot.done .circ{background:var(--good-soft);color:var(--good);border-color:transparent;}
+.wizard-step-sub{margin:0 0 16px;font-size:13px;color:var(--slate);line-height:1.6;}
+.wizard-summary{background:var(--app-bg);border:1px dashed var(--card-line);border-radius:12px;padding:4px 16px;margin-bottom:16px;}
+.wizard-summary-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;font-size:13px;color:var(--slate);border-bottom:1px solid var(--card-line);}
+.wizard-summary-row:last-child{border-bottom:none;}
+.wizard-summary-row b{color:var(--ink);font-weight:700;max-width:60%;text-align:left;}
+.wizard-nav{display:flex;gap:10px;margin-top:20px;}
+.wizard-back-btn{flex:0 0 110px;background:#fff;border:1.5px solid var(--card-line);border-radius:12px;padding:14px;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;color:var(--ink);}
+.wizard-back-btn:hover{background:var(--app-bg);}
+.wizard-next-btn{flex:1;background:var(--blue);color:#fff;border:none;border-radius:12px;padding:14px;font-family:inherit;font-weight:700;font-size:15px;cursor:pointer;transition:.15s;}
+.wizard-next-btn:hover:not(:disabled){background:var(--blue-dark);}
+.wizard-next-btn:disabled{opacity:.45;cursor:not-allowed;}
+@media (max-width:480px){
+  .card{ padding:20px 18px; }
+  .resident-info-row{ flex-wrap:wrap; }
+  .wizard-dot .lbl{font-size:9.5px;}
+  .wizard-dot .circ{width:22px;height:22px;font-size:11px;}
+}
 .card h2{font-family:'Heebo';font-weight:800;font-size:17px;margin:0 0 18px;color:var(--ink);border-bottom:none;padding-bottom:0;display:flex;align-items:center;gap:9px;}
 .card h2 .num{font-family:'Heebo';background:var(--blue);color:#fff;font-size:12px;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;}
 
@@ -262,87 +289,114 @@ textarea{resize:vertical;min-height:70px;}
 <!-- MAIN LAYOUT -->
 <div class="wrap">
 
-  <!-- FORM -->
-  <div class="card">
-    <h2 style="margin-bottom:4px;"><span class="num">1</span> הפקת קבלה</h2>
-    <p style="margin:0 0 18px;font-size:13px;color:var(--slate);line-height:1.6;">בחרו דייר, חודש וסכום — הקבלה תישמר אוטומטית ותהיה זמינה תמיד לשליחה.</p>
+  <!-- FORM (WIZARD) -->
+  <div class="card wizard-card">
+    <div class="wizard-head">
+      <h2 style="margin:0;"><span class="num">1</span> הפקת קבלה</h2>
+      <span class="wizard-counter" id="wizardCounter">שלב 1 מתוך 4</span>
+    </div>
+    <div class="wizard-progress-track"><div class="wizard-progress-fill" id="wizardProgressFill"></div></div>
+    <div class="wizard-dots" id="wizardDots">
+      <div class="wizard-dot current" data-step="0"><div class="circ">1</div><div class="lbl">דייר</div></div>
+      <div class="wizard-dot todo" data-step="1"><div class="circ">2</div><div class="lbl">חודשים</div></div>
+      <div class="wizard-dot todo" data-step="2"><div class="circ">3</div><div class="lbl">תשלום</div></div>
+      <div class="wizard-dot todo" data-step="3"><div class="circ">4</div><div class="lbl">אישור</div></div>
+    </div>
 
-    <div class="row">
-      <label class="field-label">בחירת דייר</label>
-      <div class="resident-picker" id="residentPicker">
-        <input type="text" id="residentSearchInput" autocomplete="off" placeholder="יש להתחבר ולטעון רשימת דיירים" disabled>
-        <button type="button" id="residentClearBtn" class="resident-clear" title="נקה בחירה" aria-label="נקה בחירת דייר">✕</button>
-        <div class="resident-dropdown" id="residentDropdown"></div>
-      </div>
-      <select id="residentSelect" style="display:none;"><option value="">— יש להתחבר ולטעון רשימת דיירים —</option></select>
-      <div class="resident-info-row">
-        <div class="phone-box" id="phoneBox">טלפון יוצג לאחר בחירת דייר</div>
-        <div class="phone-box apt-box" id="aptBox">דירה תוצג לאחר בחירת דייר</div>
+    <!-- STEP 1 · RESIDENT -->
+    <div class="wizard-step" id="wizardStep0">
+      <p class="wizard-step-sub">בחרו את הדייר שעבורו מפיקים את הקבלה.</p>
+      <div class="row">
+        <label class="field-label">בחירת דייר</label>
+        <div class="resident-picker" id="residentPicker">
+          <input type="text" id="residentSearchInput" autocomplete="off" placeholder="יש להתחבר ולטעון רשימת דיירים" disabled>
+          <button type="button" id="residentClearBtn" class="resident-clear" title="נקה בחירה" aria-label="נקה בחירת דייר">✕</button>
+          <div class="resident-dropdown" id="residentDropdown"></div>
+        </div>
+        <select id="residentSelect" style="display:none;"><option value="">— יש להתחבר ולטעון רשימת דיירים —</option></select>
+        <div class="resident-info-row">
+          <div class="phone-box" id="phoneBox">טלפון יוצג לאחר בחירת דייר</div>
+          <div class="phone-box apt-box" id="aptBox">דירה תוצג לאחר בחירת דייר</div>
+        </div>
       </div>
     </div>
 
-    <div class="row">
-      <label class="field-label">אמצעי תשלום</label>
-      <div class="pay-grid" id="payGrid">
-        <div class="pay-opt" data-val="העברה בנקאית">העברה בנקאית</div>
-        <div class="pay-opt" data-val="צ'קים דחויים">צ'קים דחויים</div>
-        <div class="pay-opt" data-val="הוראת קבע">הוראת קבע</div>
-        <div class="pay-opt" data-val="מזומן">מזומן</div>
+    <!-- STEP 2 · MONTHS / PURPOSE -->
+    <div class="wizard-step" id="wizardStep1" style="display:none;">
+      <p class="wizard-step-sub">בחרו את חודשי התשלום, או תשלום למטרה אחרת.</p>
+      <div class="row">
+        <label class="other-purpose-toggle" id="otherPurposeToggle">
+          <input type="checkbox" id="otherPurposeCheck">
+          <span>תשלום למטרה אחרת (לדוגמה: שיפוץ)</span>
+        </label>
+      </div>
+
+      <div id="monthsSection">
+        <div class="row">
+          <label class="field-label">חודשי תשלום</label>
+          <div class="months-grid" id="monthsGrid"></div>
+          <div class="month-legend">
+            <span><span class="dot" style="background:var(--good)"></span>שולם</span>
+            <span><span class="dot" style="background:var(--blue)"></span>נבחר</span>
+            <span><span class="dot" style="background:var(--slate)"></span>עתידי</span>
+          </div>
+          <div class="month-actions">
+            <button class="small-btn" id="selectAllBtn">✓ סמן הכל</button>
+            <button class="small-btn" id="clearAllBtn">✗ בטל הכל</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="otherPurposeSection" style="display:none;">
+        <div class="row">
+          <label class="field-label">מטרת התשלום</label>
+          <input type="text" id="purposeInput" placeholder="לדוגמה: שיפוץ חניון, החלפת דוד שמש...">
+        </div>
+        <div class="row">
+          <label class="field-label">סכום (₪)</label>
+          <input type="number" id="manualAmountInput" placeholder="הזן סכום בש״ח" min="0">
+        </div>
       </div>
     </div>
 
-    <div class="row">
-      <label class="other-purpose-toggle" id="otherPurposeToggle">
-        <input type="checkbox" id="otherPurposeCheck">
-        <span>תשלום למטרה אחרת (לדוגמה: שיפוץ)</span>
+    <!-- STEP 3 · PAYMENT -->
+    <div class="wizard-step" id="wizardStep2" style="display:none;">
+      <p class="wizard-step-sub">בחרו את אמצעי התשלום.</p>
+      <div class="row">
+        <label class="field-label">אמצעי תשלום</label>
+        <div class="pay-grid" id="payGrid">
+          <div class="pay-opt" data-val="העברה בנקאית">העברה בנקאית</div>
+          <div class="pay-opt" data-val="צ'קים דחויים">צ'קים דחויים</div>
+          <div class="pay-opt" data-val="הוראת קבע">הוראת קבע</div>
+          <div class="pay-opt" data-val="מזומן">מזומן</div>
+        </div>
+      </div>
+      <label class="email-check-row" id="emailCheckRow">
+        <input type="checkbox" id="emailSendCheckbox" disabled>
+        <span>📧 שלח קבלה גם למייל <span id="emailCheckHint" class="hint"></span></span>
       </label>
     </div>
 
-    <div id="monthsSection">
-      <div class="row">
-        <label class="field-label">חודשי תשלום</label>
-        <div class="months-grid" id="monthsGrid"></div>
-        <div class="month-legend">
-          <span><span class="dot" style="background:var(--good)"></span>שולם</span>
-          <span><span class="dot" style="background:var(--blue)"></span>נבחר</span>
-          <span><span class="dot" style="background:var(--slate)"></span>עתידי</span>
-        </div>
-        <div class="month-actions">
-          <button class="small-btn" id="selectAllBtn">✓ סמן הכל</button>
-          <button class="small-btn" id="clearAllBtn">✗ בטל הכל</button>
-        </div>
+    <!-- STEP 4 · CONFIRM -->
+    <div class="wizard-step" id="wizardStep3" style="display:none;">
+      <p class="wizard-step-sub">בדקו את הפרטים ולחצו להפקת הקבלה.</p>
+      <div class="wizard-summary" id="wizardSummary"></div>
+      <div class="total-bar">
+        <span class="lbl" id="totalLbl">סכום לתשלום</span>
+        <span class="amt" id="totalAmt">0 ₪</span>
       </div>
-    </div>
-
-    <div id="otherPurposeSection" style="display:none;">
-      <div class="row">
-        <label class="field-label">מטרת התשלום</label>
-        <input type="text" id="purposeInput" placeholder="לדוגמה: שיפוץ חניון, החלפת דוד שמש...">
+      <button class="generate-btn" id="generateBtn" disabled>הפק קבלה</button>
+      <div class="post-actions" id="postActions" style="display:none;">
+        <button id="downloadBtn">⬇ הורדת PDF</button>
+        <button id="shareBtn">↗ שיתוף PDF</button>
       </div>
-      <div class="row">
-        <label class="field-label">סכום (₪)</label>
-        <input type="number" id="manualAmountInput" placeholder="הזן סכום בש״ח" min="0">
-      </div>
+      <div class="msg" id="msgBox"></div>
     </div>
 
-    <div class="total-bar">
-      <span class="lbl" id="totalLbl">סכום לתשלום</span>
-      <span class="amt" id="totalAmt">0 ₪</span>
+    <div class="wizard-nav">
+      <button class="wizard-back-btn" id="wizardBackBtn" style="visibility:hidden;">← חזרה</button>
+      <button class="wizard-next-btn" id="wizardNextBtn" disabled>המשך →</button>
     </div>
-
-    <label class="email-check-row" id="emailCheckRow">
-      <input type="checkbox" id="emailSendCheckbox" disabled>
-      <span>📧 שלח קבלה גם למייל <span id="emailCheckHint" class="hint"></span></span>
-    </label>
-
-    <button class="generate-btn" id="generateBtn" disabled>הפק קבלה</button>
-
-    <div class="post-actions" id="postActions" style="display:none;">
-      <button id="downloadBtn">⬇ הורדת PDF</button>
-      <button id="shareBtn">↗ שיתוף PDF</button>
-    </div>
-
-    <div class="msg" id="msgBox"></div>
   </div>
 
   <!-- RECEIPT PREVIEW -->
@@ -790,6 +844,7 @@ function clearResidentSelection(){
   residentSelect.value = '';
   residentSelect.dispatchEvent(new Event('change'));  // resets phone/apt/months/preview, doesn't touch the sheet
   residentSearchInput.focus();
+  wizardShowStep(0);
 }
 residentClearBtn.addEventListener('click', e=>{
   e.stopPropagation();
@@ -921,7 +976,77 @@ function validateForm(){
     ok=currentResident()&&selectedPay&&selectedMonths.size>0&&accessToken;
   }
   document.getElementById('generateBtn').disabled=!ok;
+  wizardRefreshNextBtn();
 }
+
+/* ═══════════════════════════════════════
+   WIZARD (4-step receipt flow: דייר → חודשים → תשלום → אישור)
+═══════════════════════════════════════ */
+const WIZARD_STEP_COUNT = 4;
+let wizardIndex = 0;
+
+function wizardStepValid(i){
+  switch(i){
+    case 0: return !!currentResident();
+    case 1: return isOtherPurpose
+      ? !!(document.getElementById('purposeInput').value.trim() && manualAmount()>0)
+      : selectedMonths.size>0;
+    case 2: return !!selectedPay;
+    default: return true;
+  }
+}
+
+function wizardRefreshNextBtn(){
+  const btn = document.getElementById('wizardNextBtn');
+  if(!btn) return; // not rendered yet on first script pass
+  btn.disabled = !wizardStepValid(wizardIndex);
+}
+
+function wizardUpdateSummary(){
+  const r = currentResident();
+  const monthsTxt = isOtherPurpose
+    ? (document.getElementById('purposeInput').value.trim() || '—')
+    : (selectedMonths.size ? sortedMonths().map(i=>MONTH_NAMES[i]).join(', ') : '—');
+  document.getElementById('wizardSummary').innerHTML = `
+    <div class="wizard-summary-row"><span>דייר</span><b>${r ? r.name : '—'}</b></div>
+    <div class="wizard-summary-row"><span>${isOtherPurpose ? 'מטרה' : 'חודשים'}</span><b>${monthsTxt}</b></div>
+    <div class="wizard-summary-row"><span>אמצעי תשלום</span><b>${selectedPay || '—'}</b></div>
+  `;
+}
+
+function wizardShowStep(i){
+  wizardIndex = Math.max(0, Math.min(WIZARD_STEP_COUNT - 1, i));
+
+  for(let s=0; s<WIZARD_STEP_COUNT; s++){
+    document.getElementById('wizardStep'+s).style.display = (s===wizardIndex) ? '' : 'none';
+  }
+
+  document.querySelectorAll('.wizard-dot').forEach((dot,idx)=>{
+    dot.classList.toggle('current', idx===wizardIndex);
+    dot.classList.toggle('done', idx<wizardIndex);
+    dot.classList.toggle('todo', idx>wizardIndex);
+    dot.querySelector('.circ').textContent = idx<wizardIndex ? '✓' : (idx+1);
+  });
+  document.getElementById('wizardProgressFill').style.width = (wizardIndex/(WIZARD_STEP_COUNT-1)*100) + '%';
+  document.getElementById('wizardCounter').textContent = `שלב ${wizardIndex+1} מתוך ${WIZARD_STEP_COUNT}`;
+
+  document.getElementById('wizardBackBtn').style.visibility = wizardIndex===0 ? 'hidden' : 'visible';
+  document.getElementById('wizardNextBtn').style.display    = wizardIndex===WIZARD_STEP_COUNT-1 ? 'none' : '';
+
+  if(wizardIndex === WIZARD_STEP_COUNT-1) wizardUpdateSummary();
+  wizardRefreshNextBtn();
+}
+
+function wizardNext(){
+  if(!wizardStepValid(wizardIndex)) return;
+  wizardShowStep(wizardIndex + 1);
+}
+function wizardBack(){
+  wizardShowStep(wizardIndex - 1);
+}
+
+document.getElementById('wizardNextBtn').addEventListener('click', wizardNext);
+document.getElementById('wizardBackBtn').addEventListener('click', wizardBack);
 
 /* ═══════════════════════════════════════
    RECEIPT HTML (used in preview & PDF)
@@ -1719,11 +1844,11 @@ const TOUR_STEPS = [
     text:'מזינים כאן את שם/כתובת הבניין. זה מה שיופיע בכותרת ובקבלות עצמן.' },
   { target:'#modalSave', title:'שמירה', inModal:true,
     text:'לא לשכוח ללחוץ כאן לשמירת ההגדרות בסיום.' },
-  { target:'#residentPicker', title:'בחירת דייר',
+  { target:'#residentPicker', title:'בחירת דייר', wizardStep:0,
     text:'כאן בוחרים את הדייר שעבורו מפיקים את הקבלה.' },
-  { target:'#monthsGrid', title:'חודשי תשלום',
+  { target:'#monthsGrid', title:'חודשי תשלום', wizardStep:1,
     text:'מסמנים את החודשים ששולם עבורם. חודשים ירוקים כבר שולמו בעבר ולא ניתנים לבחירה.' },
-  { target:'#generateBtn', title:'הפקת קבלה',
+  { target:'#generateBtn', title:'הפקת קבלה', wizardStep:3,
     text:'לוחצים כאן ליצירת קובץ ה-PDF של הקבלה, מוכן לשליחה.' },
   { title:'זהו, מוכנים! 🎉',
     text:'אפשר לפתוח את המדריך הזה שוב בכל רגע דרך כפתור "❓ הדרכה" למעלה.' }
@@ -1781,10 +1906,10 @@ function tourShowStep(i){
   tourIndex = i;
   const step = TOUR_STEPS[i];
 
-  // The settings modal is opened/closed automatically based on whether this
-  // step's target lives inside it — works correctly regardless of whether
-  // the person is moving forward or backward through the tour.
+  // The settings modal and the receipt wizard are opened/moved to whichever
+  // step this tour step needs, automatically, regardless of nav direction.
   tourSetSettingsOpen(!!step.inModal);
+  if(step.wizardStep !== undefined) wizardShowStep(step.wizardStep);
 
   document.getElementById('tourStepCounter').textContent = `שלב ${i+1} מתוך ${TOUR_STEPS.length}`;
   document.getElementById('tourTitle').textContent = step.title;
@@ -1829,6 +1954,7 @@ window.addEventListener('load',()=>{
   if(!isConfigured()){
     showMsg('ברוכים הבאים! יש ללחוץ על ⚙ הגדרות, למלא את פרטי הבניין, ולהדביק קישור לגיליון Google Sheets ולתיקיית Drive שלכם.','info');
   }
+  wizardShowStep(0);
   initGoogle();
 
   // Auto-start the guided tour once, the very first time someone opens the app.
