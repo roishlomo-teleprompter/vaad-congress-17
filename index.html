@@ -32,7 +32,9 @@
   --app-bg:#F5F8FB; --card-line:#E3E9F0; --card-shadow:0 8px 24px -14px rgba(16,24,40,.18);
 }
 *{box-sizing:border-box;}
-html,body{margin:0;background:var(--app-bg);color:var(--ink);font-family:'Heebo',sans-serif;min-height:100vh;}
+html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-serif;min-height:100vh;}
+.app-frame{max-width:480px;margin:0 auto;background:var(--app-bg);min-height:100vh;box-shadow:0 0 60px rgba(16,24,40,.12);}
+@media (max-width:480px){ .app-frame{ box-shadow:none; } }
 
 /* ── TOPBAR ── */
 .topbar{background:#fff;color:var(--ink);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1.5px solid var(--card-line);}
@@ -79,6 +81,8 @@ html,body{margin:0;background:var(--app-bg);color:var(--ink);font-family:'Heebo'
 .home-card{grid-column:1 / -1;max-width:640px;margin:0 auto;width:100%;text-align:center;}
 .home-greeting{font-size:20px;font-weight:800;color:var(--ink);margin-bottom:24px;}
 .home-greeting-sub{font-size:13px;font-weight:600;color:var(--slate);margin-top:8px;}
+.home-illustration{border-radius:16px;overflow:hidden;margin-bottom:22px;line-height:0;}
+.home-illustration svg{width:100%;height:auto;display:block;}
 .home-quick-actions{display:flex;gap:12px;margin-bottom:22px;}
 .home-tile{flex:1;background:var(--app-bg);border:1.5px solid var(--card-line);border-radius:14px;padding:16px 8px;display:flex;flex-direction:column;align-items:center;gap:8px;font-family:inherit;font-size:12.5px;font-weight:700;color:var(--ink-soft);cursor:pointer;transition:.15s;}
 .home-tile:hover{background:#fff;border-color:var(--blue);color:var(--blue);}
@@ -88,12 +92,18 @@ html,body{margin:0;background:var(--app-bg);color:var(--ink);font-family:'Heebo'
 .wizard-avatar-header{display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:14px;}
 .wizard-avatar{width:64px;height:64px;border-radius:50%;background:var(--blue-soft);display:flex;align-items:center;justify-content:center;font-size:30px;}
 .wizard-avatar-header h3{margin:0;font-size:18px;font-weight:800;color:var(--ink);}
-.success-banner{background:var(--good-soft);border:1.5px solid var(--good);border-radius:16px;padding:24px 20px;text-align:center;margin-bottom:16px;}
-.success-check{width:52px;height:52px;border-radius:50%;background:var(--good);color:#fff;font-size:26px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;}
-.success-title{font-size:17px;font-weight:800;color:var(--ink);margin-bottom:6px;}
-.success-sub{font-size:12.5px;color:var(--slate);margin-bottom:16px;}
-.success-new-btn{background:#fff;border:1.5px solid var(--good);color:var(--good);border-radius:12px;padding:12px 18px;font-family:inherit;font-weight:700;font-size:13.5px;cursor:pointer;transition:.15s;}
-.success-new-btn:hover{background:var(--good);color:#fff;}
+.success-banner{background:var(--good-soft);border:1.5px solid var(--good);border-radius:16px;padding:24px 20px;text-align:center;margin-bottom:16px;position:relative;overflow:hidden;}
+.confetti-wrap{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
+.confetti-piece{position:absolute;top:-10px;width:8px;height:8px;border-radius:2px;opacity:0;animation:confetti-fall 1.2s ease-out forwards;}
+@keyframes confetti-fall{
+  0%{opacity:1;transform:translate(0,0) rotate(0deg);}
+  100%{opacity:0;transform:translate(var(--dx,0px),120px) rotate(360deg);}
+}
+.success-check{width:52px;height:52px;border-radius:50%;background:var(--good);color:#fff;font-size:26px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;position:relative;z-index:1;}
+.success-title{font-size:17px;font-weight:800;color:var(--ink);margin-bottom:6px;position:relative;z-index:1;}
+.success-sub{font-size:12.5px;color:var(--slate);margin-bottom:16px;position:relative;z-index:1;}
+.success-new-btn{position:relative;z-index:1;width:100%;background:#fff;border:1.5px solid var(--blue);color:var(--blue);border-radius:12px;padding:14px 18px;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;transition:.15s;}
+.success-new-btn:hover{background:var(--blue-soft);}
 @media (max-width:480px){
   .home-quick-actions{gap:8px;}
   .home-tile{padding:12px 4px;font-size:11px;}
@@ -282,7 +292,7 @@ textarea{resize:vertical;min-height:70px;}
 .tour-btn-ghost{background:none;border:none;color:var(--slate);font-size:12.5px;cursor:pointer;font-family:inherit;padding:6px 4px;}
 .tour-btn-ghost:hover{color:var(--ink);}
 .tour-btn-primary{background:var(--blue);color:#fff;border:none;border-radius:999px;padding:8px 18px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;}
-.login-gate{position:fixed;inset:0;background:#fff;z-index:500;display:flex;align-items:center;justify-content:center;padding:24px;}
+.login-gate{position:fixed;top:0;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#fff;z-index:500;display:flex;align-items:center;justify-content:center;padding:24px;box-shadow:0 0 60px rgba(16,24,40,.12);}
 .login-gate.hidden{display:none;}
 .login-gate-inner{max-width:340px;width:100%;text-align:center;}
 .login-logo{width:96px;height:96px;margin:0 auto 20px;border-radius:24px;overflow:hidden;box-shadow:0 12px 28px -10px rgba(37,99,235,.4);}
@@ -295,6 +305,7 @@ textarea{resize:vertical;min-height:70px;}
 .login-feature-icon{width:30px;height:30px;border-radius:50%;background:var(--blue-soft);display:flex;align-items:center;justify-content:center;font-size:15px;flex:none;}
 .login-google-btn{width:100%;background:var(--blue);color:#fff;border:none;border-radius:14px;padding:16px;font-family:inherit;font-weight:700;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:.15s;}
 .login-google-btn:hover{background:var(--blue-dark);}
+.login-footnote{font-size:11px;line-height:1.6;color:var(--slate);opacity:.75;margin:18px 0 0;}
 </style>
 </head>
 <body>
@@ -321,8 +332,12 @@ textarea{resize:vertical;min-height:70px;}
       </svg>
       התחבר עם Google
     </button>
+
+    <p class="login-footnote">קבקליק היא אפליקציה להפקת קבלות דמי ועד בית. היא מתחברת לחשבון ה-Google שלכם כדי לקרוא את רשימת הדיירים מ-Google Sheets וכדי לשמור את קובצי ה-PDF של הקבלות שהופקו ב-Google Drive שלכם - כל הנתונים נשארים בחשבון שלכם בלבד.</p>
   </div>
 </div>
+
+<div class="app-frame">
 
 <!-- TOPBAR -->
 <div class="topbar">
@@ -335,10 +350,10 @@ textarea{resize:vertical;min-height:70px;}
   </div>
   <div class="topbar-actions">
     <div class="building-badge" id="buildingBadge" style="display:none;">בניין: <span id="buildingBadgeText"></span></div>
-    <button class="pill-btn" id="tourBtn">❓ הדרכה</button>
-    <button class="pill-btn" id="historyBtn">🧾 קבלות החודש</button>
-    <button class="pill-btn" id="settingsBtn">⚙ הגדרות</button>
-    <button class="pill-btn gold" id="authBtn">
+    <button class="pill-btn" id="tourBtn" style="display:none;">❓ הדרכה</button>
+    <button class="pill-btn" id="historyBtn" style="display:none;">🧾 קבלות החודש</button>
+    <button class="pill-btn" id="settingsBtn" style="display:none;">⚙ הגדרות</button>
+    <button class="pill-btn gold" id="authBtn" style="display:none;">
       <span class="status-dot" id="authDot"></span>
       <span id="authLabel">התחברות עם Google</span>
       <svg width="18" height="18" viewBox="0 0 48 48" style="flex:none;">
@@ -363,6 +378,35 @@ textarea{resize:vertical;min-height:70px;}
   <!-- HOME SCREEN -->
   <div class="card home-card" id="homeScreen">
     <div class="home-greeting">👋 ברוכים הבאים<div class="home-greeting-sub" id="homeGreetingSub"></div></div>
+
+    <div class="home-illustration">
+      <svg viewBox="0 0 300 160" xmlns="http://www.w3.org/2000/svg">
+        <rect width="300" height="160" fill="#EAF1FE"/>
+        <ellipse cx="55" cy="28" rx="22" ry="10" fill="#fff"/>
+        <ellipse cx="78" cy="24" rx="15" ry="9" fill="#fff"/>
+        <ellipse cx="235" cy="38" rx="20" ry="9" fill="#fff"/>
+        <rect x="38" y="72" width="42" height="82" rx="4" fill="#93C5FD"/>
+        <rect x="45" y="82" width="9" height="9" fill="#EAF1FE"/><rect x="60" y="82" width="9" height="9" fill="#EAF1FE"/>
+        <rect x="45" y="98" width="9" height="9" fill="#EAF1FE"/><rect x="60" y="98" width="9" height="9" fill="#EAF1FE"/>
+        <rect x="45" y="114" width="9" height="9" fill="#EAF1FE"/><rect x="60" y="114" width="9" height="9" fill="#EAF1FE"/>
+        <rect x="94" y="46" width="56" height="108" rx="4" fill="#2563EB"/>
+        <rect x="103" y="58" width="10" height="10" fill="#EAF1FE"/><rect x="121" y="58" width="10" height="10" fill="#EAF1FE"/><rect x="139" y="58" width="10" height="10" fill="#EAF1FE"/>
+        <rect x="103" y="78" width="10" height="10" fill="#EAF1FE"/><rect x="121" y="78" width="10" height="10" fill="#EAF1FE"/><rect x="139" y="78" width="10" height="10" fill="#EAF1FE"/>
+        <rect x="103" y="98" width="10" height="10" fill="#EAF1FE"/><rect x="121" y="98" width="10" height="10" fill="#EAF1FE"/><rect x="139" y="98" width="10" height="10" fill="#EAF1FE"/>
+        <rect x="103" y="118" width="10" height="10" fill="#EAF1FE"/><rect x="121" y="118" width="10" height="10" fill="#FFC107"/><rect x="139" y="118" width="10" height="10" fill="#EAF1FE"/>
+        <rect x="158" y="84" width="38" height="70" rx="4" fill="#60A5FA"/>
+        <rect x="165" y="94" width="8" height="8" fill="#EAF1FE"/><rect x="180" y="94" width="8" height="8" fill="#EAF1FE"/>
+        <rect x="165" y="110" width="8" height="8" fill="#EAF1FE"/><rect x="180" y="110" width="8" height="8" fill="#EAF1FE"/>
+        <rect x="206" y="64" width="48" height="90" rx="4" fill="#1D4ED8"/>
+        <rect x="214" y="76" width="9" height="9" fill="#EAF1FE"/><rect x="230" y="76" width="9" height="9" fill="#EAF1FE"/><rect x="246" y="76" width="9" height="9" fill="#EAF1FE"/>
+        <rect x="214" y="94" width="9" height="9" fill="#EAF1FE"/><rect x="230" y="94" width="9" height="9" fill="#EAF1FE"/><rect x="246" y="94" width="9" height="9" fill="#EAF1FE"/>
+        <rect x="214" y="112" width="9" height="9" fill="#EAF1FE"/><rect x="230" y="112" width="9" height="9" fill="#EAF1FE"/><rect x="246" y="112" width="9" height="9" fill="#EAF1FE"/>
+        <rect x="0" y="152" width="300" height="8" fill="#CBD5E1"/>
+        <circle cx="22" cy="142" r="13" fill="#0E9F6E"/><rect x="19" y="150" width="6" height="9" fill="#92400E"/>
+        <circle cx="278" cy="142" r="13" fill="#0E9F6E"/><rect x="275" y="150" width="6" height="9" fill="#92400E"/>
+      </svg>
+    </div>
+
     <div class="home-quick-actions">
       <button class="home-tile" id="homeSettingsBtn"><span class="home-tile-icon">⚙️</span><span>הגדרות</span></button>
       <button class="home-tile" id="homeHistoryBtn"><span class="home-tile-icon">🧾</span><span>קבלות החודש</span></button>
@@ -477,6 +521,7 @@ textarea{resize:vertical;min-height:70px;}
       </div>
       <button class="generate-btn" id="generateBtn" disabled>הפק קבלה</button>
       <div class="success-banner" id="successBanner" style="display:none;">
+        <div class="confetti-wrap" id="confettiWrap"></div>
         <div class="success-check">✓</div>
         <div class="success-title">הקבלה הופקה בהצלחה!</div>
         <div class="success-sub" id="successSub"></div>
@@ -495,6 +540,8 @@ textarea{resize:vertical;min-height:70px;}
       <button class="wizard-next-btn" id="wizardNextBtn" disabled>המשך ←</button>
     </div>
   </div>
+
+</div>
 
 </div>
 
@@ -599,10 +646,6 @@ textarea{resize:vertical;min-height:70px;}
     </div>
   </div>
 </div>
-
-<footer style="max-width:640px;margin:8px auto 0;padding:14px 20px 28px;font-size:11.5px;line-height:1.6;color:var(--slate);text-align:center;opacity:.75;">
-  קבקליק היא אפליקציה להפקת קבלות דמי ועד בית. היא מתחברת לחשבון ה-Google שלכם כדי לקרוא את רשימת הדיירים מ-Google Sheets וכדי לשמור את קובצי ה-PDF של הקבלות שהופקו ב-Google Drive שלכם - כל הנתונים נשארים בחשבון שלכם בלבד.
-</footer>
 
 <script>
 /* ═══════════════════════════════════════
@@ -1160,6 +1203,21 @@ function showWizardFromHome(){
 function showHomeScreen(){
   document.querySelector('.wizard-card').style.display = 'none';
   document.getElementById('homeScreen').style.display = '';
+}
+
+function spawnConfetti(){
+  const wrap = document.getElementById('confettiWrap');
+  wrap.innerHTML = '';
+  const colors = ['#2563EB','#0E9F6E','#E0A72E','#FF3D00','#9333EA'];
+  for(let i=0; i<16; i++){
+    const el = document.createElement('span');
+    el.className = 'confetti-piece';
+    el.style.background = colors[i % colors.length];
+    el.style.left = (8 + Math.random()*84) + '%';
+    el.style.setProperty('--dx', (Math.random()*100-50) + 'px');
+    el.style.animationDelay = (Math.random()*0.2) + 's';
+    wrap.appendChild(el);
+  }
 }
 
 document.getElementById('homeStartBtn').addEventListener('click', showWizardFromHome);
@@ -1906,6 +1964,7 @@ document.getElementById('generateBtn').onclick=async()=>{
     document.getElementById('postActions').style.display='flex';
     document.getElementById('successSub').textContent = `${r.name} · ${total.toLocaleString('he-IL')} ₪`;
     document.getElementById('successBanner').style.display = 'block';
+    spawnConfetti();
 
     const wantsEmail = document.getElementById('emailSendCheckbox').checked && r.email;
     if(wantsEmail){
@@ -1967,10 +2026,8 @@ function tourSetSettingsOpen(shouldBeOpen){
 const TOUR_STEPS = [
   { title:'ברוכים הבאים לקבקליק 👋',
     text:'תוך פחות מדקה נראה לכם איך להתחיל להפיק קבלות. אפשר לדלג בכל שלב.' },
-  { target:'#authBtn', title:'שלב 1 · התחברות',
-    text:'מתחברים כאן עם חשבון ה-Google שלכם.' },
-  { target:'#settingsBtn', title:'שלב 2 · הגדרות',
-    text:'לאחר ההתחברות, פותחים כאן את ההגדרות כדי לחבר את הגיליון והתיקייה שלכם.' },
+  { target:'#homeSettingsBtn', title:'הגדרות',
+    text:'כאן פותחים את ההגדרות כדי לחבר את הגיליון והתיקייה שלכם.' },
   { target:'#autoCreateBtn', title:'אין גיליון עדיין?', inModal:true,
     text:'כבר יש לכם גיליון עם רשימת דיירים ותיקיית Drive? מדביקים את הקישורים בשדות למטה. חשוב: לשונית בשם "אנשי קשר" עם עמודות שם וטלפון (מייל ומחיר — אופציונלי).\n\nבלי לחיצה כאן, לא ייווצר גיליון או תיקייה — צריך קישורים משלכם.\n\nאין לכם עדיין? לוחצים כאן ליצירה אוטומטית של שניהם.' },
   { target:'#cfg-buildingInfo', title:'פרטי הבניין', inModal:true,
@@ -1986,7 +2043,7 @@ const TOUR_STEPS = [
   { target:'#generateBtn', title:'הפקת קבלה', wizardStep:3,
     text:'לוחצים כאן ליצירת קובץ ה-PDF של הקבלה. הקבלה נשמרת אוטומטית בתיקיית ה-Drive שהוגדרה, ונרשמת גם בלשונית "קבלות" בגיליון — לתיעוד מלא של כל הקבלות שהופקו.' },
   { title:'זהו, מוכנים! 🎉',
-    text:'אפשר לפתוח את המדריך הזה שוב בכל רגע דרך כפתור "❓ הדרכה" למעלה.' }
+    text:'אפשר לפתוח את המדריך הזה שוב בכל רגע דרך כפתור "הדרכה" במסך הבית.' }
 ];
 
 let tourIndex = 0;
@@ -2048,6 +2105,9 @@ function tourShowStep(i){
     document.getElementById('homeScreen').style.display = 'none';
     document.querySelector('.wizard-card').style.display = '';
     wizardShowStep(step.wizardStep);
+  } else if(!step.inModal){
+    document.getElementById('homeScreen').style.display = '';
+    document.querySelector('.wizard-card').style.display = 'none';
   }
 
   document.getElementById('tourStepCounter').textContent = `שלב ${i+1} מתוך ${TOUR_STEPS.length}`;
