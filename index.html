@@ -50,6 +50,8 @@ html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-
 .building-badge{background:var(--app-bg);border:1px dashed var(--card-line);border-radius:9px;padding:8px 14px;font-size:13px;color:var(--slate);white-space:nowrap;}
 .building-badge span{color:var(--ink);font-weight:700;}
 .pill-btn{background:#fff;border:1.5px solid var(--card-line);color:var(--ink-soft);padding:8px 15px;border-radius:999px;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:600;display:flex;align-items:center;gap:6px;transition:.15s;}
+.icon-btn{width:36px;height:36px;border-radius:50%;background:#fff;border:1.5px solid var(--card-line);color:var(--ink-soft);font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.15s;flex:none;}
+.icon-btn:hover{background:var(--app-bg);border-color:var(--blue);}
 .pill-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-soft);}
 .pill-btn.gold{border-color:var(--blue);color:var(--blue);background:var(--blue-soft);}
 .status-dot{width:8px;height:8px;border-radius:50%;background:var(--bad);display:inline-block;transition:.3s;}
@@ -89,10 +91,10 @@ html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-
 .home-tile-icon{font-size:24px;}
 .home-cta{width:100%;background:var(--blue);color:#fff;border:none;border-radius:14px;padding:18px;font-family:inherit;font-weight:800;font-size:16px;cursor:pointer;transition:.15s;box-shadow:0 10px 24px -8px rgba(37,99,235,.45);}
 .home-cta:hover{background:var(--blue-dark);}
-.wizard-avatar-header{display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:14px;}
-.wizard-avatar{width:64px;height:64px;border-radius:50%;background:var(--blue-soft);display:flex;align-items:center;justify-content:center;font-size:30px;}
-.wizard-avatar-header h3{margin:0;font-size:18px;font-weight:800;color:var(--ink);}
-.residents-loaded-badge{background:var(--blue-soft);color:var(--blue-dark);border:1px dashed var(--blue);border-radius:10px;padding:8px 14px;font-size:12.5px;font-weight:700;text-align:center;margin-bottom:14px;}
+.wizard-avatar-header{display:flex;flex-direction:column;align-items:center;gap:8px;margin-bottom:10px;}
+.wizard-avatar{width:52px;height:52px;border-radius:50%;background:var(--blue-soft);display:flex;align-items:center;justify-content:center;font-size:24px;}
+.wizard-avatar-header h3{margin:0;font-size:17px;font-weight:800;color:var(--ink);}
+.residents-loaded-badge{background:var(--blue-soft);color:var(--blue-dark);border:1px dashed var(--blue);border-radius:10px;padding:7px 14px;font-size:12px;font-weight:700;text-align:center;margin-bottom:10px;}
 .success-banner{background:var(--good-soft);border:1.5px solid var(--good);border-radius:16px;padding:24px 20px;text-align:center;margin-bottom:16px;position:relative;overflow:hidden;}
 .confetti-wrap{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
 .confetti-piece{position:absolute;top:-10px;width:8px;height:8px;border-radius:2px;opacity:0;animation:confetti-fall 1.2s ease-out forwards;}
@@ -134,15 +136,20 @@ html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-
 .wizard-next-btn:hover:not(:disabled){background:var(--blue-dark);}
 .wizard-next-btn:disabled{opacity:.45;cursor:not-allowed;}
 @media (max-width:480px){
-  .card{ padding:20px 18px; }
+  .card{ padding:16px 14px; }
   .resident-info-row{ flex-wrap:wrap; }
   .wizard-dot .lbl{font-size:9.5px;}
   .wizard-dot .circ{width:22px;height:22px;font-size:11px;}
-  .wizard-head{margin-bottom:10px;}
-  .wizard-progress-track{margin-bottom:14px;}
-  .wizard-dots{margin-bottom:16px;}
-  .wizard-step-sub{margin-bottom:12px;}
-  .row{margin-bottom:14px;}
+  .wizard-head{margin-bottom:6px;}
+  .wizard-progress-track{margin-bottom:10px;}
+  .wizard-dots{margin-bottom:12px;}
+  .wizard-step-sub{margin-bottom:8px;}
+  .row{margin-bottom:10px;}
+  .wizard-avatar-header{margin-bottom:6px;}
+  .wizard-avatar{width:44px;height:44px;font-size:20px;}
+  .month-box{padding:8px 6px;font-size:12px;}
+  .month-legend{margin-top:6px;}
+  .month-actions{margin:6px 0 2px;}
 }
 .card h2{font-family:'Heebo';font-weight:800;font-size:17px;margin:0 0 18px;color:var(--ink);border-bottom:none;padding-bottom:0;display:flex;align-items:center;gap:9px;}
 .card h2 .num{font-family:'Heebo';background:var(--blue);color:#fff;font-size:12px;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;}
@@ -305,7 +312,9 @@ textarea{resize:vertical;min-height:70px;}
 .login-logo img{width:100%;height:100%;object-fit:cover;}
 .login-title{font-size:38px;font-weight:900;margin:0;color:var(--blue);}
 .login-title .gold{color:#000;}
-.login-tagline{font-size:14px;color:var(--slate);margin:6px 0 32px;}
+.login-tagline{font-size:14px;color:var(--slate);margin:6px 0 20px;}
+.login-illustration{border-radius:16px;overflow:hidden;margin-bottom:20px;line-height:0;}
+.login-illustration svg{width:100%;height:auto;display:block;}
 .login-features{background:var(--app-bg);border-radius:16px;padding:20px;margin-bottom:28px;text-align:right;}
 .login-feature{display:flex;align-items:center;gap:10px;font-size:13.5px;font-weight:600;color:var(--ink-soft);padding:8px 0;}
 .login-feature-icon{width:30px;height:30px;border-radius:50%;background:var(--blue-soft);display:flex;align-items:center;justify-content:center;font-size:15px;flex:none;}
@@ -322,6 +331,10 @@ textarea{resize:vertical;min-height:70px;}
     <div class="login-logo"><img src="icon-mark-512.png" alt="קבקליק"></div>
     <h1 class="login-title"><span class="gold">קב</span>קליק</h1>
     <p class="login-tagline">מפיקים קבלות בקלות ובמהירות</p>
+
+    <div class="login-illustration">
+      <img src="buildings-illustration.jpg" alt="בניין" style="width:100%;height:auto;display:block;">
+    </div>
 
     <div class="login-features">
       <div class="login-feature"><span class="login-feature-icon">🔒</span>קבלות מאובטחות</div>
@@ -356,7 +369,13 @@ textarea{resize:vertical;min-height:70px;}
   </div>
   <div class="topbar-actions">
     <div class="building-badge" id="buildingBadge" style="display:none;">בניין: <span id="buildingBadgeText"></span></div>
-    <button class="pill-btn" id="signOutBtn" title="התנתקות">🚪 התנתקות</button>
+    <button class="icon-btn" id="signOutBtn" title="התנתקות" aria-label="התנתקות">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+        <polyline points="16 17 21 12 16 7"/>
+        <line x1="21" y1="12" x2="9" y2="12"/>
+      </svg>
+    </button>
     <button class="pill-btn" id="tourBtn" style="display:none;">❓ הדרכה</button>
     <button class="pill-btn" id="historyBtn" style="display:none;">🧾 קבלות החודש</button>
     <button class="pill-btn" id="settingsBtn" style="display:none;">⚙ הגדרות</button>
@@ -387,31 +406,7 @@ textarea{resize:vertical;min-height:70px;}
     <div class="home-greeting">👋 ברוכים הבאים<div class="home-greeting-sub" id="homeGreetingSub"></div></div>
 
     <div class="home-illustration">
-      <svg viewBox="0 0 300 160" xmlns="http://www.w3.org/2000/svg">
-        <rect width="300" height="160" fill="#EAF1FE"/>
-        <ellipse cx="55" cy="28" rx="22" ry="10" fill="#fff"/>
-        <ellipse cx="78" cy="24" rx="15" ry="9" fill="#fff"/>
-        <ellipse cx="235" cy="38" rx="20" ry="9" fill="#fff"/>
-        <rect x="38" y="72" width="42" height="82" rx="4" fill="#93C5FD"/>
-        <rect x="45" y="82" width="9" height="9" fill="#EAF1FE"/><rect x="60" y="82" width="9" height="9" fill="#EAF1FE"/>
-        <rect x="45" y="98" width="9" height="9" fill="#EAF1FE"/><rect x="60" y="98" width="9" height="9" fill="#EAF1FE"/>
-        <rect x="45" y="114" width="9" height="9" fill="#EAF1FE"/><rect x="60" y="114" width="9" height="9" fill="#EAF1FE"/>
-        <rect x="94" y="46" width="56" height="108" rx="4" fill="#2563EB"/>
-        <rect x="103" y="58" width="10" height="10" fill="#EAF1FE"/><rect x="121" y="58" width="10" height="10" fill="#EAF1FE"/><rect x="139" y="58" width="10" height="10" fill="#EAF1FE"/>
-        <rect x="103" y="78" width="10" height="10" fill="#EAF1FE"/><rect x="121" y="78" width="10" height="10" fill="#EAF1FE"/><rect x="139" y="78" width="10" height="10" fill="#EAF1FE"/>
-        <rect x="103" y="98" width="10" height="10" fill="#EAF1FE"/><rect x="121" y="98" width="10" height="10" fill="#EAF1FE"/><rect x="139" y="98" width="10" height="10" fill="#EAF1FE"/>
-        <rect x="103" y="118" width="10" height="10" fill="#EAF1FE"/><rect x="121" y="118" width="10" height="10" fill="#FFC107"/><rect x="139" y="118" width="10" height="10" fill="#EAF1FE"/>
-        <rect x="158" y="84" width="38" height="70" rx="4" fill="#60A5FA"/>
-        <rect x="165" y="94" width="8" height="8" fill="#EAF1FE"/><rect x="180" y="94" width="8" height="8" fill="#EAF1FE"/>
-        <rect x="165" y="110" width="8" height="8" fill="#EAF1FE"/><rect x="180" y="110" width="8" height="8" fill="#EAF1FE"/>
-        <rect x="206" y="64" width="48" height="90" rx="4" fill="#1D4ED8"/>
-        <rect x="214" y="76" width="9" height="9" fill="#EAF1FE"/><rect x="230" y="76" width="9" height="9" fill="#EAF1FE"/><rect x="246" y="76" width="9" height="9" fill="#EAF1FE"/>
-        <rect x="214" y="94" width="9" height="9" fill="#EAF1FE"/><rect x="230" y="94" width="9" height="9" fill="#EAF1FE"/><rect x="246" y="94" width="9" height="9" fill="#EAF1FE"/>
-        <rect x="214" y="112" width="9" height="9" fill="#EAF1FE"/><rect x="230" y="112" width="9" height="9" fill="#EAF1FE"/><rect x="246" y="112" width="9" height="9" fill="#EAF1FE"/>
-        <rect x="0" y="152" width="300" height="8" fill="#CBD5E1"/>
-        <circle cx="22" cy="142" r="13" fill="#0E9F6E"/><rect x="19" y="150" width="6" height="9" fill="#92400E"/>
-        <circle cx="278" cy="142" r="13" fill="#0E9F6E"/><rect x="275" y="150" width="6" height="9" fill="#92400E"/>
-      </svg>
+      <img src="buildings-illustration.jpg" alt="בניין" style="width:100%;height:auto;display:block;">
     </div>
 
     <div class="home-quick-actions">
@@ -1344,11 +1339,10 @@ function markDisconnected(){
 }
 
 function signOut(){
-  try{
-    if(accessToken && window.google && google.accounts && google.accounts.oauth2){
-      google.accounts.oauth2.revoke(accessToken, ()=>{});
-    }
-  }catch(e){}
+  // Only clear the local session — do NOT revoke the Google grant itself
+  // (google.accounts.oauth2.revoke) since that forces the person to click
+  // through the full scope-approval screens again on next sign-in. A local
+  // sign-out should just forget the cached token and show the login gate.
   clearTokenCache();
   clearLicenseCache();
   markDisconnected();
