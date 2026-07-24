@@ -92,6 +92,7 @@ html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-
 .wizard-avatar-header{display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:14px;}
 .wizard-avatar{width:64px;height:64px;border-radius:50%;background:var(--blue-soft);display:flex;align-items:center;justify-content:center;font-size:30px;}
 .wizard-avatar-header h3{margin:0;font-size:18px;font-weight:800;color:var(--ink);}
+.residents-loaded-badge{background:var(--blue-soft);color:var(--blue-dark);border:1px dashed var(--blue);border-radius:10px;padding:8px 14px;font-size:12.5px;font-weight:700;text-align:center;margin-bottom:14px;}
 .success-banner{background:var(--good-soft);border:1.5px solid var(--good);border-radius:16px;padding:24px 20px;text-align:center;margin-bottom:16px;position:relative;overflow:hidden;}
 .confetti-wrap{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
 .confetti-piece{position:absolute;top:-10px;width:8px;height:8px;border-radius:2px;opacity:0;animation:confetti-fall 1.2s ease-out forwards;}
@@ -124,7 +125,7 @@ html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-
 .wizard-summary-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;font-size:13px;color:var(--slate);border-bottom:1px solid var(--card-line);}
 .wizard-summary-row:last-child{border-bottom:none;}
 .wizard-summary-row b{color:var(--ink);font-weight:700;max-width:60%;text-align:left;}
-.wizard-nav{display:flex;gap:10px;margin-top:20px;}
+.wizard-nav{position:sticky;bottom:0;background:#fff;display:flex;gap:10px;margin-top:20px;padding:14px 0 4px;box-shadow:0 -8px 16px -10px rgba(16,24,40,.1);}
 .wizard-back-btn{flex:0 0 110px;background:#fff;border:1.5px solid var(--card-line);border-radius:12px;padding:14px;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;color:var(--ink);}
 .wizard-back-btn:hover{background:var(--app-bg);}
 .wizard-cancel-btn{flex:1;background:#fff;border:1.5px solid var(--bad);color:var(--bad);border-radius:12px;padding:14px;font-family:inherit;font-weight:700;font-size:15px;cursor:pointer;}
@@ -137,6 +138,11 @@ html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-
   .resident-info-row{ flex-wrap:wrap; }
   .wizard-dot .lbl{font-size:9.5px;}
   .wizard-dot .circ{width:22px;height:22px;font-size:11px;}
+  .wizard-head{margin-bottom:10px;}
+  .wizard-progress-track{margin-bottom:14px;}
+  .wizard-dots{margin-bottom:16px;}
+  .wizard-step-sub{margin-bottom:12px;}
+  .row{margin-bottom:14px;}
 }
 .card h2{font-family:'Heebo';font-weight:800;font-size:17px;margin:0 0 18px;color:var(--ink);border-bottom:none;padding-bottom:0;display:flex;align-items:center;gap:9px;}
 .card h2 .num{font-family:'Heebo';background:var(--blue);color:#fff;font-size:12px;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;}
@@ -350,6 +356,7 @@ textarea{resize:vertical;min-height:70px;}
   </div>
   <div class="topbar-actions">
     <div class="building-badge" id="buildingBadge" style="display:none;">בניין: <span id="buildingBadgeText"></span></div>
+    <button class="pill-btn" id="signOutBtn" title="התנתקות">🚪 התנתקות</button>
     <button class="pill-btn" id="tourBtn" style="display:none;">❓ הדרכה</button>
     <button class="pill-btn" id="historyBtn" style="display:none;">🧾 קבלות החודש</button>
     <button class="pill-btn" id="settingsBtn" style="display:none;">⚙ הגדרות</button>
@@ -436,6 +443,7 @@ textarea{resize:vertical;min-height:70px;}
         <h3>מי משלם?</h3>
       </div>
       <p class="wizard-step-sub">בחרו את הדייר שעבורו מפיקים את הקבלה.</p>
+      <div class="residents-loaded-badge" id="residentsLoadedBadge" style="display:none;"></div>
       <div class="row">
         <label class="field-label">בחירת דייר</label>
         <div class="resident-picker" id="residentPicker">
@@ -1335,9 +1343,22 @@ function markDisconnected(){
   document.getElementById('loginGate').classList.remove('hidden');
 }
 
+function signOut(){
+  try{
+    if(accessToken && window.google && google.accounts && google.accounts.oauth2){
+      google.accounts.oauth2.revoke(accessToken, ()=>{});
+    }
+  }catch(e){}
+  clearTokenCache();
+  clearLicenseCache();
+  markDisconnected();
+  showHomeScreen();
+}
+
 document.getElementById('loginGateGoogleBtn').addEventListener('click', ()=>{
   document.getElementById('authBtn').click();
 });
+document.getElementById('signOutBtn').addEventListener('click', signOut);
 
 /* ═══════════════════════════════════════
    LICENSE ENFORCEMENT
@@ -1622,7 +1643,9 @@ async function loadResidents(){
     searchInput.value = '';
     toggleResidentClearBtn();
 
-    showMsg(`נטענו ${residents.length} דיירים.`,'ok');
+    const badge = document.getElementById('residentsLoadedBadge');
+    badge.textContent = `✓ נטענו ${residents.length} דיירים`;
+    badge.style.display = 'block';
   }catch(e){
     if(e.status===401||e.result?.error?.code===401){
       // Cached token turned out to be invalid (revoked/expired) — clear it and ask
