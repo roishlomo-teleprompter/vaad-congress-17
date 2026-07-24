@@ -69,6 +69,8 @@ html,body{margin:0;background:var(--app-bg);color:var(--ink);font-family:'Heebo'
 
 /* ── LAYOUT ── */
 .wrap{max-width:1180px;margin:0 auto;padding:24px 20px 20px;display:grid;grid-template-columns:1fr 1fr;gap:24px;}
+.wizard-card{grid-column:1 / -1;max-width:640px;margin:0 auto;width:100%;}
+.wizard-preview-label{font-size:13px;font-weight:700;color:var(--ink);margin:4px 0 10px;}
 @media(max-width:900px){.wrap{grid-template-columns:1fr;}}
 
 /* ── CARDS ── */
@@ -387,6 +389,10 @@ textarea{resize:vertical;min-height:70px;}
         <span class="lbl" id="totalLbl">סכום לתשלום</span>
         <span class="amt" id="totalAmt">0 ₪</span>
       </div>
+      <div class="wizard-preview-label">תצוגה מקדימה</div>
+      <div class="receipt-paper" id="receiptPaper">
+        <div class="empty-hint">בחרו דייר, אמצעי תשלום וחודשים — התצוגה המקדימה תופיע כאן.</div>
+      </div>
       <button class="generate-btn" id="generateBtn" disabled>הפק קבלה</button>
       <div class="post-actions" id="postActions" style="display:none;">
         <button id="downloadBtn">⬇ הורדת PDF</button>
@@ -399,14 +405,6 @@ textarea{resize:vertical;min-height:70px;}
       <button class="wizard-back-btn" id="wizardBackBtn" style="visibility:hidden;">→ חזרה</button>
       <button class="wizard-cancel-btn" id="wizardCancelBtn" style="display:none;">ביטול</button>
       <button class="wizard-next-btn" id="wizardNextBtn" disabled>המשך ←</button>
-    </div>
-  </div>
-
-  <!-- RECEIPT PREVIEW -->
-  <div class="card" id="previewCard" style="display:none;">
-    <h2><span class="num">2</span> תצוגה מקדימה</h2>
-    <div class="receipt-paper" id="receiptPaper">
-      <div class="empty-hint">בחרו דייר, אמצעי תשלום וחודשים — התצוגה המקדימה תופיע כאן.</div>
     </div>
   </div>
 
@@ -1036,8 +1034,6 @@ function wizardShowStep(i){
   document.getElementById('wizardBackBtn').style.visibility = wizardIndex===0 ? 'hidden' : 'visible';
   document.getElementById('wizardNextBtn').style.display    = wizardIndex===WIZARD_STEP_COUNT-1 ? 'none' : '';
   document.getElementById('wizardCancelBtn').style.display  = wizardIndex===WIZARD_STEP_COUNT-1 ? '' : 'none';
-  document.getElementById('previewCard').style.display      = wizardIndex===WIZARD_STEP_COUNT-1 ? '' : 'none';
-  document.querySelector('.wizard-card').style.gridColumn   = wizardIndex===WIZARD_STEP_COUNT-1 ? 'auto' : '1 / -1';
 
   if(wizardIndex === WIZARD_STEP_COUNT-1) wizardUpdateSummary();
   wizardRefreshNextBtn();
