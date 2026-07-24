@@ -76,6 +76,29 @@ html,body{margin:0;background:var(--app-bg);color:var(--ink);font-family:'Heebo'
 /* ── CARDS ── */
 .card{background:#fff;border:1.5px solid var(--card-line);border-radius:18px;box-shadow:var(--card-shadow);padding:28px;}
 .wizard-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.home-card{grid-column:1 / -1;max-width:640px;margin:0 auto;width:100%;text-align:center;}
+.home-greeting{font-size:20px;font-weight:800;color:var(--ink);margin-bottom:24px;}
+.home-greeting-sub{font-size:13px;font-weight:600;color:var(--slate);margin-top:8px;}
+.home-quick-actions{display:flex;gap:12px;margin-bottom:22px;}
+.home-tile{flex:1;background:var(--app-bg);border:1.5px solid var(--card-line);border-radius:14px;padding:16px 8px;display:flex;flex-direction:column;align-items:center;gap:8px;font-family:inherit;font-size:12.5px;font-weight:700;color:var(--ink-soft);cursor:pointer;transition:.15s;}
+.home-tile:hover{background:#fff;border-color:var(--blue);color:var(--blue);}
+.home-tile-icon{font-size:24px;}
+.home-cta{width:100%;background:var(--blue);color:#fff;border:none;border-radius:14px;padding:18px;font-family:inherit;font-weight:800;font-size:16px;cursor:pointer;transition:.15s;box-shadow:0 10px 24px -8px rgba(37,99,235,.45);}
+.home-cta:hover{background:var(--blue-dark);}
+.wizard-avatar-header{display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:14px;}
+.wizard-avatar{width:64px;height:64px;border-radius:50%;background:var(--blue-soft);display:flex;align-items:center;justify-content:center;font-size:30px;}
+.wizard-avatar-header h3{margin:0;font-size:18px;font-weight:800;color:var(--ink);}
+.success-banner{background:var(--good-soft);border:1.5px solid var(--good);border-radius:16px;padding:24px 20px;text-align:center;margin-bottom:16px;}
+.success-check{width:52px;height:52px;border-radius:50%;background:var(--good);color:#fff;font-size:26px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;}
+.success-title{font-size:17px;font-weight:800;color:var(--ink);margin-bottom:6px;}
+.success-sub{font-size:12.5px;color:var(--slate);margin-bottom:16px;}
+.success-new-btn{background:#fff;border:1.5px solid var(--good);color:var(--good);border-radius:12px;padding:12px 18px;font-family:inherit;font-weight:700;font-size:13.5px;cursor:pointer;transition:.15s;}
+.success-new-btn:hover{background:var(--good);color:#fff;}
+@media (max-width:480px){
+  .home-quick-actions{gap:8px;}
+  .home-tile{padding:12px 4px;font-size:11px;}
+  .home-tile-icon{font-size:20px;}
+}
 .wizard-counter{font-size:12.5px;color:var(--slate);font-weight:700;}
 .wizard-progress-track{height:5px;border-radius:3px;background:var(--card-line);margin-bottom:20px;overflow:hidden;}
 .wizard-progress-fill{height:100%;width:0%;background:var(--blue);border-radius:3px;transition:width .3s ease;}
@@ -259,9 +282,47 @@ textarea{resize:vertical;min-height:70px;}
 .tour-btn-ghost{background:none;border:none;color:var(--slate);font-size:12.5px;cursor:pointer;font-family:inherit;padding:6px 4px;}
 .tour-btn-ghost:hover{color:var(--ink);}
 .tour-btn-primary{background:var(--blue);color:#fff;border:none;border-radius:999px;padding:8px 18px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;}
+.login-gate{position:fixed;inset:0;background:#fff;z-index:500;display:flex;align-items:center;justify-content:center;padding:24px;}
+.login-gate.hidden{display:none;}
+.login-gate-inner{max-width:340px;width:100%;text-align:center;}
+.login-logo{width:96px;height:96px;margin:0 auto 20px;border-radius:24px;overflow:hidden;box-shadow:0 12px 28px -10px rgba(37,99,235,.4);}
+.login-logo img{width:100%;height:100%;object-fit:cover;}
+.login-title{font-size:38px;font-weight:900;margin:0;color:var(--blue);}
+.login-title .gold{color:#000;}
+.login-tagline{font-size:14px;color:var(--slate);margin:6px 0 32px;}
+.login-features{background:var(--app-bg);border-radius:16px;padding:20px;margin-bottom:28px;text-align:right;}
+.login-feature{display:flex;align-items:center;gap:10px;font-size:13.5px;font-weight:600;color:var(--ink-soft);padding:8px 0;}
+.login-feature-icon{width:30px;height:30px;border-radius:50%;background:var(--blue-soft);display:flex;align-items:center;justify-content:center;font-size:15px;flex:none;}
+.login-google-btn{width:100%;background:var(--blue);color:#fff;border:none;border-radius:14px;padding:16px;font-family:inherit;font-weight:700;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:.15s;}
+.login-google-btn:hover{background:var(--blue-dark);}
 </style>
 </head>
 <body>
+
+<!-- LOGIN GATE (shown until the person connects with Google) -->
+<div class="login-gate" id="loginGate">
+  <div class="login-gate-inner">
+    <div class="login-logo"><img src="icon-mark-512.png" alt="קבקליק"></div>
+    <h1 class="login-title"><span class="gold">קב</span>קליק</h1>
+    <p class="login-tagline">מפיקים קבלות בקלות ובמהירות</p>
+
+    <div class="login-features">
+      <div class="login-feature"><span class="login-feature-icon">🔒</span>קבלות מאובטחות</div>
+      <div class="login-feature"><span class="login-feature-icon">🏢</span>ניהול ועד בית קל ונוח</div>
+      <div class="login-feature"><span class="login-feature-icon">📊</span>מעקב תשלומים בזמן אמת</div>
+    </div>
+
+    <button class="login-google-btn" id="loginGateGoogleBtn">
+      <svg width="20" height="20" viewBox="0 0 48 48" style="flex:none;">
+        <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.1 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"/>
+        <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.1 18.9 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.1 29.6 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
+        <path fill="#4CAF50" d="M24 44c5.5 0 10.4-1.8 14.3-5l-6.6-5.4C29.6 35.6 26.9 36.5 24 36.5c-5.3 0-9.7-3.4-11.3-8.1l-6.6 5.1C9.6 39.7 16.3 44 24 44z"/>
+        <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.3-4.1 5.7l6.6 5.4C41.6 35.9 44 30.3 44 24c0-1.3-.1-2.7-.4-3.5z"/>
+      </svg>
+      התחבר עם Google
+    </button>
+  </div>
+</div>
 
 <!-- TOPBAR -->
 <div class="topbar">
@@ -299,8 +360,19 @@ textarea{resize:vertical;min-height:70px;}
 <!-- MAIN LAYOUT -->
 <div class="wrap">
 
+  <!-- HOME SCREEN -->
+  <div class="card home-card" id="homeScreen">
+    <div class="home-greeting">👋 ברוכים הבאים<div class="home-greeting-sub" id="homeGreetingSub"></div></div>
+    <div class="home-quick-actions">
+      <button class="home-tile" id="homeSettingsBtn"><span class="home-tile-icon">⚙️</span><span>הגדרות</span></button>
+      <button class="home-tile" id="homeHistoryBtn"><span class="home-tile-icon">🧾</span><span>קבלות החודש</span></button>
+      <button class="home-tile" id="homeTourBtn"><span class="home-tile-icon">❓</span><span>הדרכה</span></button>
+    </div>
+    <button class="home-cta" id="homeStartBtn">➕ הפקת קבלה חדשה</button>
+  </div>
+
   <!-- FORM (WIZARD) -->
-  <div class="card wizard-card">
+  <div class="card wizard-card" style="display:none;">
     <div class="wizard-head">
       <h2 style="margin:0;">🧾 הפקת קבלה</h2>
       <span class="wizard-counter" id="wizardCounter">שלב 1 מתוך 4</span>
@@ -315,6 +387,10 @@ textarea{resize:vertical;min-height:70px;}
 
     <!-- STEP 1 · RESIDENT -->
     <div class="wizard-step" id="wizardStep0">
+      <div class="wizard-avatar-header">
+        <div class="wizard-avatar">🧑</div>
+        <h3>מי משלם?</h3>
+      </div>
       <p class="wizard-step-sub">בחרו את הדייר שעבורו מפיקים את הקבלה.</p>
       <div class="row">
         <label class="field-label">בחירת דייר</label>
@@ -400,6 +476,12 @@ textarea{resize:vertical;min-height:70px;}
         <div class="empty-hint">בחרו דייר, אמצעי תשלום וחודשים — התצוגה המקדימה תופיע כאן.</div>
       </div>
       <button class="generate-btn" id="generateBtn" disabled>הפק קבלה</button>
+      <div class="success-banner" id="successBanner" style="display:none;">
+        <div class="success-check">✓</div>
+        <div class="success-title">הקבלה הופקה בהצלחה!</div>
+        <div class="success-sub" id="successSub"></div>
+        <button class="success-new-btn" id="successNewBtn">➕ הפקת קבלה נוספת</button>
+      </div>
       <div class="post-actions" id="postActions" style="display:none;">
         <button id="downloadBtn">⬇ הורדת PDF</button>
         <button id="shareBtn">↗ שיתוף PDF</button>
@@ -619,6 +701,9 @@ function applyBranding(){
   const logoEl  = document.getElementById('topLogo');
   const logoSrc = CFG.logoUrl || 'icon-mark-192.png';
   logoEl.innerHTML = `<img src="${logoSrc}" alt="לוגו" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+
+  const homeSub = document.getElementById('homeGreetingSub');
+  if(homeSub) homeSub.textContent = CFG.buildingInfo ? 'בניין: '+CFG.buildingInfo : '';
 
   document.getElementById('setupBanner').style.display = isConfigured() ? 'none' : 'flex';
 }
@@ -847,6 +932,8 @@ function clearResidentSelection(){
   document.getElementById('otherPurposeSection').style.display = 'none';
   document.getElementById('purposeInput').value = '';
   document.getElementById('manualAmountInput').value = '';
+  document.getElementById('successBanner').style.display = 'none';
+  document.getElementById('postActions').style.display = 'none';
 
   residentSelect.value = '';
   residentSelect.dispatchEvent(new Event('change'));  // resets phone/apt/months/preview, doesn't touch the sheet
@@ -1059,6 +1146,31 @@ document.getElementById('wizardCancelBtn').addEventListener('click', ()=>{
   document.getElementById('postActions').style.display = 'none';
   hideMsg();
   clearResidentSelection(); // clears resident/months/purpose/payment and returns to step 1
+  showHomeScreen();
+});
+
+/* ═══════════════════════════════════════
+   HOME SCREEN
+═══════════════════════════════════════ */
+function showWizardFromHome(){
+  document.getElementById('homeScreen').style.display = 'none';
+  document.querySelector('.wizard-card').style.display = '';
+  wizardShowStep(0);
+}
+function showHomeScreen(){
+  document.querySelector('.wizard-card').style.display = 'none';
+  document.getElementById('homeScreen').style.display = '';
+}
+
+document.getElementById('homeStartBtn').addEventListener('click', showWizardFromHome);
+document.getElementById('homeSettingsBtn').addEventListener('click', ()=>document.getElementById('settingsBtn').click());
+document.getElementById('homeHistoryBtn').addEventListener('click', ()=>document.getElementById('historyBtn').click());
+document.getElementById('homeTourBtn').addEventListener('click', tourStart);
+document.getElementById('successNewBtn').addEventListener('click', ()=>{
+  document.getElementById('postActions').style.display = 'none';
+  hideMsg();
+  clearResidentSelection();
+  showHomeScreen();
 });
 
 /* ═══════════════════════════════════════
@@ -1156,12 +1268,18 @@ function clearTokenCache(){
 function markConnected(){
   document.getElementById('authDot').classList.add('on');
   document.getElementById('authLabel').textContent='מחובר ✓';
+  document.getElementById('loginGate').classList.add('hidden');
 }
 function markDisconnected(){
   accessToken=null;
   document.getElementById('authDot').classList.remove('on');
   document.getElementById('authLabel').textContent='התחברות עם Google';
+  document.getElementById('loginGate').classList.remove('hidden');
 }
+
+document.getElementById('loginGateGoogleBtn').addEventListener('click', ()=>{
+  document.getElementById('authBtn').click();
+});
 
 /* ═══════════════════════════════════════
    LICENSE ENFORCEMENT
@@ -1786,6 +1904,8 @@ document.getElementById('generateBtn').onclick=async()=>{
     paintMonthsGrid();
 
     document.getElementById('postActions').style.display='flex';
+    document.getElementById('successSub').textContent = `${r.name} · ${total.toLocaleString('he-IL')} ₪`;
+    document.getElementById('successBanner').style.display = 'block';
 
     const wantsEmail = document.getElementById('emailSendCheckbox').checked && r.email;
     if(wantsEmail){
@@ -1924,7 +2044,11 @@ function tourShowStep(i){
   // The settings modal and the receipt wizard are opened/moved to whichever
   // step this tour step needs, automatically, regardless of nav direction.
   tourSetSettingsOpen(!!step.inModal);
-  if(step.wizardStep !== undefined) wizardShowStep(step.wizardStep);
+  if(step.wizardStep !== undefined){
+    document.getElementById('homeScreen').style.display = 'none';
+    document.querySelector('.wizard-card').style.display = '';
+    wizardShowStep(step.wizardStep);
+  }
 
   document.getElementById('tourStepCounter').textContent = `שלב ${i+1} מתוך ${TOUR_STEPS.length}`;
   document.getElementById('tourTitle').textContent = step.title;
