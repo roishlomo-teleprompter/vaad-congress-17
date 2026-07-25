@@ -175,6 +175,18 @@ select:focus,input:focus,textarea:focus{outline:none;border-color:var(--blue);bo
 .resident-option .rname mark{background:var(--blue-soft);color:var(--blue-dark);border-radius:3px;padding:0 1px;}
 .resident-option .rphone{font-size:11.5px;color:var(--slate);direction:ltr;}
 .resident-empty{padding:14px 12px;font-size:13px;color:var(--slate);text-align:center;}
+.resident-search-modal{position:fixed;inset:0;z-index:600;background:#fff;display:none;flex-direction:column;max-width:480px;margin:0 auto;}
+.resident-search-modal.show{display:flex;}
+.rsm-header{flex:none;display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1.5px solid var(--card-line);}
+.rsm-title{font-size:16px;font-weight:800;color:var(--ink);}
+.rsm-close{width:32px;height:32px;border-radius:50%;border:1.5px solid var(--card-line);background:#fff;color:var(--ink-soft);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex:none;}
+.rsm-close:hover{background:var(--app-bg);}
+.rsm-search-wrap{flex:none;padding:12px 16px;}
+.rsm-search-wrap input{width:100%;padding:12px 14px;border:1.5px solid var(--card-line);border-radius:10px;font-size:14px;font-family:inherit;color:var(--ink);}
+.rsm-search-wrap input:focus{outline:none;border-color:var(--blue);}
+.rsm-list{flex:1;min-height:0;overflow-y:auto;padding:0 16px 16px;}
+.rsm-list .resident-option{border-bottom:1px solid var(--card-line);padding:14px 4px;font-size:14.5px;}
+.rsm-list .rphone{color:var(--slate);font-size:13px;direction:ltr;}
 textarea{resize:vertical;min-height:70px;}
 .row{margin-bottom:12px;}
 .phone-box{margin-top:6px;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-soft);background:var(--app-bg);border:1px dashed var(--card-line);border-radius:9px;padding:8px 12px;}
@@ -633,6 +645,18 @@ textarea{resize:vertical;min-height:70px;}
 </div>
 
 <!-- GUIDED TOUR OVERLAY -->
+<!-- RESIDENT SEARCH (full-screen sheet, so the list gets the whole screen to scroll in) -->
+<div class="resident-search-modal" id="residentSearchModal">
+  <div class="rsm-header">
+    <button type="button" id="rsmCloseBtn" class="rsm-close" aria-label="סגירה">✕</button>
+    <span class="rsm-title">בחירת דייר</span>
+  </div>
+  <div class="rsm-search-wrap">
+    <input type="text" id="rsmSearchInput" placeholder="הקלידו שם דייר לחיפוש..." autocomplete="off">
+  </div>
+  <div class="rsm-list" id="rsmList"></div>
+</div>
+
 <div class="tour-overlay" id="tourOverlay">
   <div class="tour-spotlight" id="tourSpotlight"></div>
   <div class="tour-tooltip" id="tourTooltip">
@@ -1063,6 +1087,63 @@ function selectResidentByFilteredPos(pos){
   toggleResidentClearBtn();
   closeResidentDropdown();
 }
+
+/* ═══════════════════════════════════════
+   RESIDENT SEARCH — full-screen sheet
+   The small dropdown above is cramped on short screens; this gives the
+   list the whole screen to scroll in, which is a natural, expected place
+   to scroll (unlike the wizard steps themselves).
+═══════════════════════════════════════ */
+const residentSearchModal = document.getElementById('residentSearchModal');
+const rsmSearchInput      = document.getElementById('rsmSearchInput');
+const rsmList             = document.getElementById('rsmList');
+
+function openResidentSearchModal(){
+  residentSearchModal.classList.add('show');
+  rsmSearchInput.value = '';
+  renderResidentModalList('');
+  setTimeout(()=>rsmSearchInput.focus(), 60);
+}
+function closeResidentSearchModal(){
+  residentSearchModal.classList.remove('show');
+}
+function renderResidentModalList(query){
+  const q = (query||'').trim();
+  const starts = [], contains = [];
+  residents.forEach((r,i)=>{
+    if(!q){ starts.push({i,r}); return; }
+    const n = r.name.toLowerCase(), qq = q.toLowerCase();
+    if(n.startsWith(qq)) starts.push({i,r});
+    else if(n.includes(qq)) contains.push({i,r});
+  });
+  residentFiltered = starts.concat(contains); // shared with selectResidentByFilteredPos
+
+  if(!residentFiltered.length){
+    rsmList.innerHTML = `<div class="resident-empty">לא נמצא דייר תואם${q?` ל-"${escapeHtml2(q)}"`:''}</div>`;
+    return;
+  }
+  rsmList.innerHTML = residentFiltered.map((item,pos)=>
+    `<div class="resident-option" data-pos="${pos}">
+       <span class="rname">${highlightMatch(item.r.name, q)}</span>
+       <span class="rphone">${escapeHtml2(item.r.phone||'')}</span>
+     </div>`
+  ).join('');
+}
+rsmSearchInput.addEventListener('input', ()=> renderResidentModalList(rsmSearchInput.value));
+rsmList.addEventListener('click', e=>{
+  const opt = e.target.closest('.resident-option');
+  if(!opt) return;
+  selectResidentByFilteredPos(+opt.dataset.pos);
+  closeResidentSearchModal();
+});
+document.getElementById('rsmCloseBtn').addEventListener('click', closeResidentSearchModal);
+rsmSearchInput.addEventListener('keydown', e=>{
+  if(e.key === 'Escape') closeResidentSearchModal();
+  if(e.key === 'Enter' && residentFiltered.length){
+    selectResidentByFilteredPos(0);
+    closeResidentSearchModal();
+  }
+});
 function updateActiveHighlight(){
   residentDropdown.querySelectorAll('.resident-option').forEach(el=>{
     el.classList.toggle('active', +el.dataset.pos === residentActiveIdx);
@@ -1076,7 +1157,10 @@ residentSearchInput.addEventListener('input', ()=>{
   toggleResidentClearBtn();
 });
 residentSearchInput.addEventListener('focus', ()=>{
-  if(residentSelect.options.length>1) renderResidentDropdown(residentSearchInput.value);
+  if(residentSelect.options.length>1){
+    residentSearchInput.blur();
+    openResidentSearchModal();
+  }
 });
 residentSearchInput.addEventListener('keydown', e=>{
   if(!residentDropdown.classList.contains('show')) return;
