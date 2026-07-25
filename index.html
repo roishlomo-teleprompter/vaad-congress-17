@@ -81,12 +81,14 @@ html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-
 /* ── CARDS ── */
 .card{background:#fff;border:1.5px solid var(--card-line);border-radius:18px;box-shadow:var(--card-shadow);padding:22px;}
 .wizard-head{flex:none;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
-.home-card{grid-column:1 / -1;max-width:640px;margin:0 auto;width:100%;height:100%;text-align:center;display:flex;flex-direction:column;justify-content:center;overflow:hidden;}
-.home-greeting{font-size:18px;font-weight:800;color:var(--ink);margin-bottom:16px;}
-.home-greeting-sub{font-size:12.5px;font-weight:600;color:var(--slate);margin-top:6px;}
+.home-card{grid-column:1 / -1;max-width:640px;margin:0 auto;width:100%;height:100%;text-align:center;display:flex;flex-direction:column;justify-content:flex-start;padding-top:32px;overflow:hidden;}
+.home-greeting{font-size:26px;font-weight:900;color:var(--ink);margin-bottom:6px;}
+.home-greeting-sub{font-size:16px;font-weight:800;color:var(--blue);margin-top:0;margin-bottom:20px;}
 .home-reminder{display:flex;align-items:center;gap:10px;background:var(--gold-soft);border:1px solid #F0DBA6;border-radius:14px;padding:12px 14px;margin-bottom:16px;text-align:right;}
+.home-reminder-dismiss{flex:none;width:26px;height:26px;border-radius:50%;border:none;background:rgba(0,0,0,.06);color:var(--ink-soft);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.home-reminder-dismiss:hover{background:rgba(0,0,0,.12);}
 .home-reminder-icon{font-size:22px;flex:none;}
-.home-reminder-text{font-size:12.5px;color:var(--ink-soft);line-height:1.5;}
+.home-reminder-text{flex:1;min-width:0;font-size:12.5px;color:var(--ink-soft);line-height:1.5;}
 .home-reminder-text b{display:block;font-size:13.5px;color:var(--ink);font-weight:800;}
 .home-quick-actions{display:flex;gap:10px;margin-bottom:16px;}
 .home-tile{flex:1;background:var(--app-bg);border:1.5px solid var(--card-line);border-radius:14px;padding:12px 8px;display:flex;flex-direction:column;align-items:center;gap:6px;font-family:inherit;font-size:12px;font-weight:700;color:var(--ink-soft);cursor:pointer;transition:.15s;}
@@ -428,6 +430,7 @@ textarea{resize:vertical;min-height:70px;}
         <b id="homeReminderCount"></b>
         <span id="homeReminderMonth"></span>
       </div>
+      <button type="button" class="home-reminder-dismiss" id="homeReminderDismissBtn" title="לא רלוונטי — הסר מהחיווי" aria-label="הסר מהחיווי">✕</button>
     </div>
 
     <div class="home-quick-actions">
@@ -1918,6 +1921,17 @@ async function loadAllReceiptRows(){
   }catch(e){ allReceiptRows = []; }
   refreshHomeReminder();
 }
+const REMINDER_DISMISS_KEY = 'vaad_reminder_dismissed';
+function loadDismissedReminders(){
+  try{ return JSON.parse(localStorage.getItem(REMINDER_DISMISS_KEY)||'{}'); }
+  catch(e){ return {}; }
+}
+function saveDismissedReminders(obj){
+  try{ localStorage.setItem(REMINDER_DISMISS_KEY, JSON.stringify(obj)); }catch(e){}
+}
+let homeReminderDueMonth = null;
+let homeReminderDueNames = [];
+
 function refreshHomeReminder(){
   const box = document.getElementById('homeReminder');
   if(!box) return;
@@ -1930,6 +1944,13 @@ function refreshHomeReminder(){
   // after that — independent of today's date, since residents can be paid
   // ahead by different amounts (e.g. an annual standing order vs. paying
   // month-by-month). We surface whoever's coverage runs out soonest.
+  //
+  // A resident dismissed for a specific due month ("✕ not relevant" — e.g. an
+  // owner who only covered one month for a tenant who has since moved out)
+  // stays hidden for exactly that month. If a new receipt later shifts their
+  // due month, the old dismissal no longer applies and they can reappear —
+  // this isn't a permanent mute, just "not for this particular month".
+  const dismissed = loadDismissedReminders();
   let minNextDue = null;
   let dueResidents = [];
   residents.forEach(r=>{
@@ -1938,6 +1959,7 @@ function refreshHomeReminder(){
     const lastPaid = Math.max(...paid);
     const nextDue = lastPaid + 1;
     if(nextDue > 11) return; // already covered through the end of the year
+    if(dismissed[r.name] === nextDue) return; // explicitly dismissed for this exact due month
     if(minNextDue === null || nextDue < minNextDue){
       minNextDue = nextDue;
       dueResidents = [r.name];
@@ -1948,10 +1970,19 @@ function refreshHomeReminder(){
 
   if(minNextDue === null || !dueResidents.length){ box.style.display = 'none'; return; }
 
+  homeReminderDueMonth = minNextDue;
+  homeReminderDueNames = dueResidents;
   document.getElementById('homeReminderCount').textContent = dueResidents.join(', ');
   document.getElementById('homeReminderMonth').textContent = `נדרש/ים לשלם עבור ${MONTH_NAMES[minNextDue]}`;
   box.style.display = 'flex';
 }
+
+document.getElementById('homeReminderDismissBtn').addEventListener('click', ()=>{
+  const dismissed = loadDismissedReminders();
+  homeReminderDueNames.forEach(name=>{ dismissed[name] = homeReminderDueMonth; });
+  saveDismissedReminders(dismissed);
+  refreshHomeReminder();
+});
 function getPaidMonthsForResident(resident){
   const paid = new Set();
   if(!resident) return paid;
