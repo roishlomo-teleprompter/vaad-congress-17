@@ -166,7 +166,7 @@ select:focus,input:focus,textarea:focus{outline:none;border-color:var(--blue);bo
 .resident-clear{display:none;position:absolute;left:8px;top:50%;transform:translateY(-50%);width:22px;height:22px;border-radius:50%;background:var(--app-bg);border:none;color:var(--slate);font-size:12px;line-height:1;cursor:pointer;align-items:center;justify-content:center;padding:0;transition:.15s;}
 .resident-clear.show{display:flex;}
 .resident-clear:hover{background:var(--card-line);color:var(--ink);}
-.resident-dropdown{display:none;position:absolute;z-index:20;top:calc(100% + 4px);right:0;left:0;max-height:260px;overflow-y:auto;background:#fff;border:1.5px solid var(--card-line);border-radius:10px;box-shadow:var(--card-shadow);}
+.resident-dropdown{display:none;position:fixed;z-index:520;background:#fff;border:1.5px solid var(--card-line);border-radius:10px;box-shadow:var(--card-shadow);overflow-y:auto;}
 .resident-dropdown.show{display:block;}
 .resident-option{padding:10px 12px;font-size:13.5px;cursor:pointer;border-bottom:1px solid var(--app-bg);display:flex;justify-content:space-between;align-items:center;gap:8px;}
 .resident-option:last-child{border-bottom:none;}
@@ -1000,6 +1000,26 @@ function highlightMatch(name, query){
   if(idx===-1) return escapeHtml2(name);
   return escapeHtml2(name.slice(0,idx)) + '<mark>' + escapeHtml2(name.slice(idx,idx+query.length)) + '</mark>' + escapeHtml2(name.slice(idx+query.length));
 }
+function positionResidentDropdown(){
+  const r = residentSearchInput.getBoundingClientRect();
+  const gap = 4;
+  const spaceBelow = window.innerHeight - r.bottom - 10;
+  const spaceAbove = r.top - 10;
+
+  residentDropdown.style.left  = r.left + 'px';
+  residentDropdown.style.width = r.width + 'px';
+
+  if(spaceBelow >= 160 || spaceBelow >= spaceAbove){
+    residentDropdown.style.top    = (r.bottom + gap) + 'px';
+    residentDropdown.style.bottom = 'auto';
+    residentDropdown.style.maxHeight = Math.max(120, Math.min(300, spaceBelow)) + 'px';
+  } else {
+    residentDropdown.style.bottom = (window.innerHeight - r.top + gap) + 'px';
+    residentDropdown.style.top    = 'auto';
+    residentDropdown.style.maxHeight = Math.max(120, Math.min(300, spaceAbove)) + 'px';
+  }
+}
+
 function renderResidentDropdown(query){
   const q = (query||'').trim();
   // Prefix match first (what the person asked for — typing 'א' shows names
@@ -1028,6 +1048,7 @@ function renderResidentDropdown(query){
     ).join('');
   }
   residentDropdown.classList.add('show');
+  positionResidentDropdown();
 }
 function closeResidentDropdown(){
   residentDropdown.classList.remove('show');
