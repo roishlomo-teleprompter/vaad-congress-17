@@ -87,6 +87,15 @@ html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-
 .home-reminder{display:flex;align-items:center;gap:10px;background:var(--gold-soft);border:1px solid #F0DBA6;border-radius:14px;padding:12px 14px;margin-bottom:16px;text-align:right;}
 .home-reminder-dismiss{flex:none;width:26px;height:26px;border-radius:50%;border:none;background:rgba(0,0,0,.06);color:var(--ink-soft);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
 .home-reminder-dismiss:hover{background:rgba(0,0,0,.12);}
+.hr-main{display:flex;align-items:center;gap:10px;width:100%;}
+.hr-confirm{width:100%;text-align:right;}
+.hr-confirm-text{font-size:12.5px;color:var(--ink-soft);display:block;margin-bottom:10px;line-height:1.5;}
+.hr-confirm-actions{display:flex;gap:8px;}
+.hr-btn{flex:1;padding:9px;border-radius:10px;font-family:inherit;font-weight:700;font-size:12.5px;cursor:pointer;transition:.15s;}
+.hr-btn-primary{background:var(--blue);color:#fff;border:none;}
+.hr-btn-primary:hover{background:var(--blue-dark);}
+.hr-btn-ghost{background:#fff;color:var(--ink-soft);border:1.5px solid var(--card-line);}
+.hr-btn-ghost:hover{background:var(--app-bg);}
 .home-reminder-icon{font-size:22px;flex:none;}
 .home-reminder-text{flex:1;min-width:0;font-size:12.5px;color:var(--ink-soft);line-height:1.5;}
 .home-reminder-text b{display:block;font-size:13.5px;color:var(--ink);font-weight:800;}
@@ -425,12 +434,21 @@ textarea{resize:vertical;min-height:70px;}
     <div class="home-greeting">👋 ברוכים הבאים<div class="home-greeting-sub" id="homeGreetingSub"></div></div>
 
     <div class="home-reminder" id="homeReminder" style="display:none;">
-      <span class="home-reminder-icon">⏰</span>
-      <div class="home-reminder-text">
-        <b id="homeReminderCount"></b>
-        <span id="homeReminderMonth"></span>
+      <div class="hr-main" id="hrMain">
+        <span class="home-reminder-icon">⏰</span>
+        <div class="home-reminder-text">
+          <b id="homeReminderCount"></b>
+          <span id="homeReminderMonth"></span>
+        </div>
+        <button type="button" class="home-reminder-dismiss" id="homeReminderDismissBtn" title="לא רלוונטי — הסר מהחיווי" aria-label="הסר מהחיווי">✕</button>
       </div>
-      <button type="button" class="home-reminder-dismiss" id="homeReminderDismissBtn" title="לא רלוונטי — הסר מהחיווי" aria-label="הסר מהחיווי">✕</button>
+      <div class="hr-confirm" id="hrConfirm" style="display:none;">
+        <span class="hr-confirm-text" id="hrConfirmText"></span>
+        <div class="hr-confirm-actions">
+          <button type="button" id="hrConfirmYes" class="hr-btn hr-btn-primary">כן, הסר</button>
+          <button type="button" id="hrConfirmNo" class="hr-btn hr-btn-ghost">ביטול</button>
+        </div>
+      </div>
     </div>
 
     <div class="home-quick-actions">
@@ -1978,9 +1996,21 @@ function refreshHomeReminder(){
 }
 
 document.getElementById('homeReminderDismissBtn').addEventListener('click', ()=>{
+  document.getElementById('hrConfirmText').textContent =
+    `להסיר את ${homeReminderDueNames.join(', ')} מהחיווי עבור ${MONTH_NAMES[homeReminderDueMonth]}?`;
+  document.getElementById('hrMain').style.display = 'none';
+  document.getElementById('hrConfirm').style.display = 'block';
+});
+document.getElementById('hrConfirmNo').addEventListener('click', ()=>{
+  document.getElementById('hrConfirm').style.display = 'none';
+  document.getElementById('hrMain').style.display = 'flex';
+});
+document.getElementById('hrConfirmYes').addEventListener('click', ()=>{
   const dismissed = loadDismissedReminders();
   homeReminderDueNames.forEach(name=>{ dismissed[name] = homeReminderDueMonth; });
   saveDismissedReminders(dismissed);
+  document.getElementById('hrConfirm').style.display = 'none';
+  document.getElementById('hrMain').style.display = 'flex';
   refreshHomeReminder();
 });
 function getPaidMonthsForResident(resident){
