@@ -462,7 +462,7 @@ textarea{resize:vertical;min-height:70px;}
       <img class="illo-photo" src="buildings-illustration.jpg" alt="בניין">
     </div>
 
-    <div class="home-greeting">👋 ברוכים הבאים<div class="home-greeting-sub" id="homeGreetingSub"></div></div>
+    <div class="home-greeting">ברוכים הבאים 👋<div class="home-greeting-sub" id="homeGreetingSub"></div></div>
 
     <button class="home-cta" id="homeStartBtn">
       <span class="home-cta-title">➕ הפקת קבלה חדשה</span>
@@ -1989,12 +1989,14 @@ function refreshRecentResidents(){
   if(!section || !list) return;
   if(!residents.length){ section.style.display = 'none'; return; }
 
-  // Same underlying logic as before: for each resident, their next due month
-  // is (last paid month + 1) — independent of today's date, since residents
-  // can be paid ahead by different amounts. Here we show everyone who is
-  // currently "חוב" (their due month already started) or "נדרש לשלם" (due
-  // next month) — anyone already paid further ahead than that is left out
-  // entirely, since they don't need attention right now.
+  // For each resident, their next due month is (last paid month + 1) —
+  // independent of today's date, since residents can be paid ahead by
+  // different amounts. We show two groups:
+  //  - "חוב": anyone whose due month has already started (calendar-overdue).
+  //  - "נדרש לשלם": among everyone NOT yet overdue, only whoever is next in
+  //    line (the soonest due date) — same relative-ranking idea as the
+  //    original single-line reminder. Residents paid further ahead than that
+  //    aren't shown at all, since they don't need attention right now.
   //
   // Residents with zero real monthly-payment history (paid.size === 0) are
   // skipped too — e.g. a resident whose only receipt on file is for an
@@ -2007,20 +2009,29 @@ function refreshRecentResidents(){
   const dismissed = loadDismissedReminders();
   const currentMonthIdx = new Date().getMonth(); // 0-based (0=ינואר)
 
-  const rows = [];
+  const candidates = [];
   residents.forEach(r=>{
     const paid = getPaidMonthsForResident(r);
     if(!paid.size) return;
     const lastPaid = Math.max(...paid);
     const nextDue = lastPaid + 1;
-    if(nextDue > 11) return;                        // paid through the end of the year
-    if(nextDue > currentMonthIdx + 1) return;        // paid further ahead — "שולם", not shown here
-    if(dismissed[r.name] === nextDue) return;        // dismissed for this exact due month
-
-    const status = nextDue <= currentMonthIdx ? 'debt' : 'due';
-    const label  = nextDue <= currentMonthIdx ? 'חוב'  : 'נדרש לשלם';
-    rows.push({ name:r.name, apartment:r.apartment||'', nextDue, status, label });
+    if(nextDue > 11) return;                   // paid through the end of the year
+    if(dismissed[r.name] === nextDue) return;  // dismissed for this exact due month
+    candidates.push({ name:r.name, apartment:r.apartment||'', nextDue });
   });
+
+  const debtRows = candidates.filter(c => c.nextDue <= currentMonthIdx);
+  const upcoming = candidates.filter(c => c.nextDue > currentMonthIdx);
+  let dueRows = [];
+  if(upcoming.length){
+    const minNextDue = Math.min(...upcoming.map(c=>c.nextDue));
+    dueRows = upcoming.filter(c => c.nextDue === minNextDue);
+  }
+
+  const rows = [
+    ...debtRows.map(c=>({...c, status:'debt', label:'חוב'})),
+    ...dueRows.map(c=>({...c, status:'due', label:'נדרש לשלם'}))
+  ];
 
   if(!rows.length){ section.style.display = 'none'; return; }
 
