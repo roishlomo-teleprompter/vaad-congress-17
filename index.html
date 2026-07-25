@@ -107,6 +107,12 @@ html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-
 .home-resident-sub{font-size:11px;color:var(--slate);margin-top:2px;}
 .home-resident-receipt-btn{flex:none;background:#fff;border:1.5px solid var(--blue);color:var(--blue);border-radius:10px;padding:7px 12px;font-family:inherit;font-weight:700;font-size:11.5px;cursor:pointer;transition:.15s;}
 .home-resident-receipt-btn:hover{background:var(--blue-soft);}
+.home-resident-menu-wrap{position:relative;flex:none;}
+.home-resident-menu-btn{background:none;border:none;color:var(--slate);font-size:16px;font-weight:800;cursor:pointer;padding:4px 6px;line-height:1;}
+.home-resident-menu-btn:hover{color:var(--ink);}
+.home-resident-menu-dropdown{position:absolute;top:100%;left:0;z-index:10;background:#fff;border:1.5px solid var(--card-line);border-radius:10px;box-shadow:var(--card-shadow);white-space:nowrap;overflow:hidden;margin-top:2px;}
+.home-resident-menu-delete{display:block;width:100%;background:#fff;border:none;color:var(--bad);font-family:inherit;font-weight:600;font-size:12px;padding:10px 14px;cursor:pointer;text-align:right;}
+.home-resident-menu-delete:hover{background:#FBEAEA;}
 .home-greeting{font-size:26px;font-weight:900;color:var(--ink);margin-bottom:6px;}
 .home-greeting-sub{font-size:16px;font-weight:800;color:var(--blue);margin-top:0;margin-bottom:20px;}
 .home-reminder{display:flex;align-items:center;gap:10px;background:var(--gold-soft);border:1px solid #F0DBA6;border-radius:14px;padding:12px 14px;margin-bottom:16px;text-align:right;}
@@ -452,10 +458,6 @@ textarea{resize:vertical;min-height:70px;}
 
   <!-- HOME SCREEN -->
   <div class="card home-card" id="homeScreen">
-    <div class="home-badge" id="homeBadge" style="display:none;">
-      <span class="home-badge-pin">📍</span>בניין: <span id="homeBadgeText"></span>
-    </div>
-
     <div class="home-illustration">
       <img class="illo-photo" src="buildings-illustration.jpg" alt="בניין">
     </div>
@@ -821,16 +823,9 @@ function applyBranding(){
   addrEl.innerHTML = '<span class="dot">•</span>מפיקים קבלות בקלות ובמהירות';
   document.title = 'קבקליק';
 
-  // Building info shows both in the greeting subtitle and in the badge above
-  // the illustration (matching the reference layout).
+  // Building info shows once, in the greeting subtitle.
   const homeSub = document.getElementById('homeGreetingSub');
   if(homeSub) homeSub.textContent = CFG.buildingInfo || '';
-  const homeBadge = document.getElementById('homeBadge');
-  const homeBadgeText = document.getElementById('homeBadgeText');
-  if(homeBadge && homeBadgeText){
-    if(CFG.buildingInfo){ homeBadgeText.textContent = CFG.buildingInfo; homeBadge.style.display = 'inline-flex'; }
-    else { homeBadge.style.display = 'none'; }
-  }
 
   const logoEl  = document.getElementById('topLogo');
   const logoSrc = CFG.logoUrl || 'icon-mark-192.png';
@@ -1383,7 +1378,7 @@ function showWizardFromHome(){
 function showHomeScreen(){
   document.querySelector('.wizard-card').style.display = 'none';
   document.getElementById('homeScreen').style.display = '';
-  refreshHomeReminder();
+  refreshRecentResidents();
 }
 
 function spawnConfetti(){
@@ -1978,7 +1973,7 @@ async function loadAllReceiptRows(){
     });
     allReceiptRows = res.result.values||[];
   }catch(e){ allReceiptRows = []; }
-  refreshHomeReminder();
+  refreshRecentResidents();
 }
 const REMINDER_DISMISS_KEY = 'vaad_reminder_dismissed';
 function loadDismissedReminders(){
@@ -1988,123 +1983,108 @@ function loadDismissedReminders(){
 function saveDismissedReminders(obj){
   try{ localStorage.setItem(REMINDER_DISMISS_KEY, JSON.stringify(obj)); }catch(e){}
 }
-let homeReminderDueMonth = null;
-let homeReminderDueNames = [];
-
-function refreshHomeReminder(){
-  refreshRecentResidents();
-  const box = document.getElementById('homeReminder');
-  if(!box) return;
-  if(!residents.length){ box.style.display = 'none'; return; }
-
-  // For each resident, find the last month they've actually paid for this
-  // year via real monthly receipts ("other purpose" receipts, like a plumbing
-  // repair, are already excluded by getPaidMonthsForResident since their text
-  // doesn't match a month name). Their next month due is simply the one right
-  // after that — independent of today's date, since residents can be paid
-  // ahead by different amounts (e.g. an annual standing order vs. paying
-  // month-by-month). We surface whoever's coverage runs out soonest.
-  //
-  // A resident dismissed for a specific due month ("✕ not relevant" — e.g. an
-  // owner who only covered one month for a tenant who has since moved out)
-  // stays hidden for exactly that month. If a new receipt later shifts their
-  // due month, the old dismissal no longer applies and they can reappear —
-  // this isn't a permanent mute, just "not for this particular month".
-  const dismissed = loadDismissedReminders();
-  let minNextDue = null;
-  let dueResidents = [];
-  residents.forEach(r=>{
-    const paid = getPaidMonthsForResident(r);
-    if(!paid.size) return; // no receipts on record yet for this resident — not enough info to judge them
-    const lastPaid = Math.max(...paid);
-    const nextDue = lastPaid + 1;
-    if(nextDue > 11) return; // already covered through the end of the year
-    if(dismissed[r.name] === nextDue) return; // explicitly dismissed for this exact due month
-    if(minNextDue === null || nextDue < minNextDue){
-      minNextDue = nextDue;
-      dueResidents = [r.name];
-    } else if(nextDue === minNextDue){
-      dueResidents.push(r.name);
-    }
-  });
-
-  if(minNextDue === null || !dueResidents.length){ box.style.display = 'none'; return; }
-
-  homeReminderDueMonth = minNextDue;
-  homeReminderDueNames = dueResidents;
-  document.getElementById('homeReminderCount').textContent = dueResidents.join(', ');
-  document.getElementById('homeReminderMonth').textContent = `נדרש/ים לשלם עבור ${MONTH_NAMES[minNextDue]}`;
-  box.style.display = 'flex';
-}
-
 function refreshRecentResidents(){
   const section = document.getElementById('homeResidentsSection');
   const list    = document.getElementById('homeResidentsList');
   if(!section || !list) return;
-  if(!allReceiptRows.length){ section.style.display = 'none'; return; }
+  if(!residents.length){ section.style.display = 'none'; return; }
 
-  // Most recent receipt per resident (by issue date), newest first, top 4.
-  const byName = new Map();
-  allReceiptRows.forEach(row=>{
-    const name = (row[1]||'').toString().trim();
-    if(!name) return;
-    const d = parseHebrewDate(row[0]);
-    const existing = byName.get(name);
-    if(!existing || (d && (!existing.date || d > existing.date))){
-      byName.set(name, {name, date:d, monthsCell:(row[3]||'').toString()});
-    }
+  // Same underlying logic as before: for each resident, their next due month
+  // is (last paid month + 1) — independent of today's date, since residents
+  // can be paid ahead by different amounts. Here we show everyone who is
+  // currently "חוב" (their due month already started) or "נדרש לשלם" (due
+  // next month) — anyone already paid further ahead than that is left out
+  // entirely, since they don't need attention right now.
+  //
+  // Residents with zero real monthly-payment history (paid.size === 0) are
+  // skipped too — e.g. a resident whose only receipt on file is for an
+  // unrelated purpose (a repair, not rent) shouldn't be flagged as "בחוב"
+  // just because they don't have monthly data yet.
+  //
+  // A resident dismissed via the ⋮ menu for a specific due month stays
+  // hidden for exactly that month. If a new receipt later shifts their due
+  // month, the old dismissal no longer applies and they can reappear.
+  const dismissed = loadDismissedReminders();
+  const currentMonthIdx = new Date().getMonth(); // 0-based (0=ינואר)
+
+  const rows = [];
+  residents.forEach(r=>{
+    const paid = getPaidMonthsForResident(r);
+    if(!paid.size) return;
+    const lastPaid = Math.max(...paid);
+    const nextDue = lastPaid + 1;
+    if(nextDue > 11) return;                        // paid through the end of the year
+    if(nextDue > currentMonthIdx + 1) return;        // paid further ahead — "שולם", not shown here
+    if(dismissed[r.name] === nextDue) return;        // dismissed for this exact due month
+
+    const status = nextDue <= currentMonthIdx ? 'debt' : 'due';
+    const label  = nextDue <= currentMonthIdx ? 'חוב'  : 'נדרש לשלם';
+    rows.push({ name:r.name, apartment:r.apartment||'', nextDue, status, label });
   });
-
-  const rows = [...byName.values()]
-    .sort((a,b)=> (b.date?b.date.getTime():0) - (a.date?a.date.getTime():0))
-    .slice(0,4);
 
   if(!rows.length){ section.style.display = 'none'; return; }
 
-  const currentMonthIdx = new Date().getMonth(); // 0-based (0=ינואר)
-
   list.innerHTML = rows.map(row=>{
-    const resident  = residents.find(r=>r.name===row.name);
-    const initials  = row.name.trim().slice(0,2);
-    const apt       = resident && resident.apartment ? `דירה ${resident.apartment}` : '';
-    const paid      = resident ? getPaidMonthsForResident(resident) : new Set();
-    const lastPaid  = paid.size ? Math.max(...paid) : -1;
-    const nextDue   = lastPaid + 1;
-    // חוב: the month they owe has already started (or passed) and they never paid it.
-    // נדרש לשלם: their next payment is due next month — not late yet, just coming up.
-    // שולם: paid ahead further than that.
-    let status, label;
-    if(nextDue <= currentMonthIdx){ status='debt'; label='חוב'; }
-    else if(nextDue === currentMonthIdx + 1){ status='due'; label='נדרש לשלם'; }
-    else { status='paid'; label='שולם'; }
-    const lastMonth = row.monthsCell.split(',').map(s=>s.trim()).filter(Boolean).pop() || '';
+    const initials = row.name.trim().slice(0,2);
+    const apt = row.apartment ? `דירה ${row.apartment}` : '';
+    const monthTxt = `נדרש עבור ${MONTH_NAMES[row.nextDue]}`;
     return `
       <div class="home-resident-row">
         <div class="home-resident-avatar">${escapeHtml2(initials)}</div>
         <div class="home-resident-info">
           <div class="home-resident-name-row">
             <span class="home-resident-name">${escapeHtml2(row.name)}</span>
-            <span class="home-resident-badge ${status}">${label}</span>
+            <span class="home-resident-badge ${row.status}">${row.label}</span>
           </div>
-          <div class="home-resident-sub">${escapeHtml2(lastMonth)}${apt?' · '+escapeHtml2(apt):''}</div>
+          <div class="home-resident-sub">${escapeHtml2(monthTxt)}${apt?' · '+escapeHtml2(apt):''}</div>
         </div>
         <button type="button" class="home-resident-receipt-btn" data-name="${escapeHtml2(row.name)}">הפק קבלה</button>
+        <div class="home-resident-menu-wrap">
+          <button type="button" class="home-resident-menu-btn" data-name="${escapeHtml2(row.name)}" data-nextdue="${row.nextDue}" aria-label="עוד אפשרויות">⋮</button>
+          <div class="home-resident-menu-dropdown" style="display:none;">
+            <button type="button" class="home-resident-menu-delete" data-name="${escapeHtml2(row.name)}" data-nextdue="${row.nextDue}">🗑 הסר מהרשימה</button>
+          </div>
+        </div>
       </div>`;
   }).join('');
 
   section.style.display = 'block';
 }
 document.getElementById('homeResidentsList').addEventListener('click', e=>{
-  const btn = e.target.closest('.home-resident-receipt-btn');
-  if(!btn) return;
-  const name = btn.dataset.name;
-  const idx = residents.findIndex(r=>r.name===name);
-  if(idx===-1) return;
-  residentSelect.value = idx;
-  residentSelect.dispatchEvent(new Event('change'));
-  residentSearchInput.value = residents[idx].name;
-  toggleResidentClearBtn();
-  showWizardFromHome();
+  const deleteBtn = e.target.closest('.home-resident-menu-delete');
+  if(deleteBtn){
+    const dismissed = loadDismissedReminders();
+    dismissed[deleteBtn.dataset.name] = +deleteBtn.dataset.nextdue;
+    saveDismissedReminders(dismissed);
+    refreshRecentResidents();
+    return;
+  }
+
+  const menuBtn = e.target.closest('.home-resident-menu-btn');
+  if(menuBtn){
+    const dropdown = menuBtn.nextElementSibling;
+    const wasOpen = dropdown.style.display === 'block';
+    document.querySelectorAll('.home-resident-menu-dropdown').forEach(d=>d.style.display='none');
+    dropdown.style.display = wasOpen ? 'none' : 'block';
+    return;
+  }
+
+  const receiptBtn = e.target.closest('.home-resident-receipt-btn');
+  if(receiptBtn){
+    const name = receiptBtn.dataset.name;
+    const idx = residents.findIndex(r=>r.name===name);
+    if(idx===-1) return;
+    residentSelect.value = idx;
+    residentSelect.dispatchEvent(new Event('change'));
+    residentSearchInput.value = residents[idx].name;
+    toggleResidentClearBtn();
+    showWizardFromHome();
+  }
+});
+document.addEventListener('click', e=>{
+  if(!e.target.closest('.home-resident-menu-wrap')){
+    document.querySelectorAll('.home-resident-menu-dropdown').forEach(d=>d.style.display='none');
+  }
 });
 
 function getPaidMonthsForResident(resident){
