@@ -1923,18 +1923,32 @@ function refreshHomeReminder(){
   if(!box) return;
   if(!residents.length){ box.style.display = 'none'; return; }
 
-  // Compare total distinct months paid this year (from all receipts, however
-  // they were split — one a month, or one annual standing-order receipt
-  // covering many months at once) against how many months should have been
-  // paid by now. A resident counts as "behind" only if their cumulative
-  // total falls short — not just because this exact month isn't itemized.
-  const monthsElapsed = new Date().getMonth() + 1; // Jan..now
-  const behind = residents.filter(r => getPaidMonthsForResident(r).size < monthsElapsed);
+  // For each resident, find the last month they've actually paid for this
+  // year via real monthly receipts ("other purpose" receipts, like a plumbing
+  // repair, are already excluded by getPaidMonthsForResident since their text
+  // doesn't match a month name). Their next month due is simply the one right
+  // after that — independent of today's date, since residents can be paid
+  // ahead by different amounts (e.g. an annual standing order vs. paying
+  // month-by-month). We surface whoever's coverage runs out soonest.
+  let minNextDue = null;
+  let dueResidents = [];
+  residents.forEach(r=>{
+    const paid = getPaidMonthsForResident(r);
+    const lastPaid = paid.size ? Math.max(...paid) : -1;
+    const nextDue = lastPaid + 1;
+    if(nextDue > 11) return; // already covered through the end of the year
+    if(minNextDue === null || nextDue < minNextDue){
+      minNextDue = nextDue;
+      dueResidents = [r.name];
+    } else if(nextDue === minNextDue){
+      dueResidents.push(r.name);
+    }
+  });
 
-  if(!behind.length){ box.style.display = 'none'; return; }
+  if(minNextDue === null || !dueResidents.length){ box.style.display = 'none'; return; }
 
-  document.getElementById('homeReminderCount').textContent = `${behind.length} מתוך ${residents.length} דיירים בפיגור בתשלומים`;
-  document.getElementById('homeReminderMonth').textContent = `נכון לחודש ${MONTH_NAMES[monthsElapsed-1]}`;
+  document.getElementById('homeReminderCount').textContent = dueResidents.join(', ');
+  document.getElementById('homeReminderMonth').textContent = `נדרש/ים לשלם עבור ${MONTH_NAMES[minNextDue]}`;
   box.style.display = 'flex';
 }
 function getPaidMonthsForResident(resident){
