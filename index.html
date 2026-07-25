@@ -113,8 +113,9 @@ html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-
 .home-resident-menu-dropdown{position:absolute;top:100%;left:0;z-index:10;background:#fff;border:1.5px solid var(--card-line);border-radius:10px;box-shadow:var(--card-shadow);white-space:nowrap;overflow:hidden;margin-top:2px;}
 .home-resident-menu-delete{display:block;width:100%;background:#fff;border:none;color:var(--bad);font-family:inherit;font-weight:600;font-size:12px;padding:10px 14px;cursor:pointer;text-align:right;}
 .home-resident-menu-delete:hover{background:#FBEAEA;}
-.home-greeting{font-size:26px;font-weight:900;color:var(--ink);margin-bottom:6px;}
-.home-greeting-sub{font-size:16px;font-weight:800;color:var(--blue);margin-top:0;margin-bottom:20px;}
+.home-residents-loading{padding:16px 0;text-align:center;font-size:12.5px;color:var(--slate);}
+.home-greeting{font-size:26px;font-weight:900;color:var(--ink);margin-bottom:6px;text-align:center;}
+.home-greeting-sub{font-size:16px;font-weight:800;color:var(--blue);margin-top:2px;margin-bottom:20px;text-align:center;display:block;}
 .home-reminder{display:flex;align-items:center;gap:10px;background:var(--gold-soft);border:1px solid #F0DBA6;border-radius:14px;padding:12px 14px;margin-bottom:16px;text-align:right;}
 .home-reminder-dismiss{flex:none;width:26px;height:26px;border-radius:50%;border:none;background:rgba(0,0,0,.06);color:var(--ink-soft);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
 .home-reminder-dismiss:hover{background:rgba(0,0,0,.12);}
@@ -487,9 +488,11 @@ textarea{resize:vertical;min-height:70px;}
       </button>
     </div>
 
-    <div class="home-residents-section" id="homeResidentsSection" style="display:none;">
+    <div class="home-residents-section" id="homeResidentsSection">
       <div class="home-section-title">⏰ תשלומים קרובים</div>
-      <div class="home-residents-list" id="homeResidentsList"></div>
+      <div class="home-residents-list" id="homeResidentsList">
+        <div class="home-residents-loading">⏳ טוען נתונים…</div>
+      </div>
     </div>
   </div>
 
@@ -1813,7 +1816,7 @@ async function loadResidents(){
     toggleResidentClearBtn();
 
     const badge = document.getElementById('residentsLoadedBadge');
-    badge.textContent = `✓ נטענו ${residents.length} דיירים`;
+    badge.textContent = `נטענו ${residents.length} דיירים`;
     badge.style.display = 'block';
   }catch(e){
     if(e.status===401||e.result?.error?.code===401){
@@ -1987,7 +1990,13 @@ function refreshRecentResidents(){
   const section = document.getElementById('homeResidentsSection');
   const list    = document.getElementById('homeResidentsList');
   if(!section || !list) return;
-  if(!residents.length){ section.style.display = 'none'; return; }
+  if(!residents.length){
+    // Data hasn't loaded yet — keep the section (and its title) visible with
+    // a loading placeholder, instead of hiding everything until it's ready.
+    section.style.display = '';
+    list.innerHTML = '<div class="home-residents-loading">⏳ טוען נתונים…</div>';
+    return;
+  }
 
   // For each resident, their next due month is (last paid month + 1) —
   // independent of today's date, since residents can be paid ahead by
