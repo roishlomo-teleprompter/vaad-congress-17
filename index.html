@@ -102,6 +102,7 @@ html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-
 .home-resident-name{font-size:13px;font-weight:700;color:var(--ink);}
 .home-resident-badge{font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;}
 .home-resident-badge.debt{background:#FBEAEA;color:var(--bad);}
+.home-resident-badge.due{background:var(--gold-soft);color:#92650A;}
 .home-resident-badge.paid{background:var(--good-soft);color:var(--good);}
 .home-resident-sub{font-size:11px;color:var(--slate);margin-top:2px;}
 .home-resident-receipt-btn{flex:none;background:#fff;border:1.5px solid var(--blue);color:var(--blue);border-radius:10px;padding:7px 12px;font-family:inherit;font-weight:700;font-size:11.5px;cursor:pointer;transition:.15s;}
@@ -485,26 +486,8 @@ textarea{resize:vertical;min-height:70px;}
     </div>
 
     <div class="home-residents-section" id="homeResidentsSection" style="display:none;">
-      <div class="home-section-title">👥 דיירים אחרונים</div>
+      <div class="home-section-title">⏰ תשלומים קרובים</div>
       <div class="home-residents-list" id="homeResidentsList"></div>
-    </div>
-
-    <div class="home-reminder" id="homeReminder" style="display:none;">
-      <div class="hr-main" id="hrMain">
-        <span class="home-reminder-icon">⏰</span>
-        <div class="home-reminder-text">
-          <b id="homeReminderCount"></b>
-          <span id="homeReminderMonth"></span>
-        </div>
-        <button type="button" class="home-reminder-dismiss" id="homeReminderDismissBtn" title="לא רלוונטי — הסר מהחיווי" aria-label="הסר מהחיווי">✕</button>
-      </div>
-      <div class="hr-confirm" id="hrConfirm" style="display:none;">
-        <span class="hr-confirm-text" id="hrConfirmText"></span>
-        <div class="hr-confirm-actions">
-          <button type="button" id="hrConfirmYes" class="hr-btn hr-btn-primary">כן, הסר</button>
-          <button type="button" id="hrConfirmNo" class="hr-btn hr-btn-ghost">ביטול</button>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -2078,14 +2061,22 @@ function refreshRecentResidents(){
 
   if(!rows.length){ section.style.display = 'none'; return; }
 
-  const monthsElapsed = new Date().getMonth() + 1;
+  const currentMonthIdx = new Date().getMonth(); // 0-based (0=ינואר)
 
   list.innerHTML = rows.map(row=>{
     const resident  = residents.find(r=>r.name===row.name);
     const initials  = row.name.trim().slice(0,2);
     const apt       = resident && resident.apartment ? `דירה ${resident.apartment}` : '';
-    const paidSize  = resident ? getPaidMonthsForResident(resident).size : 0;
-    const isDebt    = paidSize < monthsElapsed;
+    const paid      = resident ? getPaidMonthsForResident(resident) : new Set();
+    const lastPaid  = paid.size ? Math.max(...paid) : -1;
+    const nextDue   = lastPaid + 1;
+    // חוב: the month they owe has already started (or passed) and they never paid it.
+    // נדרש לשלם: their next payment is due next month — not late yet, just coming up.
+    // שולם: paid ahead further than that.
+    let status, label;
+    if(nextDue <= currentMonthIdx){ status='debt'; label='חוב'; }
+    else if(nextDue === currentMonthIdx + 1){ status='due'; label='נדרש לשלם'; }
+    else { status='paid'; label='שולם'; }
     const lastMonth = row.monthsCell.split(',').map(s=>s.trim()).filter(Boolean).pop() || '';
     return `
       <div class="home-resident-row">
@@ -2093,7 +2084,7 @@ function refreshRecentResidents(){
         <div class="home-resident-info">
           <div class="home-resident-name-row">
             <span class="home-resident-name">${escapeHtml2(row.name)}</span>
-            <span class="home-resident-badge ${isDebt?'debt':'paid'}">${isDebt?'חוב':'שולם'}</span>
+            <span class="home-resident-badge ${status}">${label}</span>
           </div>
           <div class="home-resident-sub">${escapeHtml2(lastMonth)}${apt?' · '+escapeHtml2(apt):''}</div>
         </div>
@@ -2116,24 +2107,6 @@ document.getElementById('homeResidentsList').addEventListener('click', e=>{
   showWizardFromHome();
 });
 
-document.getElementById('homeReminderDismissBtn').addEventListener('click', ()=>{
-  document.getElementById('hrConfirmText').textContent =
-    `להסיר את ${homeReminderDueNames.join(', ')} מהחיווי עבור ${MONTH_NAMES[homeReminderDueMonth]}?`;
-  document.getElementById('hrMain').style.display = 'none';
-  document.getElementById('hrConfirm').style.display = 'block';
-});
-document.getElementById('hrConfirmNo').addEventListener('click', ()=>{
-  document.getElementById('hrConfirm').style.display = 'none';
-  document.getElementById('hrMain').style.display = 'flex';
-});
-document.getElementById('hrConfirmYes').addEventListener('click', ()=>{
-  const dismissed = loadDismissedReminders();
-  homeReminderDueNames.forEach(name=>{ dismissed[name] = homeReminderDueMonth; });
-  saveDismissedReminders(dismissed);
-  document.getElementById('hrConfirm').style.display = 'none';
-  document.getElementById('hrMain').style.display = 'flex';
-  refreshHomeReminder();
-});
 function getPaidMonthsForResident(resident){
   const paid = new Set();
   if(!resident) return paid;
