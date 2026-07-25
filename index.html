@@ -81,7 +81,18 @@ html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-
 /* ── CARDS ── */
 .card{background:#fff;border:1.5px solid var(--card-line);border-radius:18px;box-shadow:var(--card-shadow);padding:22px;}
 .wizard-head{flex:none;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
-.home-card{grid-column:1 / -1;max-width:640px;margin:0 auto;width:100%;height:100%;text-align:center;display:flex;flex-direction:column;justify-content:flex-start;padding-top:32px;overflow:hidden;}
+.home-card{grid-column:1 / -1;max-width:640px;margin:0 auto;width:100%;height:100%;text-align:center;display:flex;flex-direction:column;justify-content:flex-start;padding-top:22px;overflow-y:auto;}
+.home-badge{flex:none;display:inline-flex;align-items:center;gap:6px;align-self:center;background:var(--blue-soft);border:1px dashed var(--blue);border-radius:10px;padding:9px 16px;font-size:12.5px;font-weight:700;color:var(--ink-soft);margin-bottom:14px;}
+.home-badge-pin{font-size:13px;}
+.home-illustration{flex:none;border-radius:16px;overflow:hidden;margin-bottom:14px;line-height:0;}
+.home-quick-actions{flex:none;display:flex;gap:10px;margin-bottom:16px;}
+.home-tile{flex:1;background:var(--app-bg);border:1.5px solid var(--card-line);border-radius:14px;padding:14px 8px;display:flex;flex-direction:column;align-items:center;gap:6px;font-family:inherit;color:var(--ink-soft);cursor:pointer;transition:.15s;}
+.home-tile-title{font-size:12px;font-weight:800;color:var(--ink);}
+.home-tile-sub{font-size:10px;font-weight:500;color:var(--slate);line-height:1.35;}
+.home-tile-icon{font-size:20px;}
+.home-cta{flex:none;width:100%;background:var(--blue);color:#fff;border:none;border-radius:14px;padding:14px;font-family:inherit;cursor:pointer;transition:.15s;box-shadow:0 10px 24px -8px rgba(37,99,235,.45);display:flex;flex-direction:column;align-items:center;gap:3px;}
+.home-cta-title{font-weight:800;font-size:15px;}
+.home-cta-sub{font-weight:500;font-size:11.5px;opacity:.85;}
 .home-greeting{font-size:26px;font-weight:900;color:var(--ink);margin-bottom:6px;}
 .home-greeting-sub{font-size:16px;font-weight:800;color:var(--blue);margin-top:0;margin-bottom:20px;}
 .home-reminder{display:flex;align-items:center;gap:10px;background:var(--gold-soft);border:1px solid #F0DBA6;border-radius:14px;padding:12px 14px;margin-bottom:16px;text-align:right;}
@@ -99,11 +110,7 @@ html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-
 .home-reminder-icon{font-size:22px;flex:none;}
 .home-reminder-text{flex:1;min-width:0;font-size:12.5px;color:var(--ink-soft);line-height:1.5;}
 .home-reminder-text b{display:block;font-size:13.5px;color:var(--ink);font-weight:800;}
-.home-quick-actions{display:flex;gap:10px;margin-bottom:16px;}
-.home-tile{flex:1;background:var(--app-bg);border:1.5px solid var(--card-line);border-radius:14px;padding:12px 8px;display:flex;flex-direction:column;align-items:center;gap:6px;font-family:inherit;font-size:12px;font-weight:700;color:var(--ink-soft);cursor:pointer;transition:.15s;}
 .home-tile:hover{background:#fff;border-color:var(--blue);color:var(--blue);}
-.home-tile-icon{font-size:20px;}
-.home-cta{width:100%;background:var(--blue);color:#fff;border:none;border-radius:14px;padding:14px;font-family:inherit;font-weight:800;font-size:15px;cursor:pointer;transition:.15s;box-shadow:0 10px 24px -8px rgba(37,99,235,.45);}
 .home-cta:hover{background:var(--blue-dark);}
 .wizard-avatar-header{display:flex;flex-direction:column;align-items:center;gap:8px;margin-bottom:10px;}
 .wizard-avatar{width:52px;height:52px;border-radius:50%;background:var(--blue-soft);display:flex;align-items:center;justify-content:center;font-size:24px;}
@@ -431,6 +438,14 @@ textarea{resize:vertical;min-height:70px;}
 
   <!-- HOME SCREEN -->
   <div class="card home-card" id="homeScreen">
+    <div class="home-badge" id="homeBadge" style="display:none;">
+      <span class="home-badge-pin">📍</span>בניין: <span id="homeBadgeText"></span>
+    </div>
+
+    <div class="home-illustration">
+      <img class="illo-photo" src="buildings-illustration.jpg" alt="בניין">
+    </div>
+
     <div class="home-greeting">👋 ברוכים הבאים<div class="home-greeting-sub" id="homeGreetingSub"></div></div>
 
     <div class="home-reminder" id="homeReminder" style="display:none;">
@@ -452,11 +467,26 @@ textarea{resize:vertical;min-height:70px;}
     </div>
 
     <div class="home-quick-actions">
-      <button class="home-tile" id="homeSettingsBtn"><span class="home-tile-icon">⚙️</span><span>הגדרות</span></button>
-      <button class="home-tile" id="homeHistoryBtn"><span class="home-tile-icon">🧾</span><span>קבלות החודש</span></button>
-      <button class="home-tile" id="homeTourBtn"><span class="home-tile-icon">❓</span><span>הדרכה</span></button>
+      <button class="home-tile" id="homeSettingsBtn">
+        <span class="home-tile-icon">⚙️</span>
+        <span class="home-tile-title">הגדרות</span>
+        <span class="home-tile-sub">ניהול פרטי הבניין וההגדרות שלכם</span>
+      </button>
+      <button class="home-tile" id="homeHistoryBtn">
+        <span class="home-tile-icon">🧾</span>
+        <span class="home-tile-title">קבלות החודש</span>
+        <span class="home-tile-sub">צפו והפיקו קבלות לחודש הנוכחי</span>
+      </button>
+      <button class="home-tile" id="homeTourBtn">
+        <span class="home-tile-icon">❓</span>
+        <span class="home-tile-title">הדרכה</span>
+        <span class="home-tile-sub">צפו במדריך שימוש וצאו לדרך</span>
+      </button>
     </div>
-    <button class="home-cta" id="homeStartBtn">➕ הפקת קבלה חדשה</button>
+    <button class="home-cta" id="homeStartBtn">
+      <span class="home-cta-title">➕ הפקת קבלה חדשה</span>
+      <span class="home-cta-sub">התחילו הפקת קבלה חדשה בקלות</span>
+    </button>
   </div>
 
   <!-- FORM (WIZARD) -->
@@ -789,10 +819,16 @@ function applyBranding(){
   addrEl.innerHTML = '<span class="dot">•</span>מפיקים קבלות בקלות ובמהירות';
   document.title = 'קבקליק';
 
-  // Building info now lives only in the home screen's own greeting — the
-  // topbar badge was showing the same text a second time.
+  // Building info shows both in the greeting subtitle and in the badge above
+  // the illustration (matching the reference layout).
   const homeSub = document.getElementById('homeGreetingSub');
   if(homeSub) homeSub.textContent = CFG.buildingInfo || '';
+  const homeBadge = document.getElementById('homeBadge');
+  const homeBadgeText = document.getElementById('homeBadgeText');
+  if(homeBadge && homeBadgeText){
+    if(CFG.buildingInfo){ homeBadgeText.textContent = CFG.buildingInfo; homeBadge.style.display = 'inline-flex'; }
+    else { homeBadge.style.display = 'none'; }
+  }
 
   const logoEl  = document.getElementById('topLogo');
   const logoSrc = CFG.logoUrl || 'icon-mark-192.png';
@@ -1574,10 +1610,11 @@ async function resumeAfterLicenseGranted(){
   gapi.client.setToken({access_token:accessToken});
   markConnected();
   if(CFG.spreadsheetId && CFG.folderId){
-    await loadResidents();
-    await ensureReceiptsSheet();
-    await syncSettingsFromSheet();
-    await loadAllReceiptRows();
+    // Independent API calls run in parallel instead of one-at-a-time,
+    // which noticeably speeds up how fast the home screen (including the
+    // payment reminder) becomes ready after signing in.
+    await Promise.all([loadResidents(), ensureReceiptsSheet()]);
+    await Promise.all([syncSettingsFromSheet(), loadAllReceiptRows()]);
   }
   validateForm();
 }
@@ -1649,10 +1686,11 @@ function initGoogle(){
         gapi.client.setToken({access_token:accessToken});
         markConnected();
         if(await enforceLicense(accessToken)){
-          await loadResidents();
-          await ensureReceiptsSheet();
-          await syncSettingsFromSheet();
-          await loadAllReceiptRows();
+          // Independent API calls run in parallel instead of one-at-a-time,
+          // which noticeably speeds up how fast the home screen (including the
+          // payment reminder) becomes ready after signing in.
+          await Promise.all([loadResidents(), ensureReceiptsSheet()]);
+          await Promise.all([syncSettingsFromSheet(), loadAllReceiptRows()]);
           validateForm();
         }
       }
@@ -1677,10 +1715,11 @@ function initGoogle(){
         markConnected();
         if(!(await enforceLicense(accessToken))) return;
         if(CFG.spreadsheetId && CFG.folderId){
-          await loadResidents();
-          await ensureReceiptsSheet();
-          await syncSettingsFromSheet();
-          await loadAllReceiptRows();
+          // Independent API calls run in parallel instead of one-at-a-time,
+          // which noticeably speeds up how fast the home screen (including the
+          // payment reminder) becomes ready after signing in.
+          await Promise.all([loadResidents(), ensureReceiptsSheet()]);
+          await Promise.all([syncSettingsFromSheet(), loadAllReceiptRows()]);
         }
         validateForm();
       }
