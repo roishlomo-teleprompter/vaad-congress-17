@@ -309,15 +309,17 @@ textarea{resize:vertical;min-height:70px;}
 .login-gate{position:fixed;top:0;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#fff;z-index:500;display:flex;align-items:center;justify-content:center;padding:16px 24px;box-shadow:0 0 60px rgba(16,24,40,.12);overflow:hidden;}
 .login-gate.hidden{display:none;}
 .login-gate-inner{max-width:340px;width:100%;text-align:center;}
-.login-logo{width:64px;height:64px;margin:0 auto 12px;border-radius:18px;overflow:hidden;box-shadow:0 12px 28px -10px rgba(37,99,235,.4);}
+.login-logo{width:52px;height:52px;margin:0 auto 8px;border-radius:16px;overflow:hidden;box-shadow:0 12px 28px -10px rgba(37,99,235,.4);}
 .login-logo img{width:100%;height:100%;object-fit:cover;}
-.login-title{font-size:28px;font-weight:900;margin:0;color:var(--blue);}
+.login-title{font-size:24px;font-weight:900;margin:0;color:var(--blue);}
 .login-title .gold{color:#000;}
-.login-tagline{font-size:12.5px;color:var(--slate);margin:4px 0 12px;}
-.login-illustration{border-radius:14px;overflow:hidden;margin-bottom:12px;line-height:0;height:110px;}
-.login-illustration svg,.login-illustration img{width:100%;height:100%;object-fit:contain;display:block;}
-.login-features{background:var(--app-bg);border-radius:14px;padding:12px 16px;margin-bottom:14px;text-align:right;}
-.login-feature{display:flex;align-items:center;gap:10px;font-size:12.5px;font-weight:600;color:var(--ink-soft);padding:5px 0;}
+.login-tagline{font-size:12px;color:var(--slate);margin:3px 0 8px;}
+.login-visual-card{background:#F0F5FC;border-radius:16px;overflow:hidden;margin-bottom:14px;}
+.login-illustration{position:relative;max-width:260px;margin:0 auto;}
+.illo-backdrop{display:block;width:100%;height:auto;}
+.illo-photo{position:absolute;left:50%;bottom:4%;transform:translateX(-50%);width:60%;height:auto;max-height:100%;object-fit:contain;display:block;}
+.login-features{background:transparent;border-radius:0;padding:8px 14px 14px;margin-bottom:0;text-align:right;}
+.login-feature{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--ink-soft);padding:3px 0;}
 .login-feature-icon{width:24px;height:24px;border-radius:50%;background:var(--blue-soft);display:flex;align-items:center;justify-content:center;font-size:12px;flex:none;}
 .login-google-btn{width:100%;background:var(--blue);color:#fff;border:none;border-radius:12px;padding:13px;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:.15s;}
 .login-google-btn:hover{background:var(--blue-dark);}
@@ -333,14 +335,29 @@ textarea{resize:vertical;min-height:70px;}
     <h1 class="login-title"><span class="gold">קב</span>קליק</h1>
     <p class="login-tagline">מפיקים קבלות בקלות ובמהירות</p>
 
-    <div class="login-illustration">
-      <img src="buildings-illustration.jpg" alt="בניין" style="width:100%;height:auto;display:block;">
-    </div>
+    <div class="login-visual-card">
+      <div class="login-illustration">
+        <svg class="illo-backdrop" viewBox="0 0 300 180" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+          <defs>
+            <radialGradient id="illoDome" cx="50%" cy="100%" r="80%">
+              <stop offset="0%" stop-color="#DCEAFE"/><stop offset="100%" stop-color="#F0F5FC"/>
+            </radialGradient>
+          </defs>
+          <rect x="0" y="0" width="300" height="180" fill="url(#illoDome)"/>
+          <ellipse cx="38" cy="46" rx="20" ry="9" fill="#EAF1FE"/>
+          <ellipse cx="58" cy="40" rx="14" ry="8" fill="#EAF1FE"/>
+          <ellipse cx="252" cy="56" rx="18" ry="8" fill="#EAF1FE"/>
+          <ellipse cx="268" cy="86" rx="13" ry="7" fill="#EAF1FE"/>
+          <ellipse cx="30" cy="98" rx="12" ry="6" fill="#EAF1FE"/>
+        </svg>
+        <img class="illo-photo" src="buildings-illustration.jpg" alt="בניין">
+      </div>
 
-    <div class="login-features">
-      <div class="login-feature"><span class="login-feature-icon">🔒</span>קבלות מאובטחות</div>
-      <div class="login-feature"><span class="login-feature-icon">🏢</span>ניהול ועד בית קל ונוח</div>
-      <div class="login-feature"><span class="login-feature-icon">📊</span>מעקב תשלומים בזמן אמת</div>
+      <div class="login-features">
+        <div class="login-feature"><span class="login-feature-icon">🔒</span>קבלות מאובטחות</div>
+        <div class="login-feature"><span class="login-feature-icon">🏢</span>ניהול ועד בית קל ונוח</div>
+        <div class="login-feature"><span class="login-feature-icon">📊</span>מעקב תשלומים בזמן אמת</div>
+      </div>
     </div>
 
     <button class="login-google-btn" id="loginGateGoogleBtn">
