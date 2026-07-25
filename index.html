@@ -129,6 +129,7 @@ html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-
 .wizard-nav{flex:none;background:#fff;display:flex;gap:10px;margin-top:12px;padding:10px 0 2px;box-shadow:0 -8px 16px -10px rgba(16,24,40,.1);}
 .wizard-step{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;}
 .wizard-step.scrollable{overflow-y:auto;}
+.wizard-step > *{flex-shrink:0;}
 .wizard-back-btn{flex:0 0 110px;background:#fff;border:1.5px solid var(--card-line);border-radius:12px;padding:14px;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;color:var(--ink);}
 .wizard-back-btn:hover{background:var(--app-bg);}
 .wizard-cancel-btn{flex:1;background:#fff;border:1.5px solid var(--bad);color:var(--bad);border-radius:12px;padding:14px;font-family:inherit;font-weight:700;font-size:15px;cursor:pointer;}
@@ -734,10 +735,12 @@ function applyBranding(){
   addrEl.innerHTML = '<span class="dot">•</span>מפיקים קבלות בקלות ובמהירות';
   document.title = 'קבקליק';
 
-  if(CFG.buildingInfo){
+  const wizardVisible = document.querySelector('.wizard-card').style.display !== 'none';
+  if(CFG.buildingInfo && !wizardVisible){
     badgeTxt.textContent = CFG.buildingInfo;
     badgeEl.style.display = 'block';
   } else {
+    if(CFG.buildingInfo) badgeTxt.textContent = CFG.buildingInfo;
     badgeEl.style.display = 'none';
   }
 
@@ -1203,11 +1206,13 @@ document.getElementById('wizardCancelBtn').addEventListener('click', ()=>{
 function showWizardFromHome(){
   document.getElementById('homeScreen').style.display = 'none';
   document.querySelector('.wizard-card').style.display = '';
+  document.getElementById('buildingBadge').style.display = 'none';
   wizardShowStep(0);
 }
 function showHomeScreen(){
   document.querySelector('.wizard-card').style.display = 'none';
   document.getElementById('homeScreen').style.display = '';
+  if(CFG.buildingInfo) document.getElementById('buildingBadge').style.display = 'block';
 }
 
 function spawnConfetti(){
