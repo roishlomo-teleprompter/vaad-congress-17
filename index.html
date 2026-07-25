@@ -90,9 +90,22 @@ html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-
 .home-tile-title{font-size:12px;font-weight:800;color:var(--ink);}
 .home-tile-sub{font-size:10px;font-weight:500;color:var(--slate);line-height:1.35;}
 .home-tile-icon{font-size:20px;}
-.home-cta{flex:none;width:100%;background:var(--blue);color:#fff;border:none;border-radius:14px;padding:14px;font-family:inherit;cursor:pointer;transition:.15s;box-shadow:0 10px 24px -8px rgba(37,99,235,.45);display:flex;flex-direction:column;align-items:center;gap:3px;}
+.home-cta{flex:none;width:100%;background:var(--blue);color:#fff;border:none;border-radius:14px;padding:14px;font-family:inherit;cursor:pointer;transition:.15s;box-shadow:0 10px 24px -8px rgba(37,99,235,.45);display:flex;flex-direction:column;align-items:center;gap:3px;margin-bottom:16px;}
 .home-cta-title{font-weight:800;font-size:15px;}
 .home-cta-sub{font-weight:500;font-size:11.5px;opacity:.85;}
+.home-residents-section{flex:none;margin-bottom:16px;text-align:right;}
+.home-section-title{font-size:13.5px;font-weight:800;color:var(--ink);margin-bottom:10px;}
+.home-resident-row{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--card-line);}
+.home-resident-avatar{width:34px;height:34px;border-radius:50%;background:var(--blue-soft);color:var(--blue-dark);display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:800;flex:none;}
+.home-resident-info{flex:1;min-width:0;}
+.home-resident-name-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.home-resident-name{font-size:13px;font-weight:700;color:var(--ink);}
+.home-resident-badge{font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;}
+.home-resident-badge.debt{background:#FBEAEA;color:var(--bad);}
+.home-resident-badge.paid{background:var(--good-soft);color:var(--good);}
+.home-resident-sub{font-size:11px;color:var(--slate);margin-top:2px;}
+.home-resident-receipt-btn{flex:none;background:#fff;border:1.5px solid var(--blue);color:var(--blue);border-radius:10px;padding:7px 12px;font-family:inherit;font-weight:700;font-size:11.5px;cursor:pointer;transition:.15s;}
+.home-resident-receipt-btn:hover{background:var(--blue-soft);}
 .home-greeting{font-size:26px;font-weight:900;color:var(--ink);margin-bottom:6px;}
 .home-greeting-sub{font-size:16px;font-weight:800;color:var(--blue);margin-top:0;margin-bottom:20px;}
 .home-reminder{display:flex;align-items:center;gap:10px;background:var(--gold-soft);border:1px solid #F0DBA6;border-radius:14px;padding:12px 14px;margin-bottom:16px;text-align:right;}
@@ -448,23 +461,10 @@ textarea{resize:vertical;min-height:70px;}
 
     <div class="home-greeting">👋 ברוכים הבאים<div class="home-greeting-sub" id="homeGreetingSub"></div></div>
 
-    <div class="home-reminder" id="homeReminder" style="display:none;">
-      <div class="hr-main" id="hrMain">
-        <span class="home-reminder-icon">⏰</span>
-        <div class="home-reminder-text">
-          <b id="homeReminderCount"></b>
-          <span id="homeReminderMonth"></span>
-        </div>
-        <button type="button" class="home-reminder-dismiss" id="homeReminderDismissBtn" title="לא רלוונטי — הסר מהחיווי" aria-label="הסר מהחיווי">✕</button>
-      </div>
-      <div class="hr-confirm" id="hrConfirm" style="display:none;">
-        <span class="hr-confirm-text" id="hrConfirmText"></span>
-        <div class="hr-confirm-actions">
-          <button type="button" id="hrConfirmYes" class="hr-btn hr-btn-primary">כן, הסר</button>
-          <button type="button" id="hrConfirmNo" class="hr-btn hr-btn-ghost">ביטול</button>
-        </div>
-      </div>
-    </div>
+    <button class="home-cta" id="homeStartBtn">
+      <span class="home-cta-title">➕ הפקת קבלה חדשה</span>
+      <span class="home-cta-sub">התחילו הפקת קבלה חדשה בקלות</span>
+    </button>
 
     <div class="home-quick-actions">
       <button class="home-tile" id="homeSettingsBtn">
@@ -483,10 +483,29 @@ textarea{resize:vertical;min-height:70px;}
         <span class="home-tile-sub">צפו במדריך שימוש וצאו לדרך</span>
       </button>
     </div>
-    <button class="home-cta" id="homeStartBtn">
-      <span class="home-cta-title">➕ הפקת קבלה חדשה</span>
-      <span class="home-cta-sub">התחילו הפקת קבלה חדשה בקלות</span>
-    </button>
+
+    <div class="home-residents-section" id="homeResidentsSection" style="display:none;">
+      <div class="home-section-title">👥 דיירים אחרונים</div>
+      <div class="home-residents-list" id="homeResidentsList"></div>
+    </div>
+
+    <div class="home-reminder" id="homeReminder" style="display:none;">
+      <div class="hr-main" id="hrMain">
+        <span class="home-reminder-icon">⏰</span>
+        <div class="home-reminder-text">
+          <b id="homeReminderCount"></b>
+          <span id="homeReminderMonth"></span>
+        </div>
+        <button type="button" class="home-reminder-dismiss" id="homeReminderDismissBtn" title="לא רלוונטי — הסר מהחיווי" aria-label="הסר מהחיווי">✕</button>
+      </div>
+      <div class="hr-confirm" id="hrConfirm" style="display:none;">
+        <span class="hr-confirm-text" id="hrConfirmText"></span>
+        <div class="hr-confirm-actions">
+          <button type="button" id="hrConfirmYes" class="hr-btn hr-btn-primary">כן, הסר</button>
+          <button type="button" id="hrConfirmNo" class="hr-btn hr-btn-ghost">ביטול</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- FORM (WIZARD) -->
@@ -1990,6 +2009,7 @@ let homeReminderDueMonth = null;
 let homeReminderDueNames = [];
 
 function refreshHomeReminder(){
+  refreshRecentResidents();
   const box = document.getElementById('homeReminder');
   if(!box) return;
   if(!residents.length){ box.style.display = 'none'; return; }
@@ -2033,6 +2053,68 @@ function refreshHomeReminder(){
   document.getElementById('homeReminderMonth').textContent = `נדרש/ים לשלם עבור ${MONTH_NAMES[minNextDue]}`;
   box.style.display = 'flex';
 }
+
+function refreshRecentResidents(){
+  const section = document.getElementById('homeResidentsSection');
+  const list    = document.getElementById('homeResidentsList');
+  if(!section || !list) return;
+  if(!allReceiptRows.length){ section.style.display = 'none'; return; }
+
+  // Most recent receipt per resident (by issue date), newest first, top 4.
+  const byName = new Map();
+  allReceiptRows.forEach(row=>{
+    const name = (row[1]||'').toString().trim();
+    if(!name) return;
+    const d = parseHebrewDate(row[0]);
+    const existing = byName.get(name);
+    if(!existing || (d && (!existing.date || d > existing.date))){
+      byName.set(name, {name, date:d, monthsCell:(row[3]||'').toString()});
+    }
+  });
+
+  const rows = [...byName.values()]
+    .sort((a,b)=> (b.date?b.date.getTime():0) - (a.date?a.date.getTime():0))
+    .slice(0,4);
+
+  if(!rows.length){ section.style.display = 'none'; return; }
+
+  const monthsElapsed = new Date().getMonth() + 1;
+
+  list.innerHTML = rows.map(row=>{
+    const resident  = residents.find(r=>r.name===row.name);
+    const initials  = row.name.trim().slice(0,2);
+    const apt       = resident && resident.apartment ? `דירה ${resident.apartment}` : '';
+    const paidSize  = resident ? getPaidMonthsForResident(resident).size : 0;
+    const isDebt    = paidSize < monthsElapsed;
+    const lastMonth = row.monthsCell.split(',').map(s=>s.trim()).filter(Boolean).pop() || '';
+    return `
+      <div class="home-resident-row">
+        <div class="home-resident-avatar">${escapeHtml2(initials)}</div>
+        <div class="home-resident-info">
+          <div class="home-resident-name-row">
+            <span class="home-resident-name">${escapeHtml2(row.name)}</span>
+            <span class="home-resident-badge ${isDebt?'debt':'paid'}">${isDebt?'חוב':'שולם'}</span>
+          </div>
+          <div class="home-resident-sub">${escapeHtml2(lastMonth)}${apt?' · '+escapeHtml2(apt):''}</div>
+        </div>
+        <button type="button" class="home-resident-receipt-btn" data-name="${escapeHtml2(row.name)}">הפק קבלה</button>
+      </div>`;
+  }).join('');
+
+  section.style.display = 'block';
+}
+document.getElementById('homeResidentsList').addEventListener('click', e=>{
+  const btn = e.target.closest('.home-resident-receipt-btn');
+  if(!btn) return;
+  const name = btn.dataset.name;
+  const idx = residents.findIndex(r=>r.name===name);
+  if(idx===-1) return;
+  residentSelect.value = idx;
+  residentSelect.dispatchEvent(new Event('change'));
+  residentSearchInput.value = residents[idx].name;
+  toggleResidentClearBtn();
+  showWizardFromHome();
+});
 
 document.getElementById('homeReminderDismissBtn').addEventListener('click', ()=>{
   document.getElementById('hrConfirmText').textContent =
