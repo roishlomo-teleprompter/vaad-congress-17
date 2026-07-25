@@ -1007,7 +1007,6 @@ function clearResidentSelection(){
 
   residentSelect.value = '';
   residentSelect.dispatchEvent(new Event('change'));  // resets phone/apt/months/preview, doesn't touch the sheet
-  residentSearchInput.focus();
   wizardShowStep(0);
 }
 residentClearBtn.addEventListener('click', e=>{
@@ -1280,7 +1279,9 @@ function wizardShowStep(i){
   document.getElementById('wizardProgressFill').style.width = (wizardIndex/(WIZARD_STEP_COUNT-1)*100) + '%';
   document.getElementById('wizardCounter').textContent = `שלב ${wizardIndex+1} מתוך ${WIZARD_STEP_COUNT}`;
 
-  document.getElementById('wizardBackBtn').style.visibility = wizardIndex===0 ? 'hidden' : 'visible';
+  const backBtn = document.getElementById('wizardBackBtn');
+  backBtn.style.visibility = 'visible';
+  backBtn.textContent = wizardIndex===0 ? '🏠 בית' : '→ חזרה';
   document.getElementById('wizardNextBtn').style.display    = wizardIndex===WIZARD_STEP_COUNT-1 ? 'none' : '';
   document.getElementById('wizardCancelBtn').style.display  = wizardIndex===WIZARD_STEP_COUNT-1 ? '' : 'none';
 
@@ -1293,6 +1294,11 @@ function wizardNext(){
   wizardShowStep(wizardIndex + 1);
 }
 function wizardBack(){
+  if(wizardIndex === 0){
+    clearResidentSelection(); // clean slate, in case anything was picked before backing out
+    showHomeScreen();
+    return;
+  }
   wizardShowStep(wizardIndex - 1);
 }
 
