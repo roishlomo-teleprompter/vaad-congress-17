@@ -85,12 +85,12 @@ html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-
 .home-badge{flex:none;display:inline-flex;align-items:center;gap:6px;align-self:center;background:var(--blue-soft);border:1px dashed var(--blue);border-radius:10px;padding:9px 16px;font-size:12.5px;font-weight:700;color:var(--ink-soft);margin-bottom:14px;}
 .home-badge-pin{font-size:13px;}
 .home-illustration{flex:none;border-radius:16px;overflow:hidden;margin-bottom:14px;line-height:0;}
-.home-quick-actions{flex:none;display:flex;gap:10px;margin-bottom:8px;}
+.home-quick-actions{flex:none;display:flex;gap:10px;margin-bottom:16px;}
 .home-tile{flex:1;background:var(--app-bg);border:1.5px solid var(--card-line);border-radius:14px;padding:14px 8px;display:flex;flex-direction:column;align-items:center;gap:6px;font-family:inherit;color:var(--ink-soft);cursor:pointer;transition:.15s;}
 .home-tile-title{font-size:12px;font-weight:800;color:var(--ink);}
 .home-tile-sub{font-size:10px;font-weight:500;color:var(--slate);line-height:1.35;}
 .home-tile-icon{font-size:20px;}
-.home-cta{flex:none;width:100%;background:var(--blue);color:#fff;border:none;border-radius:14px;padding:14px;font-family:inherit;cursor:pointer;transition:.15s;box-shadow:0 10px 24px -8px rgba(37,99,235,.45);display:flex;flex-direction:column;align-items:center;gap:3px;margin-bottom:8px;}
+.home-cta{flex:none;width:100%;background:var(--blue);color:#fff;border:none;border-radius:14px;padding:14px;font-family:inherit;cursor:pointer;transition:.15s;box-shadow:0 10px 24px -8px rgba(37,99,235,.45);display:flex;flex-direction:column;align-items:center;gap:3px;margin-bottom:10px;}
 .home-cta-title{font-weight:800;font-size:15px;}
 .home-cta-sub{font-weight:500;font-size:11.5px;opacity:.85;}
 .home-residents-section{flex:none;margin-bottom:16px;text-align:right;}
@@ -173,7 +173,7 @@ html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-
 .wizard-summary-row b{color:var(--ink);font-weight:700;max-width:60%;text-align:left;}
 .wizard-nav{flex:none;background:#fff;display:flex;gap:10px;margin-top:12px;padding:10px 0 2px;box-shadow:0 -8px 16px -10px rgba(16,24,40,.1);}
 .wizard-step{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;}
-.wizard-step.scrollable{overflow-y:auto;}
+.wizard-step.scrollable{overflow-y:auto;padding-bottom:76px;}
 .wizard-step > *{flex-shrink:0;}
 .wizard-back-btn{flex:0 0 110px;background:#fff;border:1.5px solid var(--card-line);border-radius:12px;padding:14px;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;color:var(--ink);}
 .wizard-back-btn:hover{background:var(--app-bg);}
@@ -277,12 +277,11 @@ textarea{resize:vertical;min-height:70px;}
 
 /* ── BUTTONS ── */
 .generate-btn{width:100%;margin-top:10px;padding:12px;border:none;border-radius:12px;background:var(--blue);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:'Heebo';transition:.15s;}
+.fab-btn{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:50;width:calc(100% - 64px);max-width:400px;border:none;border-radius:999px;background:var(--blue);color:#fff;padding:16px 24px;font-size:15.5px;font-weight:800;font-family:'Heebo';cursor:pointer;box-shadow:0 10px 26px -6px rgba(37,99,235,.5);transition:.15s;}
+.fab-btn:hover:not(:disabled){background:var(--blue-dark);}
+.fab-btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none;}
 .generate-btn:disabled{background:#B9C7E8;cursor:not-allowed;}
 .generate-btn:not(:disabled):hover{background:var(--blue-dark);}
-.generate-btn-dock{position:sticky;bottom:0;left:0;right:0;display:flex;justify-content:center;padding:14px 0 4px;margin-top:10px;background:linear-gradient(0deg, var(--app-bg) 60%, rgba(245,248,251,0));z-index:5;}
-.fab-btn{width:auto;min-width:64px;height:60px;margin:0;padding:0 30px;border:none;border-radius:999px;background:var(--blue);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:'Heebo';display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 14px 32px -8px rgba(30,102,245,.55);transition:.15s;}
-.fab-btn:disabled{background:#B9C7E8;box-shadow:none;cursor:not-allowed;}
-.fab-btn:not(:disabled):hover{background:var(--blue-dark);transform:translateY(-2px);}
 .post-actions{display:flex;gap:10px;margin-top:10px;}
 .post-actions button{flex:1;padding:11px;border-radius:10px;border:1.5px solid var(--card-line);background:#fff;color:var(--ink);font-family:inherit;font-size:13.5px;cursor:pointer;font-weight:600;}
 .post-actions button:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-soft);}
@@ -611,9 +610,6 @@ textarea{resize:vertical;min-height:70px;}
       <div class="receipt-paper" id="receiptPaper">
         <div class="empty-hint">בחרו דייר, אמצעי תשלום וחודשים — התצוגה המקדימה תופיע כאן.</div>
       </div>
-      <div class="generate-btn-dock">
-        <button class="fab-btn" id="generateBtn" disabled>הפק קבלה</button>
-      </div>
       <div class="success-banner" id="successBanner" style="display:none;">
         <div class="confetti-wrap" id="confettiWrap"></div>
         <div class="success-check">✓</div>
@@ -626,6 +622,10 @@ textarea{resize:vertical;min-height:70px;}
         <button id="shareBtn">↗ שיתוף PDF</button>
       </div>
       <div class="msg" id="msgBox"></div>
+    </div>
+
+    <div class="fab-btn-wrap" id="fabBtnWrap" style="display:none;">
+      <button class="fab-btn" id="generateBtn" disabled>הפק קבלה</button>
     </div>
 
     <div class="wizard-nav">
@@ -2368,7 +2368,7 @@ const TOUR_STEPS = [
   { target:'#homeResidentsSection', title:'תשלומים קרובים',
     text:'כאן רואים אילו דיירים צריכים לשלם בקרוב — המערכת מחשבת את זה אוטומטית לפי הקבלות שכבר הופקו. לוחצים על "הפק קבלה" ליד השם כדי להתחיל ישר עם אותו דייר.' },
   { target:'#autoCreateBtn', title:'גיליון ב-Google Drive', inModal:true,
-    text:'גיליון Google Sheets בתוך Google Drive שלכם.\n\n<b>יש לכם גיליון קיים?</b><br>מדביקים למטה קישור לגיליון ולתיקייה. לגיליון נדרשת לשונית של "אנשי קשר" עם העמודות: איש קשר, טלפון, דירה, מחיר, אימייל.\n\n<b>אין לכם גיליון עדיין?</b><br>לוחצים כאן ליצירה אוטומטית.' },
+    text:'גיליון Google Sheets בתוך Google Drive שלכם.\n\n<b>יש לכם גיליון קיים?</b><br>מדביקים למטה קישור לגיליון ולתיקייה. נדרשת לשונית שנקראת "אנשי קשר" עם העמודות: איש קשר, טלפון, דירה, מחיר, אימייל.\n\n<b>אין לכם גיליון עדיין?</b><br>לוחצים כאן ליצירה אוטומטית.' },
   { target:'#cfg-buildingInfo', title:'פרטי הבניין', inModal:true,
     text:'מזינים כאן את שם/כתובת הבניין. זה מה שיופיע בכותרת ובקבלות עצמן.' },
   { target:'#modalSave', title:'שמירה', inModal:true,
