@@ -1934,7 +1934,8 @@ function refreshHomeReminder(){
   let dueResidents = [];
   residents.forEach(r=>{
     const paid = getPaidMonthsForResident(r);
-    const lastPaid = paid.size ? Math.max(...paid) : -1;
+    if(!paid.size) return; // no receipts on record yet for this resident — not enough info to judge them
+    const lastPaid = Math.max(...paid);
     const nextDue = lastPaid + 1;
     if(nextDue > 11) return; // already covered through the end of the year
     if(minNextDue === null || nextDue < minNextDue){
