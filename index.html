@@ -1923,13 +1923,18 @@ function refreshHomeReminder(){
   if(!box) return;
   if(!residents.length){ box.style.display = 'none'; return; }
 
-  const monthIdx = new Date().getMonth();
-  const unpaid = residents.filter(r => !getPaidMonthsForResident(r).has(monthIdx));
+  // Compare total distinct months paid this year (from all receipts, however
+  // they were split — one a month, or one annual standing-order receipt
+  // covering many months at once) against how many months should have been
+  // paid by now. A resident counts as "behind" only if their cumulative
+  // total falls short — not just because this exact month isn't itemized.
+  const monthsElapsed = new Date().getMonth() + 1; // Jan..now
+  const behind = residents.filter(r => getPaidMonthsForResident(r).size < monthsElapsed);
 
-  if(!unpaid.length){ box.style.display = 'none'; return; }
+  if(!behind.length){ box.style.display = 'none'; return; }
 
-  document.getElementById('homeReminderCount').textContent = `${unpaid.length} מתוך ${residents.length} דיירים טרם שילמו`;
-  document.getElementById('homeReminderMonth').textContent = `עבור ${MONTH_NAMES[monthIdx]}`;
+  document.getElementById('homeReminderCount').textContent = `${behind.length} מתוך ${residents.length} דיירים בפיגור בתשלומים`;
+  document.getElementById('homeReminderMonth').textContent = `נכון לחודש ${MONTH_NAMES[monthsElapsed-1]}`;
   box.style.display = 'flex';
 }
 function getPaidMonthsForResident(resident){
