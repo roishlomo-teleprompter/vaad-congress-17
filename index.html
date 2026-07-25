@@ -84,6 +84,10 @@ html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-
 .home-card{grid-column:1 / -1;max-width:640px;margin:0 auto;width:100%;height:100%;text-align:center;display:flex;flex-direction:column;justify-content:center;overflow:hidden;}
 .home-greeting{font-size:18px;font-weight:800;color:var(--ink);margin-bottom:16px;}
 .home-greeting-sub{font-size:12.5px;font-weight:600;color:var(--slate);margin-top:6px;}
+.home-reminder{display:flex;align-items:center;gap:10px;background:var(--gold-soft);border:1px solid #F0DBA6;border-radius:14px;padding:12px 14px;margin-bottom:16px;text-align:right;}
+.home-reminder-icon{font-size:22px;flex:none;}
+.home-reminder-text{font-size:12.5px;color:var(--ink-soft);line-height:1.5;}
+.home-reminder-text b{display:block;font-size:13.5px;color:var(--ink);font-weight:800;}
 .home-quick-actions{display:flex;gap:10px;margin-bottom:16px;}
 .home-tile{flex:1;background:var(--app-bg);border:1.5px solid var(--card-line);border-radius:14px;padding:12px 8px;display:flex;flex-direction:column;align-items:center;gap:6px;font-family:inherit;font-size:12px;font-weight:700;color:var(--ink-soft);cursor:pointer;transition:.15s;}
 .home-tile:hover{background:#fff;border-color:var(--blue);color:var(--blue);}
@@ -382,7 +386,6 @@ textarea{resize:vertical;min-height:70px;}
     </div>
   </div>
   <div class="topbar-actions">
-    <div class="building-badge" id="buildingBadge" style="display:none;">בניין: <span id="buildingBadgeText"></span></div>
     <button class="icon-btn" id="signOutBtn" title="התנתקות" aria-label="התנתקות">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -418,6 +421,14 @@ textarea{resize:vertical;min-height:70px;}
   <!-- HOME SCREEN -->
   <div class="card home-card" id="homeScreen">
     <div class="home-greeting">👋 ברוכים הבאים<div class="home-greeting-sub" id="homeGreetingSub"></div></div>
+
+    <div class="home-reminder" id="homeReminder" style="display:none;">
+      <span class="home-reminder-icon">⏰</span>
+      <div class="home-reminder-text">
+        <b id="homeReminderCount"></b>
+        <span id="homeReminderMonth"></span>
+      </div>
+    </div>
 
     <div class="home-quick-actions">
       <button class="home-tile" id="homeSettingsBtn"><span class="home-tile-icon">⚙️</span><span>הגדרות</span></button>
@@ -750,8 +761,6 @@ let lastFileName   = null;
 function applyBranding(){
   const nameEl  = document.getElementById('topBuildingName');
   const addrEl  = document.getElementById('topBuildingAddr');
-  const badgeEl = document.getElementById('buildingBadge');
-  const badgeTxt= document.getElementById('buildingBadgeText');
 
   // Brand identity is always קבקליק — the building's name/address never overrides it.
   nameEl.innerHTML = '<span class="gold">קב</span>קליק';
@@ -759,21 +768,14 @@ function applyBranding(){
   addrEl.innerHTML = '<span class="dot">•</span>מפיקים קבלות בקלות ובמהירות';
   document.title = 'קבקליק';
 
-  const wizardVisible = document.querySelector('.wizard-card').style.display !== 'none';
-  if(CFG.buildingInfo && !wizardVisible){
-    badgeTxt.textContent = CFG.buildingInfo;
-    badgeEl.style.display = 'block';
-  } else {
-    if(CFG.buildingInfo) badgeTxt.textContent = CFG.buildingInfo;
-    badgeEl.style.display = 'none';
-  }
+  // Building info now lives only in the home screen's own greeting — the
+  // topbar badge was showing the same text a second time.
+  const homeSub = document.getElementById('homeGreetingSub');
+  if(homeSub) homeSub.textContent = CFG.buildingInfo || '';
 
   const logoEl  = document.getElementById('topLogo');
   const logoSrc = CFG.logoUrl || 'icon-mark-192.png';
   logoEl.innerHTML = `<img src="${logoSrc}" alt="לוגו" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
-
-  const homeSub = document.getElementById('homeGreetingSub');
-  if(homeSub) homeSub.textContent = CFG.buildingInfo ? 'בניין: '+CFG.buildingInfo : '';
 
   document.getElementById('setupBanner').style.display = isConfigured() ? 'none' : 'flex';
 }
@@ -1317,13 +1319,12 @@ document.getElementById('wizardCancelBtn').addEventListener('click', ()=>{
 function showWizardFromHome(){
   document.getElementById('homeScreen').style.display = 'none';
   document.querySelector('.wizard-card').style.display = '';
-  document.getElementById('buildingBadge').style.display = 'none';
   wizardShowStep(0);
 }
 function showHomeScreen(){
   document.querySelector('.wizard-card').style.display = 'none';
   document.getElementById('homeScreen').style.display = '';
-  if(CFG.buildingInfo) document.getElementById('buildingBadge').style.display = 'block';
+  refreshHomeReminder();
 }
 
 function spawnConfetti(){
@@ -1915,6 +1916,21 @@ async function loadAllReceiptRows(){
     });
     allReceiptRows = res.result.values||[];
   }catch(e){ allReceiptRows = []; }
+  refreshHomeReminder();
+}
+function refreshHomeReminder(){
+  const box = document.getElementById('homeReminder');
+  if(!box) return;
+  if(!residents.length){ box.style.display = 'none'; return; }
+
+  const monthIdx = new Date().getMonth();
+  const unpaid = residents.filter(r => !getPaidMonthsForResident(r).has(monthIdx));
+
+  if(!unpaid.length){ box.style.display = 'none'; return; }
+
+  document.getElementById('homeReminderCount').textContent = `${unpaid.length} מתוך ${residents.length} דיירים טרם שילמו`;
+  document.getElementById('homeReminderMonth').textContent = `עבור ${MONTH_NAMES[monthIdx]}`;
+  box.style.display = 'flex';
 }
 function getPaidMonthsForResident(resident){
   const paid = new Set();
