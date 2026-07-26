@@ -90,10 +90,10 @@ html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-
 .footer-nav-btn.active,.footer-nav-btn:hover{color:var(--blue);}
 .footer-nav-icon{font-size:19px;}
 .footer-nav-label{font-size:9.5px;font-weight:700;}
-.footer-nav-fab{flex:none;width:62px;height:62px;border-radius:50%;background:var(--blue);color:#fff;border:4px solid #fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;margin-top:-30px;box-shadow:0 8px 20px -4px rgba(37,99,235,.5);cursor:pointer;font-family:inherit;transition:.15s;}
+.footer-nav-fab{flex:none;width:76px;height:76px;border-radius:50%;background:var(--blue);color:#fff;border:4px solid #fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;margin-top:-36px;box-shadow:0 10px 24px -4px rgba(37,99,235,.55);cursor:pointer;font-family:inherit;transition:.15s;}
 .footer-nav-fab:hover{background:var(--blue-dark);}
-.footer-fab-icon{font-size:20px;font-weight:800;line-height:1;}
-.footer-fab-label{font-size:8.5px;font-weight:700;line-height:1.1;margin-top:1px;}
+.footer-fab-icon{font-size:24px;font-weight:800;line-height:1;}
+.footer-fab-label{font-size:9.5px;font-weight:700;line-height:1.1;margin-top:1px;}
 .home-residents-section{flex:none;margin-bottom:16px;text-align:right;}
 .home-section-title{font-size:13.5px;font-weight:800;color:var(--ink);margin-bottom:10px;}
 .home-resident-row{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--card-line);}
@@ -176,7 +176,7 @@ html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-
 .wizard-step > *{flex-shrink:0;}
 .wizard-back-btn{flex:0 0 110px;background:#fff;border:1.5px solid var(--card-line);border-radius:12px;padding:14px;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;color:var(--ink);}
 .wizard-back-btn:hover{background:var(--app-bg);}
-.wizard-cancel-btn{flex:1;background:#fff;border:1.5px solid var(--bad);color:var(--bad);border-radius:12px;padding:14px;font-family:inherit;font-weight:700;font-size:15px;cursor:pointer;}
+.wizard-cancel-btn{flex:1;background:#fff;border:1.5px solid var(--bad);color:var(--bad);border-radius:12px;padding:12px;font-family:inherit;font-weight:700;font-size:13.5px;cursor:pointer;}
 .wizard-cancel-btn:hover{background:#FBEAEA;}
 .wizard-next-btn{flex:1;background:var(--blue);color:#fff;border:none;border-radius:12px;padding:14px;font-family:inherit;font-weight:700;font-size:15px;cursor:pointer;transition:.15s;}
 .wizard-next-btn:hover:not(:disabled){background:var(--blue-dark);}
@@ -278,8 +278,6 @@ textarea{resize:vertical;min-height:70px;}
 .generate-btn{width:100%;margin-top:10px;padding:12px;border:none;border-radius:12px;background:var(--blue);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:'Heebo';transition:.15s;}
 .generate-btn:disabled{background:#B9C7E8;cursor:not-allowed;}
 .generate-btn:not(:disabled):hover{background:var(--blue-dark);}
-#generateBtn{padding:24px;font-size:21px;font-weight:900;border-radius:18px;letter-spacing:.3px;box-shadow:0 14px 30px -8px rgba(37,99,235,.55);margin-top:18px;}
-#generateBtn:not(:disabled):hover{transform:translateY(-2px);box-shadow:0 18px 34px -8px rgba(37,99,235,.6);}
 .post-actions{display:flex;gap:10px;margin-top:10px;}
 .post-actions button{flex:1;padding:11px;border-radius:10px;border:1.5px solid var(--card-line);background:#fff;color:var(--ink);font-family:inherit;font-size:13.5px;cursor:pointer;font-weight:600;}
 .post-actions button:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-soft);}
@@ -1450,7 +1448,6 @@ function receiptHTML(forPdf=false){
     </div>
     <div class="r-divider"></div>
     <div class="r-title">קבלה לדמי ועד בית</div>
-    <div class="r-sub">RECEIPT</div>
     <div class="r-meta">
       <span>תאריך: ${todayStr()}</span>
       <span>מס׳ ${Date.now().toString().slice(-6)}</span>
