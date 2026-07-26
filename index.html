@@ -89,7 +89,6 @@ html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-
 .footer-nav-btn{background:none;border:none;display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--slate);font-family:inherit;cursor:pointer;padding:4px 4px;flex:1;transition:.15s;}
 .footer-nav-btn.active,.footer-nav-btn:hover{color:var(--blue);}
 .footer-nav-icon{width:23px;height:23px;}
-.footer-home-logo{border-radius:7px;object-fit:cover;}
 .footer-nav-label{font-size:9.5px;font-weight:700;}
 .footer-nav-fab{flex:none;width:92px;height:92px;border-radius:50%;background:var(--blue);color:#fff;border:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;margin-top:-44px;box-shadow:0 12px 28px -4px rgba(37,99,235,.6);cursor:pointer;font-family:inherit;transition:.15s;}
 .footer-nav-fab:hover{background:var(--blue-dark);transform:scale(1.04);}
@@ -510,7 +509,7 @@ textarea{resize:vertical;min-height:70px;}
 
     <div class="home-footer-nav">
       <button type="button" class="footer-nav-btn active" id="footerHomeBtn">
-        <img class="footer-nav-icon footer-home-logo" src="icon-mark-192.png" alt="בית">
+        <svg class="footer-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/></svg>
         <span class="footer-nav-label">בית</span>
       </button>
       <button type="button" class="footer-nav-btn" id="homeSettingsBtn">
@@ -1417,7 +1416,9 @@ function wizardShowStep(i){
 
   const backBtn = document.getElementById('wizardBackBtn');
   backBtn.style.visibility = 'visible';
-  backBtn.textContent = wizardIndex===0 ? '🏠 בית' : '→ חזרה';
+  backBtn.innerHTML = wizardIndex===0
+    ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--blue);vertical-align:-2px;"><path d="M3 11l9-8 9 8"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/></svg> בית'
+    : '→ חזרה';
   document.getElementById('wizardNextBtn').style.display    = wizardIndex===WIZARD_STEP_COUNT-1 ? 'none' : '';
   document.getElementById('wizardCancelBtn').style.display  = wizardIndex===WIZARD_STEP_COUNT-1 ? '' : 'none';
 
