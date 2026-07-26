@@ -278,8 +278,8 @@ textarea{resize:vertical;min-height:70px;}
 .generate-btn{width:100%;margin-top:10px;padding:12px;border:none;border-radius:12px;background:var(--blue);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:'Heebo';transition:.15s;}
 .generate-btn:disabled{background:#B9C7E8;cursor:not-allowed;}
 .generate-btn:not(:disabled):hover{background:var(--blue-dark);}
-#generateBtn{padding:19px;font-size:18.5px;font-weight:800;border-radius:16px;letter-spacing:.2px;box-shadow:0 12px 26px -8px rgba(37,99,235,.5);margin-top:16px;}
-#generateBtn:not(:disabled):hover{transform:translateY(-1px);box-shadow:0 16px 30px -8px rgba(37,99,235,.55);}
+#generateBtn{padding:24px;font-size:21px;font-weight:900;border-radius:18px;letter-spacing:.3px;box-shadow:0 14px 30px -8px rgba(37,99,235,.55);margin-top:18px;}
+#generateBtn:not(:disabled):hover{transform:translateY(-2px);box-shadow:0 18px 34px -8px rgba(37,99,235,.6);}
 .post-actions{display:flex;gap:10px;margin-top:10px;}
 .post-actions button{flex:1;padding:11px;border-radius:10px;border:1.5px solid var(--card-line);background:#fff;color:var(--ink);font-family:inherit;font-size:13.5px;cursor:pointer;font-weight:600;}
 .post-actions button:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-soft);}
@@ -510,6 +510,7 @@ textarea{resize:vertical;min-height:70px;}
       <div class="wizard-dot todo" data-step="1"><div class="circ">2</div><div class="lbl">חודשים</div></div>
       <div class="wizard-dot todo" data-step="2"><div class="circ">3</div><div class="lbl">תשלום</div></div>
       <div class="wizard-dot todo" data-step="3"><div class="circ">4</div><div class="lbl">אישור</div></div>
+      <div class="wizard-dot todo" data-step="4"><div class="circ">5</div><div class="lbl">שליחה</div></div>
     </div>
 
     <!-- STEP 1 · RESIDENT -->
@@ -593,12 +594,17 @@ textarea{resize:vertical;min-height:70px;}
 
     <!-- STEP 4 · CONFIRM -->
     <div class="wizard-step" id="wizardStep3" style="display:none;">
-      <p class="wizard-step-sub">בדקו את הפרטים ולחצו להפקת הקבלה.</p>
+      <p class="wizard-step-sub">בדקו את הפרטים לפני שמפיקים את הקבלה.</p>
       <div class="wizard-summary" id="wizardSummary"></div>
       <div class="total-bar">
         <span class="lbl" id="totalLbl">סכום לתשלום</span>
         <span class="amt" id="totalAmt">0 ₪</span>
       </div>
+    </div>
+
+    <!-- STEP 5 · SEND -->
+    <div class="wizard-step" id="wizardStep4" style="display:none;">
+      <p class="wizard-step-sub">בדקו את התצוגה המקדימה ולחצו להפקת הקבלה.</p>
       <div class="wizard-preview-label">תצוגה מקדימה</div>
       <div class="receipt-paper" id="receiptPaper">
         <div class="empty-hint">בחרו דייר, אמצעי תשלום וחודשים — התצוגה המקדימה תופיע כאן.</div>
@@ -1287,7 +1293,7 @@ function validateForm(){
 /* ═══════════════════════════════════════
    WIZARD (4-step receipt flow: דייר → חודשים → תשלום → אישור)
 ═══════════════════════════════════════ */
-const WIZARD_STEP_COUNT = 4;
+const WIZARD_STEP_COUNT = 5;
 let wizardIndex = 0;
 
 function wizardStepValid(i){
@@ -1346,7 +1352,7 @@ function wizardShowStep(i){
   document.getElementById('wizardNextBtn').style.display    = wizardIndex===WIZARD_STEP_COUNT-1 ? 'none' : '';
   document.getElementById('wizardCancelBtn').style.display  = wizardIndex===WIZARD_STEP_COUNT-1 ? '' : 'none';
 
-  if(wizardIndex === WIZARD_STEP_COUNT-1) wizardUpdateSummary();
+  if(wizardIndex === 3) wizardUpdateSummary();
   wizardRefreshNextBtn();
 }
 
@@ -2370,7 +2376,7 @@ const TOUR_STEPS = [
     text:'מסמנים את החודשים ששולם עבורם. חודשים ירוקים כבר שולמו בעבר ולא ניתנים לבחירה.' },
   { target:'#emailCheckRow', title:'שליחה אוטומטית במייל', wizardStep:2,
     text:'רוצים שהקבלה תישלח אוטומטית גם למייל הדייר? יש לסמן כאן את התיבה. האפשרות מופיעה רק אם יש לדייר כתובת מייל שמורה בגיליון "אנשי קשר".' },
-  { target:'#generateBtn', title:'הפקת קבלה', wizardStep:3,
+  { target:'#generateBtn', title:'הפקת קבלה', wizardStep:4,
     text:'לוחצים כאן ליצירת קובץ ה-PDF של הקבלה. הקבלה נשמרת אוטומטית בתיקיית ה-Drive שהוגדרה, ונרשמת גם בלשונית "קבלות" בגיליון — לתיעוד מלא של כל הקבלות שהופקו.' },
   { title:'זהו, מוכנים! 🎉',
     text:'אפשר לפתוח את המדריך הזה שוב בכל רגע דרך כפתור "הדרכה" במסך הבית.' }
