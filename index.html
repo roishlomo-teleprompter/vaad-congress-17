@@ -100,6 +100,17 @@ html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-
 .locked-field-row input[readonly]{background:var(--app-bg);color:var(--slate);cursor:not-allowed;}
 .locked-field-edit-btn{flex:none;width:38px;height:38px;border-radius:10px;border:1.5px solid var(--card-line);background:#fff;cursor:pointer;font-size:14px;transition:.15s;}
 .locked-field-edit-btn:hover{background:var(--blue-soft);border-color:var(--blue);}
+.app-dialog-bg{position:fixed;inset:0;background:rgba(20,28,46,.55);z-index:400;display:none;align-items:center;justify-content:center;padding:20px;}
+.app-dialog-bg.show{display:flex;}
+.app-dialog{background:#fff;border-radius:18px;padding:26px 22px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 50px -12px rgba(16,24,40,.35);}
+.app-dialog-icon{font-size:32px;margin-bottom:10px;}
+.app-dialog-text{font-size:14px;color:var(--ink);line-height:1.6;margin-bottom:20px;white-space:pre-line;}
+.app-dialog-actions{display:flex;gap:10px;}
+.app-dialog-actions button{flex:1;padding:12px;border-radius:12px;font-family:inherit;font-weight:700;font-size:13.5px;cursor:pointer;transition:.15s;}
+#appDialogConfirmBtn{background:var(--blue);color:#fff;border:none;}
+#appDialogConfirmBtn:hover{background:var(--blue-dark);}
+#appDialogCancelBtn{background:#fff;color:var(--ink-soft);border:1.5px solid var(--card-line);}
+#appDialogCancelBtn:hover{background:var(--app-bg);}
 .home-section-title{font-size:13.5px;font-weight:800;color:var(--ink);margin-bottom:10px;}
 .home-resident-row{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--card-line);}
 .home-resident-avatar{width:34px;height:34px;border-radius:50%;background:var(--blue-soft);color:var(--blue-dark);display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:800;flex:none;}
@@ -743,6 +754,18 @@ textarea{resize:vertical;min-height:70px;}
     <input type="text" id="rsmSearchInput" placeholder="הקלידו שם דייר לחיפוש..." autocomplete="off">
   </div>
   <div class="rsm-list" id="rsmList"></div>
+</div>
+
+<!-- CUSTOM APP DIALOG (replaces native confirm()/alert() which show the site's URL) -->
+<div class="app-dialog-bg" id="appDialogBg">
+  <div class="app-dialog">
+    <div class="app-dialog-icon" id="appDialogIcon">❓</div>
+    <div class="app-dialog-text" id="appDialogText"></div>
+    <div class="app-dialog-actions">
+      <button type="button" id="appDialogConfirmBtn">אישור</button>
+      <button type="button" id="appDialogCancelBtn">ביטול</button>
+    </div>
+  </div>
 </div>
 
 <div class="tour-overlay" id="tourOverlay">
@@ -2101,13 +2124,58 @@ function refreshRecentResidents(){
 
   section.style.display = 'block';
 }
+/* ═══════════════════════════════════════
+   CUSTOM DIALOG (replaces native confirm()/alert())
+═══════════════════════════════════════ */
+function showAppConfirm(message, icon){
+  return new Promise(resolve=>{
+    const bg = document.getElementById('appDialogBg');
+    document.getElementById('appDialogIcon').textContent = icon || '❓';
+    document.getElementById('appDialogText').textContent = message;
+    const confirmBtn = document.getElementById('appDialogConfirmBtn');
+    const cancelBtn  = document.getElementById('appDialogCancelBtn');
+    confirmBtn.textContent = 'אישור';
+    cancelBtn.style.display = '';
+    bg.classList.add('show');
+    function cleanup(result){
+      bg.classList.remove('show');
+      confirmBtn.removeEventListener('click', onYes);
+      cancelBtn.removeEventListener('click', onNo);
+      resolve(result);
+    }
+    function onYes(){ cleanup(true); }
+    function onNo(){ cleanup(false); }
+    confirmBtn.addEventListener('click', onYes);
+    cancelBtn.addEventListener('click', onNo);
+  });
+}
+function showAppAlert(message, icon){
+  return new Promise(resolve=>{
+    const bg = document.getElementById('appDialogBg');
+    document.getElementById('appDialogIcon').textContent = icon || 'ℹ️';
+    document.getElementById('appDialogText').textContent = message;
+    const confirmBtn = document.getElementById('appDialogConfirmBtn');
+    const cancelBtn  = document.getElementById('appDialogCancelBtn');
+    confirmBtn.textContent = 'הבנתי';
+    cancelBtn.style.display = 'none';
+    bg.classList.add('show');
+    function cleanup(){
+      bg.classList.remove('show');
+      confirmBtn.removeEventListener('click', onOk);
+      resolve();
+    }
+    function onOk(){ cleanup(); }
+    confirmBtn.addEventListener('click', onOk);
+  });
+}
+
 document.getElementById('homeResidentsList').addEventListener('click', async e=>{
   const remindBtn = e.target.closest('.home-resident-menu-remind');
   if(remindBtn){
     document.querySelectorAll('.home-resident-menu-dropdown').forEach(d=>d.style.display='none');
     const email = remindBtn.dataset.email;
     if(!email){
-      alert('לדייר הזה אין כתובת מייל שמורה בגיליון "אנשי קשר" - לא ניתן לשלוח תזכורת.');
+      await showAppAlert('לדייר הזה אין כתובת מייל שמורה בגיליון "אנשי קשר" - לא ניתן לשלוח תזכורת.', '✉️');
       return;
     }
     const lastPaidIdx = +remindBtn.dataset.lastpaid;
@@ -2117,9 +2185,9 @@ document.getElementById('homeResidentsList').addEventListener('click', async e=>
     remindBtn.textContent = 'שולח…';
     try{
       await sendPaymentReminderEmail(remindBtn.dataset.name, email, lastPaidMonthName);
-      alert(`תזכורת תשלום נשלחה בהצלחה ל-${remindBtn.dataset.name}.`);
+      await showAppAlert(`תזכורת תשלום נשלחה בהצלחה ל-${remindBtn.dataset.name}.`, '✅');
     }catch(err){
-      alert('שגיאה בשליחת התזכורת: ' + (err.message||err));
+      await showAppAlert('שגיאה בשליחת התזכורת: ' + (err.message||err), '⚠️');
     }finally{
       remindBtn.disabled = false;
       remindBtn.textContent = originalLabel;
@@ -2130,7 +2198,7 @@ document.getElementById('homeResidentsList').addEventListener('click', async e=>
   const deleteBtn = e.target.closest('.home-resident-menu-delete');
   if(deleteBtn){
     document.querySelectorAll('.home-resident-menu-dropdown').forEach(d=>d.style.display='none');
-    const confirmed = confirm(`האם למחוק את ${deleteBtn.dataset.name} מהרשימה?`);
+    const confirmed = await showAppConfirm(`האם למחוק את ${deleteBtn.dataset.name} מהרשימה?`, '🗑️');
     if(!confirmed) return;
     const dismissed = loadDismissedReminders();
     dismissed[deleteBtn.dataset.name] = +deleteBtn.dataset.nextdue;
