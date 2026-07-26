@@ -90,7 +90,7 @@ html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-
 .footer-nav-btn.active,.footer-nav-btn:hover{color:var(--blue);}
 .footer-nav-icon{width:23px;height:23px;}
 .footer-nav-label{font-size:9.5px;font-weight:700;}
-.footer-nav-fab{flex:none;width:92px;height:92px;border-radius:50%;background:var(--blue);color:#fff;border:5px solid #fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;margin-top:-44px;box-shadow:0 12px 28px -4px rgba(37,99,235,.6);cursor:pointer;font-family:inherit;transition:.15s;}
+.footer-nav-fab{flex:none;width:92px;height:92px;border-radius:50%;background:var(--blue);color:#fff;border:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;margin-top:-44px;box-shadow:0 12px 28px -4px rgba(37,99,235,.6);cursor:pointer;font-family:inherit;transition:.15s;}
 .footer-nav-fab:hover{background:var(--blue-dark);transform:scale(1.04);}
 .footer-fab-icon{font-size:29px;font-weight:900;line-height:1;}
 .footer-fab-label{font-size:11px;font-weight:800;line-height:1.15;margin-top:2px;}
@@ -384,29 +384,26 @@ textarea{resize:vertical;min-height:70px;}
 .login-gate{position:fixed;top:0;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#fff;z-index:500;display:flex;align-items:center;justify-content:center;padding:16px 24px;box-shadow:0 0 60px rgba(16,24,40,.12);overflow:hidden;}
 .login-gate.hidden{display:none;}
 .login-gate-inner{max-width:340px;width:100%;text-align:center;}
-.login-logo{width:72px;height:72px;margin:0 auto 10px;border-radius:20px;overflow:hidden;box-shadow:0 12px 28px -10px rgba(37,99,235,.4);}
+.login-logo{width:60px;height:60px;margin:0 auto 8px;border-radius:18px;overflow:hidden;box-shadow:0 12px 28px -10px rgba(37,99,235,.4);}
 .login-logo img{width:100%;height:100%;object-fit:cover;}
 .login-title{font-size:32px;font-weight:900;margin:0;color:var(--blue);}
 .login-title .gold{color:#000;}
-.login-tagline{font-size:14.5px;font-weight:700;color:var(--ink-soft);margin:4px 0 14px;}
+.login-tagline{font-size:13.5px;font-weight:700;color:var(--ink-soft);margin:4px 0 10px;}
 .login-illustration{position:relative;margin:0 0 14px;overflow:hidden;border-radius:14px;}
 .illo-photo{width:100%;height:auto;display:block;}
-.illo-bird{position:absolute;font-size:13px;opacity:.85;animation:illo-fly 7s ease-in-out infinite;pointer-events:none;}
-.illo-bird-1{top:14%;right:18%;animation-delay:0s;}
-.illo-bird-2{top:24%;right:38%;font-size:9px;animation-delay:1.4s;}
-.illo-cloud-float{position:absolute;font-size:18px;opacity:.65;animation:illo-drift 11s ease-in-out infinite;pointer-events:none;}
-.illo-cloud-float-1{top:8%;left:12%;}
-@keyframes illo-fly{
-  0%,100%{transform:translate(0,0);}
-  50%{transform:translate(-14px,-6px);}
-}
-@keyframes illo-drift{
-  0%,100%{transform:translateX(0);}
-  50%{transform:translateX(14px);}
-}
-.login-features{background:transparent;padding:0;margin-bottom:14px;text-align:right;}
-.login-feature{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--ink-soft);padding:4px 0;}
-.login-feature-icon{width:24px;height:24px;border-radius:50%;background:var(--blue-soft);display:flex;align-items:center;justify-content:center;font-size:12px;flex:none;}
+.login-logo-wrap{position:relative;}
+.illo-cloud-static{position:absolute;font-size:16px;opacity:.6;}
+.illo-cloud-static-1{top:2px;left:6px;}
+.illo-cloud-static-2{top:14px;right:2px;font-size:12px;}
+.illo-bird-static{position:absolute;font-size:11px;opacity:.7;}
+.illo-bird-static-1{top:0;right:32%;}
+.illo-bird-static-2{top:20px;right:20%;font-size:8px;}
+.login-features{background:transparent;padding:12px 4px;margin-bottom:14px;display:grid;grid-template-columns:1fr 1fr 1fr;}
+.login-feature{display:flex;flex-direction:column;align-items:center;gap:5px;text-align:center;padding:0 4px;border-left:1px solid var(--card-line);}
+.login-feature:last-child{border-left:none;}
+.login-feature-icon{width:34px;height:34px;border-radius:50%;background:var(--blue-soft);display:flex;align-items:center;justify-content:center;font-size:15px;flex:none;}
+.login-feature-title{font-size:11px;font-weight:800;color:var(--ink);}
+.login-feature-sub{font-size:9px;font-weight:500;color:var(--slate);line-height:1.3;}
 .login-google-btn{width:100%;background:var(--blue);color:#fff;border:none;border-radius:12px;padding:13px;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:.15s;}
 .login-google-btn:hover{background:var(--blue-dark);}
 .login-privacy-note{display:flex;align-items:center;justify-content:center;gap:6px;font-size:11.5px;font-weight:700;color:var(--ink-soft);background:var(--app-bg);border-radius:10px;padding:8px 12px;margin-top:10px;}
@@ -418,21 +415,36 @@ textarea{resize:vertical;min-height:70px;}
 <!-- LOGIN GATE (shown until the person connects with Google) -->
 <div class="login-gate" id="loginGate">
   <div class="login-gate-inner">
-    <div class="login-logo"><img src="icon-mark-512.png" alt="קבקליק"></div>
-    <h1 class="login-title"><span class="gold">קב</span>קליק</h1>
-    <p class="login-tagline">מפיקים קבלות בקלות ובמהירות</p>
+    <div class="login-logo-wrap">
+      <span class="illo-cloud-static illo-cloud-static-1">☁️</span>
+      <span class="illo-cloud-static illo-cloud-static-2">☁️</span>
+      <span class="illo-bird-static illo-bird-static-1">🕊️</span>
+      <span class="illo-bird-static illo-bird-static-2">🕊️</span>
+      <div class="login-logo"><img src="icon-mark-512.png" alt="קבקליק"></div>
+      <h1 class="login-title"><span class="gold">קב</span>קליק</h1>
+      <p class="login-tagline">מפיקים קבלות בקלות ובמהירות</p>
+    </div>
 
     <div class="login-illustration">
       <img class="illo-photo" src="buildings-illustration.jpg" alt="בניין">
-      <span class="illo-bird illo-bird-1">🕊️</span>
-      <span class="illo-bird illo-bird-2">🕊️</span>
-      <span class="illo-cloud-float illo-cloud-float-1">☁️</span>
     </div>
 
     <div class="login-features">
-      <div class="login-feature"><span class="login-feature-icon">🔒</span>קבלות מאובטחות</div>
-      <div class="login-feature"><span class="login-feature-icon">🏢</span>ניהול ועד בית קל ונוח</div>
-      <div class="login-feature"><span class="login-feature-icon">📊</span>מעקב תשלומים בזמן אמת</div>
+      <div class="login-feature">
+        <span class="login-feature-icon">🛡️</span>
+        <span class="login-feature-title">קבלות מאובטחות</span>
+        <span class="login-feature-sub">הנתונים נשמרים בחשבון Google שלך</span>
+      </div>
+      <div class="login-feature">
+        <span class="login-feature-icon">🏢</span>
+        <span class="login-feature-title">ניהול ועד בית קל</span>
+        <span class="login-feature-sub">כל המידע והדיירים במקום אחד</span>
+      </div>
+      <div class="login-feature">
+        <span class="login-feature-icon">📊</span>
+        <span class="login-feature-title">מעקב תשלומים</span>
+        <span class="login-feature-sub">שליטה מלאה בתשלומים בזמן אמת</span>
+      </div>
     </div>
 
     <button class="login-google-btn" id="loginGateGoogleBtn">
@@ -446,7 +458,6 @@ textarea{resize:vertical;min-height:70px;}
     </button>
     <div class="login-privacy-note">🛡️ הנתונים שלכם נשמרים ב-Google בלבד</div>
 
-    <p class="login-footnote">קבקליק היא אפליקציה להפקת קבלות דמי ועד בית. היא מתחברת לחשבון ה-Google שלכם כדי לקרוא את רשימת הדיירים מ-Google Sheets וכדי לשמור את קובצי ה-PDF של הקבלות שהופקו ב-Google Drive שלכם - כל הנתונים נשארים בחשבון שלכם בלבד.</p>
   </div>
 </div>
 
@@ -508,22 +519,22 @@ textarea{resize:vertical;min-height:70px;}
 
     <div class="home-footer-nav">
       <button type="button" class="footer-nav-btn active" id="footerHomeBtn">
-        <svg class="footer-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/></svg>
+        <svg class="footer-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/></svg>
         <span class="footer-nav-label">בית</span>
       </button>
       <button type="button" class="footer-nav-btn" id="homeSettingsBtn">
-        <svg class="footer-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <svg class="footer-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         <span class="footer-nav-label">הגדרות</span>
       </button>
       <button type="button" class="footer-nav-fab" id="homeStartBtn">
         <span class="footer-fab-icon">+</span><span class="footer-fab-label">הפק קבלה</span>
       </button>
       <button type="button" class="footer-nav-btn" id="homeHistoryBtn">
-        <svg class="footer-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        <svg class="footer-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
         <span class="footer-nav-label">קבלות החודש</span>
       </button>
       <button type="button" class="footer-nav-btn" id="homeTourBtn">
-        <svg class="footer-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.7-2.5 2-2.5 4"/><path d="M12 17h.01"/></svg>
+        <svg class="footer-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.7-2.5 2-2.5 4"/><path d="M12 17h.01"/></svg>
         <span class="footer-nav-label">הדרכה</span>
       </button>
     </div>
