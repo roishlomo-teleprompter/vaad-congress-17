@@ -95,6 +95,11 @@ html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-
 .footer-fab-icon{font-size:29px;font-weight:900;line-height:1;}
 .footer-fab-label{font-size:11px;font-weight:800;line-height:1.15;margin-top:2px;}
 .home-residents-section{flex:none;margin-bottom:16px;text-align:right;}
+.locked-field-row{display:flex;gap:8px;align-items:center;}
+.locked-field-row input{flex:1;}
+.locked-field-row input[readonly]{background:var(--app-bg);color:var(--slate);cursor:not-allowed;}
+.locked-field-edit-btn{flex:none;width:38px;height:38px;border-radius:10px;border:1.5px solid var(--card-line);background:#fff;cursor:pointer;font-size:14px;transition:.15s;}
+.locked-field-edit-btn:hover{background:var(--blue-soft);border-color:var(--blue);}
 .home-section-title{font-size:13.5px;font-weight:800;color:var(--ink);margin-bottom:10px;}
 .home-resident-row{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--card-line);}
 .home-resident-avatar{width:34px;height:34px;border-radius:50%;background:var(--blue-soft);color:var(--blue-dark);display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:800;flex:none;}
@@ -112,6 +117,8 @@ html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-
 .home-resident-menu-btn{background:none;border:none;color:var(--slate);font-size:16px;font-weight:800;cursor:pointer;padding:4px 6px;line-height:1;}
 .home-resident-menu-btn:hover{color:var(--ink);}
 .home-resident-menu-dropdown{position:absolute;top:100%;left:0;z-index:10;background:#fff;border:1.5px solid var(--card-line);border-radius:10px;box-shadow:var(--card-shadow);white-space:nowrap;overflow:hidden;margin-top:2px;}
+.home-resident-menu-remind{display:block;width:100%;background:#fff;border:none;border-bottom:1px solid var(--card-line);color:var(--ink-soft);font-family:inherit;font-weight:600;font-size:12px;padding:10px 14px;cursor:pointer;text-align:right;}
+.home-resident-menu-remind:hover{background:var(--blue-soft);color:var(--blue-dark);}
 .home-resident-menu-delete{display:block;width:100%;background:#fff;border:none;color:var(--bad);font-family:inherit;font-weight:600;font-size:12px;padding:10px 14px;cursor:pointer;text-align:right;}
 .home-resident-menu-delete:hover{background:#FBEAEA;}
 .home-residents-loading{padding:16px 0;text-align:center;font-size:12.5px;color:var(--slate);}
@@ -676,9 +683,15 @@ textarea{resize:vertical;min-height:70px;}
       <p id="autoCreateStatus" style="font-size:12.5px;margin:-8px 0 14px;text-align:center;min-height:1em;"></p>
 
       <label>קישור לגיליון Google Sheets ("אנשי קשר")</label>
-      <input type="text" id="cfg-spreadsheetId" class="ltr-input" placeholder="https://docs.google.com/spreadsheets/d/...">
+      <div class="locked-field-row">
+        <input type="text" id="cfg-spreadsheetId" class="ltr-input" placeholder="https://docs.google.com/spreadsheets/d/..." readonly>
+        <button type="button" class="locked-field-edit-btn" data-target="cfg-spreadsheetId" title="עריכה" aria-label="עריכת הקישור לגיליון">✏️</button>
+      </div>
       <label>קישור לתיקיית Drive (לשמירת קבלות)</label>
-      <input type="text" id="cfg-folderId" class="ltr-input" placeholder="https://drive.google.com/drive/folders/...">
+      <div class="locked-field-row">
+        <input type="text" id="cfg-folderId" class="ltr-input" placeholder="https://drive.google.com/drive/folders/..." readonly>
+        <button type="button" class="locked-field-edit-btn" data-target="cfg-folderId" title="עריכה" aria-label="עריכת הקישור לתיקייה">✏️</button>
+      </div>
     </div>
 
     <div class="modal-actions">
@@ -853,10 +866,21 @@ document.getElementById('settingsBtn').onclick = ()=>{
   document.getElementById('cfg-defaultFee').value   = CFG.defaultFee||'';
   document.getElementById('cfg-spreadsheetId').value= CFG.spreadsheetId||'';
   document.getElementById('cfg-folderId').value     = CFG.folderId||'';
+  document.getElementById('cfg-spreadsheetId').readOnly = true;
+  document.getElementById('cfg-folderId').readOnly = true;
   updateLogoPreview();
   updateSenderEmailDisplay();
   document.getElementById('modalBg').classList.add('show');
 };
+document.querySelectorAll('.locked-field-edit-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const input = document.getElementById(btn.dataset.target);
+    if(!input) return;
+    input.readOnly = false;
+    input.focus();
+    input.select();
+  });
+});
 document.getElementById('modalCancel').onclick = ()=> document.getElementById('modalBg').classList.remove('show');
 
 function updateLogoPreview(){
@@ -2032,7 +2056,7 @@ function refreshRecentResidents(){
     const nextDue = lastPaid + 1;
     if(nextDue > 11) return;                   // paid through the end of the year
     if(dismissed[r.name] === nextDue) return;  // dismissed for this exact due month
-    candidates.push({ name:r.name, apartment:r.apartment||'', nextDue });
+    candidates.push({ name:r.name, apartment:r.apartment||'', email:r.email||'', lastPaid, nextDue });
   });
 
   const debtRows = candidates.filter(c => c.nextDue <= currentMonthIdx);
@@ -2068,6 +2092,7 @@ function refreshRecentResidents(){
         <div class="home-resident-menu-wrap">
           <button type="button" class="home-resident-menu-btn" data-name="${escapeHtml2(row.name)}" data-nextdue="${row.nextDue}" aria-label="עוד אפשרויות">⋮</button>
           <div class="home-resident-menu-dropdown" style="display:none;">
+            <button type="button" class="home-resident-menu-remind" data-name="${escapeHtml2(row.name)}" data-email="${escapeHtml2(row.email||'')}" data-lastpaid="${row.lastPaid}">📧 תזכורת לתשלום</button>
             <button type="button" class="home-resident-menu-delete" data-name="${escapeHtml2(row.name)}" data-nextdue="${row.nextDue}">🗑 הסר מהרשימה</button>
           </div>
         </div>
@@ -2076,9 +2101,37 @@ function refreshRecentResidents(){
 
   section.style.display = 'block';
 }
-document.getElementById('homeResidentsList').addEventListener('click', e=>{
+document.getElementById('homeResidentsList').addEventListener('click', async e=>{
+  const remindBtn = e.target.closest('.home-resident-menu-remind');
+  if(remindBtn){
+    document.querySelectorAll('.home-resident-menu-dropdown').forEach(d=>d.style.display='none');
+    const email = remindBtn.dataset.email;
+    if(!email){
+      alert('לדייר הזה אין כתובת מייל שמורה בגיליון "אנשי קשר" - לא ניתן לשלוח תזכורת.');
+      return;
+    }
+    const lastPaidIdx = +remindBtn.dataset.lastpaid;
+    const lastPaidMonthName = lastPaidIdx>=0 ? MONTH_NAMES[lastPaidIdx] : null;
+    const originalLabel = remindBtn.textContent;
+    remindBtn.disabled = true;
+    remindBtn.textContent = 'שולח…';
+    try{
+      await sendPaymentReminderEmail(remindBtn.dataset.name, email, lastPaidMonthName);
+      alert(`תזכורת תשלום נשלחה בהצלחה ל-${remindBtn.dataset.name}.`);
+    }catch(err){
+      alert('שגיאה בשליחת התזכורת: ' + (err.message||err));
+    }finally{
+      remindBtn.disabled = false;
+      remindBtn.textContent = originalLabel;
+    }
+    return;
+  }
+
   const deleteBtn = e.target.closest('.home-resident-menu-delete');
   if(deleteBtn){
+    document.querySelectorAll('.home-resident-menu-dropdown').forEach(d=>d.style.display='none');
+    const confirmed = confirm(`האם למחוק את ${deleteBtn.dataset.name} מהרשימה?`);
+    if(!confirmed) return;
     const dismissed = loadDismissedReminders();
     dismissed[deleteBtn.dataset.name] = +deleteBtn.dataset.nextdue;
     saveDismissedReminders(dismissed);
@@ -2252,6 +2305,27 @@ async function sendReceiptByEmail(resident, pdfBlob, filename, total){
       total: total,
       filename: filename,
       pdfBase64: pdfBase64
+    })
+  });
+  const data = await res.json();
+  if(!data.ok){ throw new Error(data.message || 'שגיאה לא ידועה בשליחת המייל.'); }
+  return data;
+}
+
+async function sendPaymentReminderEmail(residentName, email, lastPaidMonthName){
+  if(!LICENSE_API_URL){
+    throw new Error('שליחת מייל טרם הוגדרה (LICENSE_API_URL ריק).');
+  }
+  const res = await fetch(LICENSE_API_URL, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'}, // avoids CORS preflight to Apps Script
+    body: JSON.stringify({
+      action:'sendReminder',
+      key: LICENSE_SECRET,
+      to: email,
+      residentName: residentName,
+      buildingName: CFG.buildingInfo || 'קבקליק',
+      lastPaidMonth: lastPaidMonthName // e.g. "אוגוסט", or null if never paid
     })
   });
   const data = await res.json();
