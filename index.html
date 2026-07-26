@@ -81,7 +81,7 @@ html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-
 /* ── CARDS ── */
 .card{background:#fff;border:1.5px solid var(--card-line);border-radius:18px;box-shadow:var(--card-shadow);padding:22px;}
 .wizard-head{flex:none;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
-.home-card{grid-column:1 / -1;max-width:640px;margin:0 auto;width:100%;height:100%;text-align:center;display:flex;flex-direction:column;justify-content:flex-start;padding-top:22px;overflow-y:auto;}
+.home-card{grid-column:1 / -1;max-width:640px;margin:0 auto;width:100%;height:100%;text-align:center;display:flex;flex-direction:column;justify-content:flex-start;padding-top:22px;padding-bottom:100px;overflow-y:auto;}
 .home-badge{flex:none;display:inline-flex;align-items:center;gap:6px;align-self:center;background:var(--blue-soft);border:1px dashed var(--blue);border-radius:10px;padding:9px 16px;font-size:12.5px;font-weight:700;color:var(--ink-soft);margin-bottom:14px;}
 .home-badge-pin{font-size:13px;}
 .home-illustration{flex:none;border-radius:16px;overflow:hidden;margin-bottom:14px;line-height:0;}
@@ -90,9 +90,6 @@ html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-
 .home-tile-title{font-size:12px;font-weight:800;color:var(--ink);}
 .home-tile-sub{font-size:10px;font-weight:500;color:var(--slate);line-height:1.35;}
 .home-tile-icon{font-size:20px;}
-.home-cta{flex:none;width:100%;background:var(--blue);color:#fff;border:none;border-radius:14px;padding:14px;font-family:inherit;cursor:pointer;transition:.15s;box-shadow:0 10px 24px -8px rgba(37,99,235,.45);display:flex;flex-direction:column;align-items:center;gap:3px;margin-bottom:10px;}
-.home-cta-title{font-weight:800;font-size:15px;}
-.home-cta-sub{font-weight:500;font-size:11.5px;opacity:.85;}
 .home-residents-section{flex:none;margin-bottom:16px;text-align:right;}
 .home-section-title{font-size:13.5px;font-weight:800;color:var(--ink);margin-bottom:10px;}
 .home-resident-row{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--card-line);}
@@ -134,7 +131,6 @@ html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-
 .home-reminder-text{flex:1;min-width:0;font-size:12.5px;color:var(--ink-soft);line-height:1.5;}
 .home-reminder-text b{display:block;font-size:13.5px;color:var(--ink);font-weight:800;}
 .home-tile:hover{background:#fff;border-color:var(--blue);color:var(--blue);}
-.home-cta:hover{background:var(--blue-dark);}
 .wizard-avatar-header{display:flex;flex-direction:column;align-items:center;gap:8px;margin-bottom:10px;}
 .wizard-avatar{width:52px;height:52px;border-radius:50%;background:var(--blue-soft);display:flex;align-items:center;justify-content:center;font-size:24px;}
 .wizard-avatar-header h3{margin:0;font-size:17px;font-weight:800;color:var(--ink);}
@@ -173,7 +169,7 @@ html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-
 .wizard-summary-row b{color:var(--ink);font-weight:700;max-width:60%;text-align:left;}
 .wizard-nav{flex:none;background:#fff;display:flex;gap:10px;margin-top:12px;padding:10px 0 2px;box-shadow:0 -8px 16px -10px rgba(16,24,40,.1);}
 .wizard-step{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;}
-.wizard-step.scrollable{overflow-y:auto;padding-bottom:76px;}
+.wizard-step.scrollable{overflow-y:auto;}
 .wizard-step > *{flex-shrink:0;}
 .wizard-back-btn{flex:0 0 110px;background:#fff;border:1.5px solid var(--card-line);border-radius:12px;padding:14px;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;color:var(--ink);}
 .wizard-back-btn:hover{background:var(--app-bg);}
@@ -277,9 +273,10 @@ textarea{resize:vertical;min-height:70px;}
 
 /* ── BUTTONS ── */
 .generate-btn{width:100%;margin-top:10px;padding:12px;border:none;border-radius:12px;background:var(--blue);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:'Heebo';transition:.15s;}
-.fab-btn{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:50;width:calc(100% - 64px);max-width:400px;border:none;border-radius:999px;background:var(--blue);color:#fff;padding:16px 24px;font-size:15.5px;font-weight:800;font-family:'Heebo';cursor:pointer;box-shadow:0 10px 26px -6px rgba(37,99,235,.5);transition:.15s;}
-.fab-btn:hover:not(:disabled){background:var(--blue-dark);}
-.fab-btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none;}
+.home-fab-btn{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:50;width:92px;height:92px;border-radius:50%;background:var(--blue);color:#fff;border:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;cursor:pointer;box-shadow:0 10px 26px -4px rgba(37,99,235,.55);transition:.15s;font-family:'Heebo';}
+.home-fab-btn:hover{background:var(--blue-dark);}
+.home-fab-icon{font-size:22px;font-weight:800;line-height:1;}
+.home-fab-label{font-size:11px;font-weight:700;line-height:1.2;text-align:center;}
 .generate-btn:disabled{background:#B9C7E8;cursor:not-allowed;}
 .generate-btn:not(:disabled):hover{background:var(--blue-dark);}
 .post-actions{display:flex;gap:10px;margin-top:10px;}
@@ -474,9 +471,9 @@ textarea{resize:vertical;min-height:70px;}
       <div class="home-greeting-sub" id="homeGreetingSub"></div>
     </div>
 
-    <button class="home-cta" id="homeStartBtn">
-      <span class="home-cta-title">➕ הפקת קבלה חדשה</span>
-      <span class="home-cta-sub">התחילו הפקת קבלה חדשה בקלות</span>
+    <button class="home-fab-btn" id="homeStartBtn">
+      <span class="home-fab-icon">+</span>
+      <span class="home-fab-label">הפקת<br>קבלה</span>
     </button>
 
     <div class="home-quick-actions">
@@ -625,7 +622,7 @@ textarea{resize:vertical;min-height:70px;}
     </div>
 
     <div class="fab-btn-wrap" id="fabBtnWrap" style="display:none;">
-      <button class="fab-btn" id="generateBtn" disabled>הפק קבלה</button>
+      <button class="generate-btn" id="generateBtn" disabled>הפק קבלה</button>
     </div>
 
     <div class="wizard-nav">
