@@ -327,9 +327,9 @@ textarea{resize:vertical;min-height:70px;}
 .empty-hint{color:var(--slate);font-size:13px;text-align:center;padding:50px 20px;line-height:1.7;margin:auto;}
 
 /* ── SETTINGS MODAL ── */
-.modal-bg{position:fixed;inset:0;background:rgba(20,28,46,.6);display:none;align-items:flex-start;justify-content:center;z-index:50;overflow-y:auto;padding:20px;}
+.modal-bg{position:fixed;inset:0;background:rgba(20,28,46,.6);display:none;align-items:flex-start;justify-content:center;z-index:200;overflow-y:auto;padding:20px;}
 .modal-bg.show{display:flex;}
-.modal{background:#fff;border-radius:16px;padding:28px;width:520px;max-width:94vw;box-shadow:var(--shadow);margin:auto;}
+.modal{background:#fff;border-radius:16px;padding:28px;width:520px;max-width:94vw;max-height:calc(100vh - 110px);overflow-y:auto;box-shadow:var(--shadow);margin:auto;}
 .modal h3{font-family:'Frank Ruhl Libre',serif;margin:0 0 4px;font-size:20px;}
 .modal .modal-desc{font-size:12.5px;color:var(--slate);margin:0 0 20px;line-height:1.6;}
 .settings-section{border-top:1.5px solid var(--card-line);margin-top:20px;padding-top:16px;}
@@ -601,6 +601,7 @@ textarea{resize:vertical;min-height:70px;}
       <div class="receipt-paper" id="receiptPaper">
         <div class="empty-hint">בחרו דייר, אמצעי תשלום וחודשים — התצוגה המקדימה תופיע כאן.</div>
       </div>
+      <button class="generate-btn" id="generateBtn" disabled>הפק קבלה</button>
       <div class="success-banner" id="successBanner" style="display:none;">
         <div class="confetti-wrap" id="confettiWrap"></div>
         <div class="success-check">✓</div>
@@ -613,10 +614,6 @@ textarea{resize:vertical;min-height:70px;}
         <button id="shareBtn">↗ שיתוף PDF</button>
       </div>
       <div class="msg" id="msgBox"></div>
-    </div>
-
-    <div class="fab-btn-wrap" id="fabBtnWrap" style="display:none;">
-      <button class="generate-btn" id="generateBtn" disabled>הפק קבלה</button>
     </div>
 
     <div class="wizard-nav">
