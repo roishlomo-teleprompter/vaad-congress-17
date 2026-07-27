@@ -1473,16 +1473,25 @@ function showHomeScreen(){
 async function refreshHomeData(){
   showHomeScreen();
   if(!accessToken || !CFG.spreadsheetId) return; // nothing to refresh yet
-  const btn = document.getElementById('footerHomeBtn');
+  const btn   = document.getElementById('footerHomeBtn');
+  const label = btn.querySelector('.footer-nav-label');
+  const list  = document.getElementById('homeResidentsList');
+  const originalLabel = label.textContent;
+  const originalListHtml = list.innerHTML;
+
   btn.classList.add('spinning');
   btn.disabled = true;
+  label.textContent = 'טוען…';
+  list.innerHTML = '<div class="home-residents-loading">⏳ טוען נתונים מהגיליון…</div>';
+
   try{
     await Promise.all([loadResidents(), loadAllReceiptRows()]);
   }catch(e){
-    // Non-fatal — the home screen just keeps showing whatever it had before.
+    list.innerHTML = originalListHtml; // refresh failed — restore whatever was showing before
   }finally{
     btn.classList.remove('spinning');
     btn.disabled = false;
+    label.textContent = originalLabel;
   }
 }
 
