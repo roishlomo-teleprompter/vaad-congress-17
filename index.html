@@ -89,6 +89,8 @@ html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-
 .footer-nav-btn{background:none;border:none;display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--slate);font-family:inherit;cursor:pointer;padding:4px 4px;flex:1;transition:.15s;}
 .footer-nav-btn.active,.footer-nav-btn:hover{color:var(--blue);}
 .footer-nav-icon{width:23px;height:23px;}
+.footer-nav-btn.spinning .footer-nav-icon{animation:footer-icon-spin .8s linear infinite;}
+@keyframes footer-icon-spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
 .footer-nav-label{font-size:9.5px;font-weight:700;}
 .footer-nav-fab{flex:none;width:92px;height:92px;border-radius:50%;background:var(--blue);color:#fff;border:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;margin-top:-44px;box-shadow:0 12px 28px -4px rgba(37,99,235,.6);cursor:pointer;font-family:inherit;transition:.15s;}
 .footer-nav-fab:hover{background:var(--blue-dark);transform:scale(1.04);}
@@ -1462,6 +1464,28 @@ function showHomeScreen(){
   refreshRecentResidents();
 }
 
+/**
+ * Gives the "בית" footer button a real job: re-fetch residents + receipts
+ * from Google Sheets and refresh the "תשלומים קרובים" list — handy if
+ * something changed directly in the sheet (a new resident, a manual edit)
+ * and you don't want to sign out/in again just to see it reflected.
+ */
+async function refreshHomeData(){
+  showHomeScreen();
+  if(!accessToken || !CFG.spreadsheetId) return; // nothing to refresh yet
+  const btn = document.getElementById('footerHomeBtn');
+  btn.classList.add('spinning');
+  btn.disabled = true;
+  try{
+    await Promise.all([loadResidents(), loadAllReceiptRows()]);
+  }catch(e){
+    // Non-fatal — the home screen just keeps showing whatever it had before.
+  }finally{
+    btn.classList.remove('spinning');
+    btn.disabled = false;
+  }
+}
+
 function spawnConfetti(){
   const wrap = document.getElementById('confettiWrap');
   wrap.innerHTML = '';
@@ -1478,7 +1502,7 @@ function spawnConfetti(){
 }
 
 document.getElementById('homeStartBtn').addEventListener('click', showWizardFromHome);
-document.getElementById('footerHomeBtn').addEventListener('click', showHomeScreen);
+document.getElementById('footerHomeBtn').addEventListener('click', refreshHomeData);
 document.getElementById('homeSettingsBtn').addEventListener('click', ()=>document.getElementById('settingsBtn').click());
 document.getElementById('homeHistoryBtn').addEventListener('click', ()=>document.getElementById('historyBtn').click());
 document.getElementById('homeTourBtn').addEventListener('click', tourStart);
