@@ -129,7 +129,8 @@ html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-
 .home-resident-menu-wrap{position:relative;flex:none;}
 .home-resident-menu-btn{background:none;border:none;color:var(--slate);font-size:16px;font-weight:800;cursor:pointer;padding:4px 6px;line-height:1;}
 .home-resident-menu-btn:hover{color:var(--ink);}
-.home-resident-menu-dropdown{position:absolute;top:100%;left:0;z-index:10;background:#fff;border:1.5px solid var(--card-line);border-radius:10px;box-shadow:var(--card-shadow);white-space:nowrap;overflow:hidden;margin-top:2px;}
+.home-resident-menu-dropdown{position:absolute;top:100%;left:0;z-index:70;background:#fff;border:1.5px solid var(--card-line);border-radius:10px;box-shadow:var(--card-shadow);white-space:nowrap;overflow:hidden;margin-top:2px;}
+.home-resident-menu-dropdown.open-up{top:auto;bottom:100%;margin-top:0;margin-bottom:2px;}
 .home-resident-menu-remind{display:block;width:100%;background:#fff;border:none;border-bottom:1px solid var(--card-line);color:var(--ink-soft);font-family:inherit;font-weight:600;font-size:12px;padding:10px 14px;cursor:pointer;text-align:right;}
 .home-resident-menu-remind:hover{background:var(--blue-soft);color:var(--blue-dark);}
 .home-resident-menu-delete{display:block;width:100%;background:#fff;border:none;color:var(--bad);font-family:inherit;font-weight:600;font-size:12px;padding:10px 14px;cursor:pointer;text-align:right;}
@@ -2269,8 +2270,15 @@ document.getElementById('homeResidentsList').addEventListener('click', async e=>
   if(menuBtn){
     const dropdown = menuBtn.nextElementSibling;
     const wasOpen = dropdown.style.display === 'block';
-    document.querySelectorAll('.home-resident-menu-dropdown').forEach(d=>d.style.display='none');
-    dropdown.style.display = wasOpen ? 'none' : 'block';
+    document.querySelectorAll('.home-resident-menu-dropdown').forEach(d=>{ d.style.display='none'; d.classList.remove('open-up'); });
+    if(!wasOpen){
+      dropdown.style.display = 'block';
+      const btnRect  = menuBtn.getBoundingClientRect();
+      const dropH    = dropdown.offsetHeight;
+      const footerH  = 90; // approx height of the fixed footer nav, kept clear of
+      const spaceBelow = window.innerHeight - btnRect.bottom - footerH;
+      if(spaceBelow < dropH) dropdown.classList.add('open-up');
+    }
     return;
   }
 
