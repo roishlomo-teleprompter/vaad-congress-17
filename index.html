@@ -41,9 +41,9 @@ body.home-active .app-frame{height:auto;min-height:100vh;min-height:100dvh;overf
 /* ── TOPBAR ── */
 .topbar{position:relative;flex:none;background:#fff;color:var(--ink);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1.5px solid var(--card-line);}
 .brand{display:flex;align-items:center;gap:16px;}
-.brand-logo{width:62px;height:62px;border-radius:16px;background:linear-gradient(135deg,#3B82F6,#1D4ED8);display:flex;align-items:center;justify-content:center;font-family:'Frank Ruhl Libre',serif;font-weight:900;color:#fff;font-size:24px;overflow:hidden;flex:none;}
-.brand-logo img{width:100%;height:100%;object-fit:cover;border-radius:16px;}
-.brand h1{font-family:'Heebo',sans-serif;font-size:32px;margin:0;font-weight:900;letter-spacing:.2px;color:var(--blue);}
+.brand-logo{width:48px;height:48px;border-radius:13px;background:linear-gradient(135deg,#3B82F6,#1D4ED8);display:flex;align-items:center;justify-content:center;font-family:'Frank Ruhl Libre',serif;font-weight:900;color:#fff;font-size:18px;overflow:hidden;flex:none;}
+.brand-logo img{width:100%;height:100%;object-fit:cover;border-radius:13px;}
+.brand h1{font-family:'Heebo',sans-serif;font-size:24px;margin:0;font-weight:900;letter-spacing:.2px;color:var(--blue);}
 .brand h1 .gold{color:#000;}
 .brand p{margin:4px 0 0;font-size:14px;color:var(--slate);display:flex;align-items:center;gap:6px;}
 .brand p.tagline{color:#000;font-weight:600;letter-spacing:.2px;}
@@ -319,11 +319,11 @@ textarea{resize:vertical;min-height:70px;}
 .receipt-paper{position:relative;width:794px;min-height:1123px;background:#fff;border:1px solid #e7edf6;border-radius:20px;box-shadow:0 18px 54px rgba(31,64,120,.12);overflow:hidden;padding:34px 46px 28px;display:flex;flex-direction:column;font-family:'Heebo';transform-origin:top right;}
 .decor-dots{position:absolute;left:28px;top:26px;width:92px;height:54px;opacity:.72;background-image:radial-gradient(circle,#cfe0fb 1.8px,transparent 2px);background-size:16px 16px;}
 .building-art{position:absolute;left:20px;right:auto;top:54px;width:205px;height:154px;object-fit:contain;object-position:left top;z-index:1;}
-.brand{text-align:center;position:relative;z-index:2;min-height:150px;}
-.brand-logo{width:82px;height:82px;object-fit:cover;border-radius:22px;display:block;margin:0 auto 10px;filter:drop-shadow(0 8px 14px rgba(37,99,235,.20));}
-.brand-name{font-size:34px;font-weight:900;line-height:1;color:var(--blue);letter-spacing:-.7px;}
-.brand-name .dark{color:#111827;}
-.brand-tag{font-size:13px;color:#7b8799;margin-top:7px;}
+.r-brand{text-align:center;position:relative;z-index:2;min-height:110px;}
+.r-brand-logo{width:56px;height:56px;object-fit:cover;border-radius:16px;display:block;margin:0 auto 8px;filter:drop-shadow(0 6px 12px rgba(37,99,235,.20));}
+.r-brand-name{font-size:24px;font-weight:900;line-height:1;color:var(--blue);letter-spacing:-.5px;}
+.r-brand-name .dark{color:#111827;}
+.r-brand-tag{font-size:11px;color:#7b8799;margin-top:5px;}
 .divider{position:relative;margin:16px 0 24px;height:28px;display:flex;align-items:center;justify-content:center;}
 .divider:before{content:"";position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--blue),#8eb4ff,var(--blue));opacity:.8;}
 .receipt-chip{position:relative;background:#fff;border:1.5px solid #8bb3ff;color:var(--blue);padding:4px 18px;border-radius:999px;font-size:14px;font-weight:800;box-shadow:0 0 0 5px #fff;}
@@ -1589,15 +1589,15 @@ function receiptHTML(forPdf=false){
   <div class="receipt-paper" style="${minH}">
     <div class="decor-dots"></div>
     <img class="building-art" src="buildings-illustration.jpg" alt="בניין מגורים">
-    <header class="brand">
-      <img class="brand-logo" src="icon-mark-192.png" alt="קבקליק">
-      <div class="brand-name"><span class="dark">קב</span>קליק</div>
-      <div class="brand-tag">מפיקים קבלות בקלות ובמהירות</div>
+    <header class="r-brand">
+      <img class="r-brand-logo" src="icon-mark-192.png" alt="קבקליק">
+      <div class="r-brand-name"><span class="dark">קב</span>קליק</div>
+      <div class="r-brand-tag">מפיקים קבלות בקלות ובמהירות</div>
     </header>
     <div class="divider"><span class="receipt-chip">קבלה מס׳ ${receiptNum}</span></div>
     <section class="meta">
       <div class="meta-side"><span>מס׳ הקבלה</span><strong>${receiptNum}</strong></div>
-      <div class="main-title">קבלה לכבוד ${escapeHtml2(bInfo)}</div>
+      <div class="main-title">קבלה לכבוד תשלום ועד הבית</div>
       <div class="meta-side left"><span>תאריך</span><strong class="meta-date-value"><span class="meta-date-main">${dateMain}</span><span class="meta-date-year">${dateYear}</span></strong></div>
     </section>
     <section class="details">
@@ -1621,7 +1621,7 @@ function receiptHTML(forPdf=false){
       <div class="watermark"></div>
     </section>
     <footer class="footer">
-      <div class="seal">${escapeHtml2(bInfo)}<small>תודה רבה</small></div>
+      <div class="seal">ועד הבית<small>תודה רבה</small></div>
       <div class="thanks-line"><span></span><div class="heart">♡</div><span></span></div>
       <div class="thanks">תודה על התשלום!</div>
       <div class="committee">${escapeHtml2(bInfo)}</div>
