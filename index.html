@@ -572,7 +572,7 @@ textarea{resize:vertical;min-height:70px;}
   <!-- HOME SCREEN -->
   <div class="card home-card" id="homeScreen">
     <div class="home-illustration">
-      <img class="illo-photo" src="buildings-illustration.jpg" alt="בניין">
+      <img class="illo-photo" id="homeIllustrationImg" src="buildings-illustration.jpg" alt="בניין">
     </div>
 
     <div class="home-greeting">
@@ -853,7 +853,7 @@ textarea{resize:vertical;min-height:70px;}
       <button type="button" id="accountMenuSwitchModeBtn" class="generate-btn" style="margin:0;">🔀 מעבר בין ועד בית לעצמאי</button>
       <button type="button" id="accountMenuSignOutBtn" style="margin:0;background:#fff;color:var(--ink);border:1.5px solid var(--card-line);border-radius:12px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">🚪 התנתקות מהחשבון</button>
     </div>
-    <button type="button" class="cancel" id="accountMenuCancelBtn" style="margin-top:14px;width:100%;">ביטול</button>
+    <button type="button" id="accountMenuCancelBtn" style="margin-top:14px;width:100%;background:none;border:none;color:var(--slate);font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit;padding:8px;">ביטול</button>
   </div>
 </div>
 
@@ -1176,6 +1176,9 @@ function applyBranding(){
   logoEl.innerHTML = `<img src="${logoSrc}" alt="לוגו" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
 
   document.getElementById('setupBanner').style.display = isConfigured() ? 'none' : 'flex';
+
+  const illoImg = document.getElementById('homeIllustrationImg');
+  if(illoImg) illoImg.src = CFG.usageMode==='business' ? 'login-illustration-freelance.jpg' : 'buildings-illustration.jpg';
 }
 applyBranding(); applyModeTerminology();
 
@@ -1914,7 +1917,7 @@ function receiptHTML(forPdf=false){
   return `
   <div class="receipt-paper" style="${minH}">
     <div class="decor-dots"></div>
-    <img class="building-art" src="buildings-illustration.jpg" alt="בניין מגורים">
+    <img class="building-art" src="${CFG.usageMode==='business' ? 'login-illustration-freelance.jpg' : 'buildings-illustration.jpg'}" alt="${CFG.usageMode==='business' ? 'עסק עצמאי' : 'בניין מגורים'}">
     <header class="r-brand">
       <img class="r-brand-logo" src="icon-mark-192.png" alt="קבקליק">
       <div class="r-brand-name"><span class="dark">קב</span>קליק</div>
