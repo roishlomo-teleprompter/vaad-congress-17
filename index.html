@@ -503,7 +503,6 @@ textarea{resize:vertical;min-height:70px;}
       </svg>
       התחבר עם Google
     </button>
-    <p id="loginGateStatusMsg" style="display:none;text-align:center;font-size:12.5px;color:var(--slate);margin-top:10px;">⏳ מתחברים ובודקים את החשבון, רגע בבקשה…</p>
     <div class="login-privacy-note">🛡️ הנתונים שלכם נשמרים ב-Google בלבד</div>
 
   </div>
@@ -624,7 +623,7 @@ textarea{resize:vertical;min-height:70px;}
     </div>
     <div class="wizard-progress-track"><div class="wizard-progress-fill" id="wizardProgressFill"></div></div>
     <div class="wizard-dots" id="wizardDots">
-      <div class="wizard-dot current" data-step="0"><div class="circ">1</div><div class="lbl">דייר</div></div>
+      <div class="wizard-dot current" data-step="0"><div class="circ">1</div><div class="lbl" id="wizardDot0Lbl">דייר</div></div>
       <div class="wizard-dot todo" data-step="1"><div class="circ">2</div><div class="lbl">חודשים</div></div>
       <div class="wizard-dot todo" data-step="2"><div class="circ">3</div><div class="lbl">תשלום</div></div>
       <div class="wizard-dot todo" data-step="3"><div class="circ">4</div><div class="lbl">אישור</div></div>
@@ -1171,6 +1170,8 @@ function applyModeTerminology(){
   if(clearBtn) clearBtn.setAttribute('aria-label', isBiz ? 'נקה בחירת לקוח' : 'נקה בחירת דייר');
   const rsmTitle = document.getElementById('rsmPickerTitle');
   if(rsmTitle) rsmTitle.textContent = isBiz ? 'בחירת לקוח' : 'בחירת דייר';
+  const dot0Lbl = document.getElementById('wizardDot0Lbl');
+  if(dot0Lbl) dot0Lbl.textContent = isBiz ? 'לקוח' : 'דייר';
 
   // Phone/apartment placeholders only need updating when nothing is picked
   // yet — once a resident/customer IS selected, the change handler already
@@ -2068,7 +2069,6 @@ function markDisconnected(){
   document.getElementById('authDot').classList.remove('on');
   document.getElementById('authLabel').textContent='התחברות עם Google';
   document.getElementById('loginGate').classList.remove('hidden');
-  resetLoginGateStatus();
 }
 
 function signOut(){
@@ -2091,15 +2091,7 @@ function signOut(){
   refreshRecentResidents();
 }
 
-function resetLoginGateStatus(){
-  const btn = document.getElementById('loginGateGoogleBtn');
-  const msg = document.getElementById('loginGateStatusMsg');
-  if(btn) btn.disabled = false;
-  if(msg) msg.style.display = 'none';
-}
 document.getElementById('loginGateGoogleBtn').addEventListener('click', ()=>{
-  document.getElementById('loginGateGoogleBtn').disabled = true;
-  document.getElementById('loginGateStatusMsg').style.display = 'block';
   document.getElementById('authBtn').click();
 });
 document.getElementById('signOutBtn').addEventListener('click', ()=>{
@@ -2151,6 +2143,7 @@ async function checkLicense(email){
   const url = `${LICENSE_API_URL}?email=${encodeURIComponent(email)}&key=${encodeURIComponent(LICENSE_SECRET)}`;
   const res = await fetch(url);
   const result = await res.json();
+  console.log('[קבקליק] תגובת בדיקת רישיון עבור', email, ':', result);
   // Only cache a positive result. Caching a "not registered"/"blocked" result
   // would mean the block screen stays hidden for up to 6 hours even after
   // the person registers in the meantime via a different tab/attempt — worse,
@@ -2160,7 +2153,6 @@ async function checkLicense(email){
   return result;
 }
 function showLicenseBlock(message, notFound){
-  resetLoginGateStatus();
   document.getElementById('licenseBlockTitle').textContent = notFound ? '🔑 כניסה למערכת' : '🔔 עדכון מנוי נדרש';
   document.getElementById('licenseBlockMsg').textContent = message || 'חשבון זה אינו רשום כלקוח פעיל.';
   document.getElementById('licenseRegisterSection').style.display = notFound ? 'block' : 'none';
@@ -2178,7 +2170,6 @@ function showLicenseBlock(message, notFound){
  * prioritize "never let an unregistered account in" over availability.
  */
 function showLicenseRetry(){
-  resetLoginGateStatus();
   document.getElementById('licenseBlockTitle').textContent = '⚠️ לא ניתן היה לאמת את החשבון';
   document.getElementById('licenseBlockMsg').textContent = 'אירעה תקלה זמנית באימות החשבון. יש לבדוק את החיבור לאינטרנט וללחוץ "נסה שוב".';
   document.getElementById('licenseRegisterSection').style.display = 'none';
@@ -2231,6 +2222,7 @@ async function enforceLicense(token){
     // License service unreachable/erroring — fail CLOSED. An unregistered
     // account must never slip through just because a check happened to
     // fail; the person can retry once the connection/service recovers.
+    console.error('[קבקליק] בדיקת הרישיון נכשלה:', e);
     showLicenseRetry();
     return false;
   }
@@ -2334,7 +2326,6 @@ function initGoogle(){
         if(resp.error){
           // A failed *silent* attempt is expected sometimes (e.g. no active Google
           // session yet) — stay quiet and just wait for the user to click the button.
-          resetLoginGateStatus();
           if(!wasSilent) showMsg('ההתחברות נכשלה: '+resp.error,'error');
           return;
         }
