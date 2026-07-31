@@ -109,7 +109,7 @@ body.home-active .home-card{height:auto;overflow:visible;padding-bottom:calc(120
 .mode-toggle{display:flex;gap:10px;}
 .mode-toggle-btn{flex:1;padding:14px 8px;border-radius:12px;border:1.5px solid var(--card-line);background:#fff;color:var(--ink-soft);font-family:inherit;font-weight:700;font-size:13.5px;cursor:pointer;transition:.15s;}
 .mode-toggle-btn.active{border-color:var(--blue);background:var(--blue-soft);color:var(--blue-dark);}
-.mode-select-gate{position:fixed;top:0;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#fff;z-index:480;display:none;align-items:center;justify-content:center;padding:24px;overflow-y:auto;}
+.mode-select-gate{position:fixed;top:0;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#fff;z-index:510;display:none;align-items:center;justify-content:center;padding:24px;overflow-y:auto;}
 .mode-select-gate.show{display:flex;}
 .mode-select-inner{width:100%;max-width:360px;}
 .mode-select-title{text-align:center;font-size:20px;font-weight:900;color:var(--ink);margin:0 0 4px;}
@@ -473,7 +473,7 @@ textarea{resize:vertical;min-height:70px;}
     </div>
 
     <div class="login-illustration">
-      <img class="illo-photo" src="login-hero.png" alt="קבקליק - וועדי בתים ועצמאים">
+      <img class="illo-photo" src="login-hero.png?v=2" alt="קבקליק - וועדי בתים ועצמאים">
     </div>
 
     <div class="login-features">
@@ -514,12 +514,12 @@ textarea{resize:vertical;min-height:70px;}
     <h2 class="mode-select-title">איך תרצו להשתמש בקבקליק?</h2>
     <p class="mode-select-sub">אפשר לשנות את זה בכל שלב דרך ההגדרות</p>
     <button type="button" class="mode-select-card" id="modeSelectVaad">
-      <img src="buildings-illustration.jpg" alt="ועד בית">
+      <img src="buildings-illustration.jpg?v=2" alt="ועד בית">
       <div class="mode-select-card-title">🏢 ועד בית</div>
       <div class="mode-select-card-sub">ניהול דיירים, דמי ועד וקבלות חודשיות</div>
     </button>
     <button type="button" class="mode-select-card" id="modeSelectBusiness">
-      <img src="login-illustration-freelance.jpg" alt="עסק עצמאי">
+      <img src="login-illustration-freelance.jpg?v=2" alt="עסק עצמאי">
       <div class="mode-select-card-title">💼 עסק עצמאי</div>
       <div class="mode-select-card-sub">הפקת קבלות ללקוחות על שירותים ומוצרים</div>
     </button>
@@ -563,7 +563,10 @@ textarea{resize:vertical;min-height:70px;}
 
 <!-- SETUP BANNER -->
 <div class="setup-banner" id="setupBanner" style="display:none;">
-  <p>⚠️ האפליקציה טרם הוגדרה. יש להזין את פרטי הבניין ואת קישורי הגיליון והתיקייה ב"הגדרות" לפני השימוש.</p>
+  <div style="flex:1;min-width:0;">
+    <p style="font-weight:800;margin:0 0 8px;">⚠️ צריך להשלים כמה שלבים לפני שאפשר להתחיל</p>
+    <ul id="setupChecklist" style="margin:0;padding-inline-start:20px;font-size:13px;line-height:1.9;"></ul>
+  </div>
   <button onclick="document.getElementById('settingsBtn').click()">פתח הגדרות</button>
 </div>
 
@@ -573,7 +576,7 @@ textarea{resize:vertical;min-height:70px;}
   <!-- HOME SCREEN -->
   <div class="card home-card" id="homeScreen">
     <div class="home-illustration">
-      <img class="illo-photo" id="homeIllustrationImg" src="buildings-illustration.jpg" alt="בניין">
+      <img class="illo-photo" id="homeIllustrationImg" src="buildings-illustration.jpg?v=2" alt="בניין">
     </div>
 
     <div class="home-greeting">
@@ -607,11 +610,11 @@ textarea{resize:vertical;min-height:70px;}
     <div class="home-residents-section" id="homeResidentsSection">
       <div class="home-section-title-row">
         <div class="home-section-title" id="homeResidentsSectionTitle">⏰ תשלומים קרובים</div>
-        <button type="button" class="home-section-manage-link" id="homeManageResidentsBtn">📋 ניהול רשימה</button>
       </div>
       <div class="home-residents-list" id="homeResidentsList">
         <div class="home-residents-loading">⏳ טוען נתונים…</div>
       </div>
+      <button type="button" id="homeBizManageBtn" class="generate-btn" style="display:none;margin:0;">📋 ניהול רשימת לקוחות</button>
     </div>
   </div>
 
@@ -651,11 +654,14 @@ textarea{resize:vertical;min-height:70px;}
           <div class="phone-box apt-box" id="aptBox">דירה תוצג לאחר בחירת דייר</div>
         </div>
       </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:12px;">
+        <button type="button" id="wizardManageResidentsBtn" class="home-section-manage-link">📋 ניהול רשימה</button>
+      </div>
     </div>
 
     <!-- STEP 2 · MONTHS / PURPOSE -->
     <div class="wizard-step" id="wizardStep1" style="display:none;">
-      <p class="wizard-step-sub">בחרו את חודשי התשלום, או תשלום למטרה אחרת.</p>
+      <p class="wizard-step-sub" id="step1Sub">בחרו את חודשי התשלום, או תשלום למטרה אחרת.</p>
       <div class="row">
         <label class="other-purpose-toggle" id="otherPurposeToggle">
           <input type="checkbox" id="otherPurposeCheck">
@@ -859,7 +865,7 @@ textarea{resize:vertical;min-height:70px;}
 </div>
 
 <!-- LICENSE BLOCK OVERLAY -->
-<div class="modal-bg" id="licenseBlockBg" style="z-index:100;">
+<div class="modal-bg" id="licenseBlockBg" style="z-index:510;">
   <div class="modal" style="text-align:center;">
     <h3 id="licenseBlockTitle">🔑 כניסה למערכת</h3>
     <p class="modal-desc" id="licenseBlockMsg" style="text-align:center;">חשבון זה אינו רשום כלקוח פעיל.</p>
@@ -1134,7 +1140,9 @@ function applyAccountAfterLicense(email){
 let CFG = loadCfg();
 
 function isConfigured(){
-  return !!(CFG.spreadsheetId && CFG.folderId && CFG.buildingInfo);
+  const base = !!(CFG.spreadsheetId && CFG.folderId && CFG.buildingInfo);
+  if(CFG.usageMode==='business') return base && !!CFG.businessNumber;
+  return base;
 }
 
 /* ═══════════════════════════════════════
@@ -1161,8 +1169,24 @@ function applyModeTerminology(){
   const s = document.getElementById('step0Sub');
   if(h) h.textContent = isBiz ? 'מי הלקוח?' : 'מי משלם?';
   if(s) s.textContent = isBiz ? 'בחרו את הלקוח שעבורו מפיקים את הקבלה.' : 'בחרו את הדייר שעבורו מפיקים את הקבלה.';
-  const manageLinkEl = document.getElementById('homeManageResidentsBtn');
-  if(manageLinkEl) manageLinkEl.textContent = isBiz ? '📋 ניהול לקוחות' : '📋 ניהול רשימת דיירים';
+
+  // Home screen: vaad keeps the "upcoming payments" list (still meaningful —
+  // monthly dues genuinely have a next-due-date). Business receipts are
+  // one-off, so "upcoming payments" isn't a real concept there — that whole
+  // section is replaced with a single clear button straight into the
+  // customer list instead.
+  const homeTitleEl = document.getElementById('homeResidentsSectionTitle');
+  const homeListEl  = document.getElementById('homeResidentsList');
+  const homeBizBtn  = document.getElementById('homeBizManageBtn');
+  if(homeTitleEl) homeTitleEl.style.display = isBiz ? 'none' : '';
+  if(homeListEl)  homeListEl.style.display  = isBiz ? 'none' : '';
+  if(homeBizBtn){
+    homeBizBtn.style.display = isBiz ? '' : 'none';
+    homeBizBtn.textContent = isBiz ? '📋 ניהול רשימת לקוחות' : '📋 ניהול רשימת דיירים';
+  }
+  // Wizard step 1 always keeps a small management shortcut, regardless of mode.
+  const wizardManageBtn = document.getElementById('wizardManageResidentsBtn');
+  if(wizardManageBtn) wizardManageBtn.textContent = isBiz ? '📋 ניהול רשימת לקוחות' : '📋 ניהול רשימת דיירים';
 
   const pickerLabel = document.getElementById('residentPickerLabel');
   if(pickerLabel) pickerLabel.textContent = isBiz ? 'בחירת לקוח' : 'בחירת דייר';
@@ -1183,6 +1207,8 @@ function applyModeTerminology(){
   // Apartment number is a vaad-only concept — hide it entirely for business.
   const aptBoxEl = document.getElementById('aptBox');
   if(aptBoxEl) aptBoxEl.style.display = isBiz ? 'none' : '';
+
+  applyPurposeModeUI();
 }
 
 function applyBranding(){
@@ -1203,10 +1229,32 @@ function applyBranding(){
   const logoSrc = CFG.logoUrl || 'icon-mark-192.png';
   logoEl.innerHTML = `<img src="${logoSrc}" alt="לוגו" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
 
-  document.getElementById('setupBanner').style.display = isConfigured() ? 'none' : 'flex';
+  updateSetupChecklist();
 
   const illoImg = document.getElementById('homeIllustrationImg');
-  if(illoImg) illoImg.src = CFG.usageMode==='business' ? 'login-illustration-freelance.jpg' : 'buildings-illustration.jpg';
+  if(illoImg) illoImg.src = CFG.usageMode==='business' ? 'login-illustration-freelance.jpg?v=2' : 'buildings-illustration.jpg?v=2';
+}
+/**
+ * Renders the exact list of setup requirements still missing, so the
+ * warning banner on the home screen is a real checklist rather than one
+ * generic sentence — and gates actual use of the system (see validateForm)
+ * until every item is checked off.
+ */
+function updateSetupChecklist(){
+  const isBiz = CFG.usageMode==='business';
+  const items = [
+    { ok: !!CFG.buildingInfo, label: isBiz ? 'שם העסק' : 'שם הבניין' }
+  ];
+  if(isBiz) items.push({ ok: !!CFG.businessNumber, label: 'מספר עוסק מורשה/פטור (ח"פ)' });
+  items.push({ ok: !!(CFG.spreadsheetId && CFG.folderId), label: 'חיבור לגיליון Google Sheets — הדבקת קישור קיים, או לחיצה על "יצירה אוטומטית"' });
+
+  const banner = document.getElementById('setupBanner');
+  const allOk = items.every(i=>i.ok);
+  banner.style.display = allOk ? 'none' : 'flex';
+  if(!allOk){
+    document.getElementById('setupChecklist').innerHTML =
+      items.map(i=>`<li>${i.ok ? '✅' : '❌'} ${i.label}</li>`).join('');
+  }
 }
 applyBranding(); applyModeTerminology();
 
@@ -1322,7 +1370,16 @@ document.getElementById('autoCreateBtn').addEventListener('click', async ()=>{
     return;
   }
 
-  const buildingName = document.getElementById('cfg-buildingInfo').value.trim() || 'הבניין שלי';
+  const buildingNameInput = document.getElementById('cfg-buildingInfo').value.trim();
+  if(!buildingNameInput){
+    statusEl.style.color = 'var(--bad)';
+    statusEl.textContent = CFG.usageMode==='business'
+      ? 'יש למלא קודם את שם העסק למעלה, ורק אז ליצור את הגיליון — כך שם הגיליון והתיקייה ייקראו נכון.'
+      : 'יש למלא קודם את שם/כתובת הבניין למעלה, ורק אז ליצור את הגיליון — כך שם הגיליון והתיקייה ייקראו נכון.';
+    document.getElementById('cfg-buildingInfo').focus();
+    return;
+  }
+  const buildingName = buildingNameInput;
   btn.disabled = true; btn.textContent = 'יוצר גיליון ותיקייה…';
   statusEl.style.color = 'var(--slate)';
   statusEl.textContent = '';
@@ -1430,6 +1487,35 @@ document.getElementById('otherPurposeCheck').addEventListener('change', e=>{
 document.getElementById('purposeInput').addEventListener('input', refreshPreview);
 document.getElementById('manualAmountInput').addEventListener('input', ()=>{ refreshTotal(); refreshPreview(); });
 
+/**
+ * Business/independent accounts don't have "months of vaad dues" — every
+ * payment is a one-off description + amount. Rather than making them toggle
+ * "other purpose" on every single receipt, business mode skips the months
+ * grid entirely and goes straight to the free-text flow; vaad mode is
+ * unaffected and keeps the toggle.
+ */
+function applyPurposeModeUI(){
+  const isBiz = CFG.usageMode==='business';
+  const toggleRow = document.getElementById('otherPurposeToggle');
+  if(toggleRow) toggleRow.style.display = isBiz ? 'none' : '';
+  const cb = document.getElementById('otherPurposeCheck');
+  if(isBiz){
+    isOtherPurpose = true;
+    if(cb) cb.checked = true;
+    document.getElementById('monthsSection').style.display = 'none';
+    document.getElementById('otherPurposeSection').style.display = '';
+  } else {
+    isOtherPurpose = false;
+    if(cb) cb.checked = false;
+    document.getElementById('monthsSection').style.display = '';
+    document.getElementById('otherPurposeSection').style.display = 'none';
+  }
+  const step1Sub = document.getElementById('step1Sub');
+  if(step1Sub) step1Sub.textContent = isBiz ? 'תארו את השירות או המוצר, והזינו את הסכום לתשלום.' : 'בחרו את חודשי התשלום, או תשלום למטרה אחרת.';
+  const purposeInputEl = document.getElementById('purposeInput');
+  if(purposeInputEl) purposeInputEl.placeholder = isBiz ? 'לדוגמה: שיעורים פרטיים, עיצוב לוגו, ייעוץ...' : 'לדוגמה: שיפוץ חניון, החלפת דוד שמש...';
+}
+
 /* ═══════════════════════════════════════
    PAYMENT METHOD
 ═══════════════════════════════════════ */
@@ -1498,12 +1584,9 @@ function clearResidentSelection(){
   selectedMonths.clear();
   selectedPay = null;
   document.querySelectorAll('.pay-opt').forEach(o=>o.classList.remove('active'));
-  isOtherPurpose = false;
-  document.getElementById('otherPurposeCheck').checked = false;
-  document.getElementById('monthsSection').style.display = '';
-  document.getElementById('otherPurposeSection').style.display = 'none';
   document.getElementById('purposeInput').value = '';
   document.getElementById('manualAmountInput').value = '';
+  applyPurposeModeUI(); // resets to the months grid (vaad) or the free-text flow (business), as appropriate
   document.getElementById('successBanner').style.display = 'none';
   document.getElementById('postActions').style.display = 'none';
 
@@ -1737,6 +1820,7 @@ function validateForm(){
   } else {
     ok=currentResident()&&selectedPay&&selectedMonths.size>0&&accessToken;
   }
+  ok = ok && isConfigured();
   document.getElementById('generateBtn').disabled=!ok;
   wizardRefreshNextBtn();
 }
@@ -1946,7 +2030,7 @@ function receiptHTML(forPdf=false){
   return `
   <div class="receipt-paper" style="${minH}">
     <div class="decor-dots"></div>
-    <img class="building-art" src="${CFG.usageMode==='business' ? 'login-illustration-freelance.jpg' : 'buildings-illustration.jpg'}" alt="${CFG.usageMode==='business' ? 'עסק עצמאי' : 'בניין מגורים'}">
+    <img class="building-art" src="${CFG.usageMode==='business' ? 'login-illustration-freelance.jpg?v=2' : 'buildings-illustration.jpg?v=2'}" alt="${CFG.usageMode==='business' ? 'עסק עצמאי' : 'בניין מגורים'}">
     <header class="r-brand">
       <img class="r-brand-logo" src="icon-mark-192.png" alt="קבקליק">
       <div class="r-brand-name"><span class="dark">קב</span>קליק</div>
@@ -2660,7 +2744,8 @@ async function deleteResident(index){
   }
 }
 
-document.getElementById('homeManageResidentsBtn').addEventListener('click', openResidentsManageFromAnywhere);
+document.getElementById('wizardManageResidentsBtn').addEventListener('click', openResidentsManageFromAnywhere);
+document.getElementById('homeBizManageBtn').addEventListener('click', openResidentsManageFromAnywhere);
 document.getElementById('rmmSettingsOpenBtn').addEventListener('click', openResidentsManageFromAnywhere);
 document.getElementById('rmmCloseBtn').addEventListener('click', closeResidentsManageModal);
 document.getElementById('rmmAddBtn').addEventListener('click', ()=>openResidentEditModal(-1));
@@ -3305,10 +3390,12 @@ const TOUR_STEPS = [
       : 'מזינים כאן את שם/כתובת הבניין. זה מה שיופיע בכותרת ובקבלות עצמן.' },
   { target:'#modalSave', title:'שמירה', inModal:true,
     text:'לא לשכוח ללחוץ כאן לשמירת ההגדרות בסיום.' },
-  { target:'#homeManageResidentsBtn', title:(isBiz)=> isBiz?'ניהול רשימת לקוחות':'ניהול רשימת דיירים',
+  { target:'#wizardManageResidentsBtn', title:(isBiz)=> isBiz?'ניהול רשימת לקוחות':'ניהול רשימת דיירים', wizardStep:0,
     text: (isBiz)=> `כאן אפשר להוסיף, לערוך ולמחוק ${isBiz?'לקוחות':'דיירים'} ישירות מתוך האפליקציה — בלי לפתוח בכלל את גיליון ה-Google Sheets. שינויים כאן נכתבים ישר לגיליון.` },
-  { target:'#homeResidentsSection', title:'תשלומים קרובים',
-    text:'כאן רואים אילו דיירים צריכים לשלם בקרוב — המערכת מחשבת את זה אוטומטית לפי הקבלות שכבר הופקו. לוחצים על "הפק קבלה" ליד השם כדי להתחיל ישר עם אותו דייר.' },
+  { target:'#homeResidentsSection', title:(isBiz)=> isBiz?'ניהול לקוחות':'תשלומים קרובים',
+    text: (isBiz)=> isBiz
+      ? 'במצב עסק, כאן מופיע ישירות כפתור לניהול רשימת הלקוחות — "תשלומים קרובים" רלוונטי רק לחיובים חוזרים כמו דמי ועד, ולכן אינו מוצג במצב הזה.'
+      : 'כאן רואים אילו דיירים צריכים לשלם בקרוב — המערכת מחשבת את זה אוטומטית לפי הקבלות שכבר הופקו. לוחצים על "הפק קבלה" ליד השם כדי להתחיל ישר עם אותו דייר.' },
   { target:'#residentPicker', title:(isBiz)=> isBiz?'בחירת לקוח':'בחירת דייר', wizardStep:0,
     text: (isBiz)=> `כאן בוחרים את ה${isBiz?'לקוח':'דייר'} שעבורו מפיקים את הקבלה. אם ${isBiz?'הלקוח':'הדייר'} עדיין לא ברשימה — פשוט מקלידים את השם החדש, ולוחצים על "➕ הוספה" שמופיעה בתוצאות החיפוש כדי להוסיף ${isBiz?'אותו':'אותו'} ולהמשיך איתו מיד, בלי לצאת מתהליך הקבלה.` },
   { target:'#otherPurposeToggle', title:'חודשים או מטרה אחרת', wizardStep:1,
