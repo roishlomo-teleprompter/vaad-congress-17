@@ -106,9 +106,6 @@ body.home-active .home-card{height:auto;overflow:visible;padding-bottom:calc(120
 .locked-field-row input[readonly]{background:var(--app-bg);color:var(--slate);cursor:not-allowed;}
 .locked-field-edit-btn{flex:none;width:38px;height:38px;border-radius:10px;border:1.5px solid var(--card-line);background:#fff;cursor:pointer;font-size:14px;transition:.15s;}
 .locked-field-edit-btn:hover{background:var(--blue-soft);border-color:var(--blue);}
-.mode-toggle{display:flex;gap:10px;}
-.mode-toggle-btn{flex:1;padding:14px 8px;border-radius:12px;border:1.5px solid var(--card-line);background:#fff;color:var(--ink-soft);font-family:inherit;font-weight:700;font-size:13.5px;cursor:pointer;transition:.15s;}
-.mode-toggle-btn.active{border-color:var(--blue);background:var(--blue-soft);color:var(--blue-dark);}
 .mode-select-gate{position:fixed;top:0;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#fff;z-index:510;display:none;align-items:center;justify-content:center;padding:24px;overflow-y:auto;}
 .mode-select-gate.show{display:flex;}
 .mode-select-inner{width:100%;max-width:360px;}
@@ -368,6 +365,7 @@ textarea{resize:vertical;min-height:70px;}
 .total-seal:before{content:"";position:absolute;inset:5px;border:1px solid var(--blue);border-radius:50%;}
 .total-seal .stars{font-size:6px;letter-spacing:3px;margin-bottom:3px;}
 .total-seal small{display:block;font-size:8.5px;margin-top:2px;}
+.total-seal .thanks-text{display:block;font-size:13px;font-weight:800;margin-top:2px;text-align:center;}
 .total .label{font-size:16px;font-weight:800;}
 .total .amount{direction:ltr;font-size:34px;font-weight:900;color:var(--blue);letter-spacing:.3px;}
 .watermark{position:absolute;left:28px;bottom:-28px;width:120px;height:120px;border-radius:50%;border:16px solid rgba(37,99,235,.05);}
@@ -393,6 +391,7 @@ textarea{resize:vertical;min-height:70px;}
 .modal .modal-desc{font-size:12.5px;color:var(--slate);margin:0 0 20px;line-height:1.6;}
 .settings-section{border-top:1.5px solid var(--card-line);margin-top:20px;padding-top:16px;}
 .settings-section h4{font-size:13px;font-weight:700;color:var(--ink-soft);margin:0 0 12px;text-transform:uppercase;letter-spacing:.5px;}
+.settings-part-label{font-size:11px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin:0 0 8px;}
 .modal label{font-size:12.5px;color:var(--slate);display:block;margin-bottom:4px;margin-top:12px;}
 .modal label:first-child{margin-top:0;}
 .modal input[type=text],.modal input[type=number],.modal input[type=url],.modal textarea{background:#fff;}
@@ -445,9 +444,8 @@ textarea{resize:vertical;min-height:70px;}
 .login-title{font-size:36px;font-weight:900;margin:0;color:var(--blue);}
 .login-title .gold{color:#000;}
 .login-tagline{font-size:13.5px;font-weight:700;color:var(--ink-soft);margin:4px 0 10px;}
-.login-illustration{position:relative;margin:0 0 14px;overflow:hidden;border-radius:14px;max-height:210px;}
+.login-illustration{position:relative;margin:0 0 14px;overflow:hidden;border-radius:14px;}
 .illo-photo{width:100%;height:auto;display:block;}
-.login-illustration .illo-photo{height:210px;object-fit:cover;object-position:center bottom;}
 .login-logo-wrap{position:relative;}
 .login-features{background:transparent;padding:12px 4px;margin-bottom:14px;display:grid;grid-template-columns:1fr 1fr 1fr;}
 .login-feature{display:flex;flex-direction:column;align-items:center;gap:5px;text-align:center;padding:0 4px;border-left:1px solid var(--card-line);}
@@ -627,7 +625,7 @@ textarea{resize:vertical;min-height:70px;}
     <div class="wizard-progress-track"><div class="wizard-progress-fill" id="wizardProgressFill"></div></div>
     <div class="wizard-dots" id="wizardDots">
       <div class="wizard-dot current" data-step="0"><div class="circ">1</div><div class="lbl" id="wizardDot0Lbl">דייר</div></div>
-      <div class="wizard-dot todo" data-step="1"><div class="circ">2</div><div class="lbl">חודשים</div></div>
+      <div class="wizard-dot todo" data-step="1"><div class="circ">2</div><div class="lbl" id="wizardDot1Lbl">חודשים</div></div>
       <div class="wizard-dot todo" data-step="2"><div class="circ">3</div><div class="lbl">תשלום</div></div>
       <div class="wizard-dot todo" data-step="3"><div class="circ">4</div><div class="lbl">אישור</div></div>
       <div class="wizard-dot todo" data-step="4"><div class="circ">5</div><div class="lbl">שליחה</div></div>
@@ -765,58 +763,31 @@ textarea{resize:vertical;min-height:70px;}
 <div class="modal-bg" id="modalBg">
   <div class="modal">
     <h3>⚙ הגדרות האפליקציה</h3>
-    <p class="modal-desc">הגדר את פרטי הבניין שלך, פרטי ה-Google לחיבור, ומחיר דמי הוועד. ההגדרות נשמרות במכשיר זה.</p>
+    <p class="modal-desc">פרטי העסק/הבניין, חיבור לגיליון, ותמחור. נשמר במכשיר זה.</p>
 
-    <!-- USAGE MODE -->
+    <!-- PART 1 · IDENTITY & PRICING -->
     <div class="settings-section">
-      <h4>🎛️ מצב שימוש</h4>
-      <div class="mode-toggle">
-        <button type="button" class="mode-toggle-btn" id="modeVaadBtn" data-mode="vaad">🏢 ועד בית</button>
-        <button type="button" class="mode-toggle-btn" id="modeBusinessBtn" data-mode="business">💼 עסק עצמאי</button>
-      </div>
-    </div>
-
-    <!-- BUILDING INFO -->
-    <div class="settings-section">
+      <p class="settings-part-label">חלק 1 מתוך 3 · פרטי הזיהוי</p>
       <h4 id="orgInfoHeading">🏢 פרטי הבניין</h4>
       <label id="orgInfoLabel">שם/כתובת הבניין</label>
       <input type="text" id="cfg-buildingInfo" placeholder="לדוגמה: קונגרס 17, פתח תקווה">
       <div id="businessNumberRow" style="display:none;">
         <label>מספר עוסק מורשה/פטור</label>
         <input type="text" id="cfg-businessNumber" placeholder="לדוגמה: 123456789">
-        <p style="font-size:11.5px;color:var(--slate);margin:4px 0 10px;line-height:1.5;">יופיע על הקבלה — נדרש חוקית לקבלה תקנית של עוסק.</p>
+        <p style="font-size:11.5px;color:var(--slate);margin:4px 0 10px;line-height:1.5;">יופיע על הקבלה — נדרש חוקית.</p>
       </div>
-      <label>קישור לתמונת לוגו (URL, אופציונלי)</label>
-      <input type="url" id="cfg-logoUrl" placeholder="https://... (השאר ריק להצגת הלוגו של קבקליק)">
-      <img id="logoPreview" class="logo-preview" alt="לוגו">
+      <div id="pricingSection" style="margin-top:14px;">
+        <label>מחיר חודשי ברירת מחדל (₪)</label>
+        <input type="number" id="cfg-defaultFee" placeholder="לדוגמה: 140" min="0">
+        <p style="font-size:11.5px;color:var(--slate);margin:6px 0 0;line-height:1.5;">עמודת <strong>מחיר חודשי</strong> בגיליון גוברת על ברירת המחדל, לדייר ספציפי.</p>
+      </div>
     </div>
 
-    <!-- PRICING -->
-    <div class="settings-section" id="pricingSection">
-      <h4>💰 תמחור דמי ועד</h4>
-      <label>מחיר חודשי ברירת מחדל (₪) — לדיירים ללא מחיר אישי בגיליון</label>
-      <input type="number" id="cfg-defaultFee" placeholder="לדוגמה: 140" min="0">
-      <p style="font-size:11.5px;color:var(--slate);margin:6px 0 0;line-height:1.5;">אם בגיליון "אנשי קשר" יש עמודה בשם <strong>מחיר חודשי</strong> — הסכום ממנה יגבר על ברירת המחדל לאותו דייר.</p>
-    </div>
-
-    <!-- EMAIL SENDER INFO -->
+    <!-- PART 2 · DATA CONNECTION -->
     <div class="settings-section">
-      <h4>📧 שליחת קבלות במייל</h4>
-      <p style="font-size:11.5px;color:var(--slate);margin:0 0 6px;line-height:1.6;">כשמסמנים "שלח קבלה גם למייל" בטופס, הקבלה נשלחת מחשבון ה-Gmail שמפעיל את האפליקציה:</p>
-      <p style="font-size:13px;font-weight:700;color:var(--ink);direction:ltr;text-align:left;background:var(--paper-dark);border-radius:8px;padding:8px 10px;" id="senderEmailDisplay">לא ידוע (יתעדכן לאחר התחברות)</p>
-    </div>
-
-    <!-- RESIDENTS / CUSTOMERS MANAGEMENT ENTRY -->
-    <div class="settings-section">
-      <h4 id="rmmSettingsHeading">📋 ניהול רשימת דיירים</h4>
-      <p style="font-size:11.5px;color:var(--slate);margin:0 0 12px;line-height:1.6;" id="rmmSettingsDesc">הוספה, עריכה ומחיקה של דיירים ישירות מתוך הגיליון.</p>
-      <button type="button" id="rmmSettingsOpenBtn" class="generate-btn" style="margin:0;">📋 פתיחת ניהול רשימת דיירים</button>
-    </div>
-
-    <!-- DATA LINKS -->
-    <div class="settings-section">
+      <p class="settings-part-label">חלק 2 מתוך 3 · חיבור לנתונים</p>
       <h4>🔗 חיבור לגיליון ולתיקייה שלך</h4>
-      <p style="font-size:11.5px;color:var(--slate);margin:0 0 10px;line-height:1.6;">אין צורך בשום הגדרה טכנית. פשוט הדביקו כאן את הקישור לגיליון Google Sheets של אנשי הקשר שלכם, שנמצא בגוגל דרייב, ואת הקישור לתיקיית הדרייב שבה יישמרו הקבלות — בדיוק כפי שהם מופיעים בשורת הכתובת של הדפדפן.</p>
+      <p style="font-size:11.5px;color:var(--slate);margin:0 0 10px;line-height:1.6;">הדביקו קישור לגיליון Google Sheets ולתיקיית Drive לשמירת קבלות — בדיוק כפי שמופיעים בשורת הכתובת בדפדפן.</p>
 
       <button type="button" id="autoCreateBtn" class="generate-btn" style="margin:2px 0 14px;">✨ אין לך גיליון עדיין? ליצור אחד אוטומטית</button>
       <p id="autoCreateStatus" style="font-size:12.5px;margin:-8px 0 14px;text-align:center;min-height:1em;"></p>
@@ -831,6 +802,19 @@ textarea{resize:vertical;min-height:70px;}
         <input type="text" id="cfg-folderId" class="ltr-input" placeholder="https://drive.google.com/drive/folders/..." readonly>
         <button type="button" class="locked-field-edit-btn" data-target="cfg-folderId" title="עריכה" aria-label="עריכת הקישור לתיקייה">✏️</button>
       </div>
+
+      <div style="margin-top:18px;padding-top:16px;border-top:1.5px dashed var(--card-line);">
+        <h4 id="rmmSettingsHeading" style="margin-bottom:6px;">📋 ניהול רשימת דיירים</h4>
+        <p style="font-size:11.5px;color:var(--slate);margin:0 0 12px;line-height:1.6;" id="rmmSettingsDesc">הוספה, עריכה ומחיקה של דיירים ישירות מתוך הגיליון.</p>
+        <button type="button" id="rmmSettingsOpenBtn" class="generate-btn" style="margin:0;">📋 פתיחת ניהול רשימת דיירים</button>
+      </div>
+    </div>
+
+    <!-- PART 3 · SENDING -->
+    <div class="settings-section">
+      <p class="settings-part-label">חלק 3 מתוך 3 · שליחת קבלות</p>
+      <h4>📧 שליחת קבלות במייל</h4>
+      <p style="font-size:11.5px;color:var(--slate);margin:0;line-height:1.6;">"שלח קבלה גם למייל" בטופס שולח מחשבון ה-Gmail המחובר כרגע.</p>
     </div>
 
     <div class="modal-actions">
@@ -1196,6 +1180,8 @@ function applyModeTerminology(){
   if(rsmTitle) rsmTitle.textContent = isBiz ? 'בחירת לקוח' : 'בחירת דייר';
   const dot0Lbl = document.getElementById('wizardDot0Lbl');
   if(dot0Lbl) dot0Lbl.textContent = isBiz ? 'לקוח' : 'דייר';
+  const dot1Lbl = document.getElementById('wizardDot1Lbl');
+  if(dot1Lbl) dot1Lbl.textContent = isBiz ? 'מטרה' : 'חודשים';
 
   // Phone/apartment placeholders only need updating when nothing is picked
   // yet — once a resident/customer IS selected, the change handler already
@@ -1262,8 +1248,6 @@ applyBranding(); applyModeTerminology();
    SETTINGS MODAL
 ═══════════════════════════════════════ */
 function applyModeUI(mode){
-  document.getElementById('modeVaadBtn').classList.toggle('active', mode!=='business');
-  document.getElementById('modeBusinessBtn').classList.toggle('active', mode==='business');
   const isBiz = mode==='business';
   document.getElementById('orgInfoHeading').textContent = isBiz ? '💼 פרטי העסק' : '🏢 פרטי הבניין';
   document.getElementById('orgInfoLabel').textContent    = isBiz ? 'שם העסק' : 'שם/כתובת הבניין';
@@ -1277,28 +1261,9 @@ function applyModeUI(mode){
   const rmmBtn = document.getElementById('rmmSettingsOpenBtn');
   if(rmmBtn) rmmBtn.textContent = isBiz ? '📋 פתיחת ניהול רשימת לקוחות' : '📋 פתיחת ניהול רשימת דיירים';
 }
-function settingsModeSwitchPreview(mode){
-  applyModeUI(mode);
-  // Preview (don't commit) this mode's own saved sheet/folder/building info,
-  // so the settings screen always shows what's actually associated with the
-  // mode you're looking at — committed only if "שמירת הגדרות" is pressed.
-  if(CFG.email){
-    const saved = loadAccountCfg(CFG.email, mode) || {};
-    document.getElementById('cfg-buildingInfo').value   = saved.buildingInfo   || '';
-    document.getElementById('cfg-logoUrl').value        = saved.logoUrl        || '';
-    document.getElementById('cfg-defaultFee').value      = saved.defaultFee     || '';
-    document.getElementById('cfg-businessNumber').value = saved.businessNumber || '';
-    document.getElementById('cfg-spreadsheetId').value  = saved.spreadsheetId  || '';
-    document.getElementById('cfg-folderId').value       = saved.folderId       || '';
-    updateLogoPreview();
-  }
-}
-document.getElementById('modeVaadBtn').addEventListener('click', ()=>settingsModeSwitchPreview('vaad'));
-document.getElementById('modeBusinessBtn').addEventListener('click', ()=>settingsModeSwitchPreview('business'));
 
 document.getElementById('settingsBtn').onclick = ()=>{
   document.getElementById('cfg-buildingInfo').value = CFG.buildingInfo||'';
-  document.getElementById('cfg-logoUrl').value      = CFG.logoUrl||'';
   document.getElementById('cfg-defaultFee').value   = CFG.defaultFee||'';
   document.getElementById('cfg-businessNumber').value = CFG.businessNumber||'';
   document.getElementById('cfg-spreadsheetId').value= CFG.spreadsheetId||'';
@@ -1306,8 +1271,6 @@ document.getElementById('settingsBtn').onclick = ()=>{
   document.getElementById('cfg-spreadsheetId').readOnly = true;
   document.getElementById('cfg-folderId').readOnly = true;
   applyModeUI(CFG.usageMode||'vaad');
-  updateLogoPreview();
-  updateSenderEmailDisplay();
   document.getElementById('modalBg').classList.add('show');
 };
 document.querySelectorAll('.locked-field-edit-btn').forEach(btn=>{
@@ -1321,28 +1284,20 @@ document.querySelectorAll('.locked-field-edit-btn').forEach(btn=>{
 });
 document.getElementById('modalCancel').onclick = ()=> document.getElementById('modalBg').classList.remove('show');
 
-function updateLogoPreview(){
-  const url  = document.getElementById('cfg-logoUrl').value.trim();
-  const prev = document.getElementById('logoPreview');
-  if(url){ prev.src=url; prev.classList.add('show'); } else { prev.classList.remove('show'); }
-}
-document.getElementById('cfg-logoUrl').addEventListener('input', updateLogoPreview);
-
 document.getElementById('modalSave').onclick = async ()=>{
   if(!CFG.email){
     await showAppAlert('יש להתחבר עם Google לפני שמירת ההגדרות.','⚠️');
     return;
   }
-  const newMode = document.getElementById('modeBusinessBtn').classList.contains('active') ? 'business' : 'vaad';
-  CFG.usageMode     = newMode;
+  // Usage mode is no longer editable here — switching modes happens through
+  // the account menu (sign-out icon → "מעבר בין ועד לעצמאי"), which properly
+  // loads/creates that mode's own data. Settings just edits the CURRENT mode.
   CFG.buildingInfo  = document.getElementById('cfg-buildingInfo').value.trim();
   CFG.businessNumber= document.getElementById('cfg-businessNumber').value.trim();
-  CFG.logoUrl       = document.getElementById('cfg-logoUrl').value.trim();
   CFG.defaultFee    = parseFloat(document.getElementById('cfg-defaultFee').value)||140;
   CFG.spreadsheetId = extractSheetId(document.getElementById('cfg-spreadsheetId').value);
   CFG.folderId      = extractFolderId(document.getElementById('cfg-folderId').value);
   persistCurrentAccountCfg();
-  saveLastMode(CFG.email, newMode);
   document.getElementById('modalBg').classList.remove('show');
   applyBranding(); applyModeTerminology();
   refreshPreview();
@@ -1802,7 +1757,7 @@ function manualAmount(){
 function refreshTotal(){
   let total=0, lbl='סכום לתשלום';
   if(isOtherPurpose){
-    total=manualAmount(); lbl='סכום לתשלום (מטרה אחרת)';
+    total=manualAmount(); lbl='סכום לתשלום';
   } else {
     const fee=residentFee();
     total=selectedMonths.size*fee;
@@ -1854,7 +1809,7 @@ function wizardUpdateSummary(){
     ? (document.getElementById('purposeInput').value.trim() || '—')
     : (selectedMonths.size ? sortedMonths().map(i=>MONTH_NAMES[i]).join(', ') : '—');
   document.getElementById('wizardSummary').innerHTML = `
-    <div class="wizard-summary-row"><span>דייר</span><b>${r ? r.name : '—'}</b></div>
+    <div class="wizard-summary-row"><span>${CFG.usageMode==='business' ? 'לקוח' : 'דייר'}</span><b>${r ? r.name : '—'}</b></div>
     <div class="wizard-summary-row"><span>${isOtherPurpose ? 'מטרה' : 'חודשים'}</span><b>${monthsTxt}</b></div>
     <div class="wizard-summary-row"><span>אמצעי תשלום</span><b>${selectedPay || '—'}</b></div>
   `;
@@ -2046,7 +2001,7 @@ function receiptHTML(forPdf=false){
     <section class="details">
       <div class="info-row">
         <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></div>
-        <div class="info"><div class="label">שם הדייר</div><div class="value">${r?r.name:'—'}${(r && r.apartment && r.apartment.trim()) ? ` (דירה ${r.apartment})` : ''}</div></div>
+        <div class="info"><div class="label">${CFG.usageMode==='business' ? 'שם הלקוח' : 'שם הדייר'}</div><div class="value">${r?r.name:'—'}${(r && r.apartment && r.apartment.trim()) ? ` (דירה ${r.apartment})` : ''}</div></div>
       </div>
       <div class="info-row">
         <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .3 2 .7 2.9a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.2-1.2a2 2 0 0 1 2.1-.5c.9.4 1.9.6 2.9.7a2 2 0 0 1 1.8 2z"/></svg></div>
@@ -2066,7 +2021,7 @@ function receiptHTML(forPdf=false){
       <div class="watermark"></div>
     </section>
     <div class="total-seal-wrap">
-      <div class="total-seal"><span class="stars">★ ★ ★</span>ועד הבית<small>תודה רבה</small></div>
+      <div class="total-seal"><span class="stars">★ ★ ★</span><span class="thanks-text">תודה רבה</span></div>
     </div>
     <footer class="footer">
       <div class="thanks-line"><span></span><div class="heart">♡</div><span></span></div>
@@ -2282,11 +2237,6 @@ document.getElementById('licenseBlockCancelBtn').addEventListener('click', ()=>{
   hideLicenseBlock();
   signOut();
 });
-let senderEmailAddr = '';
-function updateSenderEmailDisplay(){
-  const el = document.getElementById('senderEmailDisplay');
-  if(el) el.textContent = senderEmailAddr || 'לא ידוע (יתעדכן לאחר התחברות)';
-}
 /* Returns true if allowed to proceed, false if blocked (and shows the block screen). */
 async function enforceLicense(token){
   if(!LICENSE_API_URL){ document.getElementById('loginGate').classList.add('hidden'); return true; } // licensing not configured yet — no-op
@@ -2295,10 +2245,6 @@ async function enforceLicense(token){
     if(!email){ showLicenseRetry(); return false; } // couldn't determine email — block rather than risk letting an unverified account in
     lastCheckedEmail = email;
     const result = await checkLicense(email);
-    if(result.senderEmail){
-      senderEmailAddr = result.senderEmail;
-      updateSenderEmailDisplay();
-    }
     if(result.allowed){ hideLicenseBlock(); applyAccountAfterLicense(email); return true; }
     showLicenseBlock(result.message, !!result.notFound);
     return false;
@@ -3378,8 +3324,8 @@ const TOUR_STEPS = [
     text:'תוך פחות מדקה נראה לכם איך להתחיל להפיק קבלות — בין אם לוועד בית ובין אם כעסק עצמאי. אפשר לדלג בכל שלב.' },
   { target:'#homeSettingsBtn', title:'הגדרות',
     text:'כאן פותחים את ההגדרות כדי לחבר את הגיליון והתיקייה שלכם, ולהתאים את האפליקציה לצרכים שלכם.' },
-  { target:'.mode-toggle', title:'מצב שימוש', inModal:true,
-    text:'קבקליק תומכת בשני מצבי שימוש: <b>ועד בית</b> — עם דיירים, דירות ודמי ועד חודשיים, ו<b>עסק עצמאי</b> — עם לקוחות וקבלות על שירותים או מוצרים. אפשר לעבור בין המצבים כאן בכל רגע, וכל הטרמינולוגיה באפליקציה — מהטפסים ועד הקבלה עצמה — מתאימה את עצמה אוטומטית.' },
+  { target:'#signOutBtn', title:'מצב שימוש',
+    text:'קבקליק תומכת בשני מצבי שימוש: <b>ועד בית</b> — עם דיירים, דירות ודמי ועד חודשיים, ו<b>עסק עצמאי</b> — עם לקוחות וקבלות על שירותים או מוצרים. למעבר בין המצבים, לוחצים כאן על אייקון החשבון ובוחרים "מעבר בין ועד לעצמאי". כל הטרמינולוגיה באפליקציה — מהטפסים ועד הקבלה עצמה — מתאימה את עצמה אוטומטית.' },
   { target:'#autoCreateBtn', title:'גיליון ב-Google Drive', inModal:true,
     text: (isBiz)=> isBiz
       ? 'גיליון Google Sheets בתוך Google Drive שלכם.\n\n<b>יש לכם גיליון קיים?</b><br>מדביקים למטה קישור לגיליון ולתיקייה. נדרשת לשונית שנקראת "לקוחות" עם העמודות: שם, טלפון, ומייל (אופציונלי).\n\n<b>אין לכם גיליון עדיין?</b><br>לוחצים כאן ליצירה אוטומטית.'
