@@ -445,8 +445,9 @@ textarea{resize:vertical;min-height:70px;}
 .login-title{font-size:36px;font-weight:900;margin:0;color:var(--blue);}
 .login-title .gold{color:#000;}
 .login-tagline{font-size:13.5px;font-weight:700;color:var(--ink-soft);margin:4px 0 10px;}
-.login-illustration{position:relative;margin:0 0 14px;overflow:hidden;border-radius:14px;}
+.login-illustration{position:relative;margin:0 0 14px;overflow:hidden;border-radius:14px;max-height:210px;}
 .illo-photo{width:100%;height:auto;display:block;}
+.login-illustration .illo-photo{height:210px;object-fit:cover;object-position:center bottom;}
 .login-logo-wrap{position:relative;}
 .login-features{background:transparent;padding:12px 4px;margin-bottom:14px;display:grid;grid-template-columns:1fr 1fr 1fr;}
 .login-feature{display:flex;flex-direction:column;align-items:center;gap:5px;text-align:center;padding:0 4px;border-left:1px solid var(--card-line);}
@@ -873,6 +874,10 @@ textarea{resize:vertical;min-height:70px;}
 
     <div id="licenseContactSection">
       <p class="modal-desc" style="text-align:center;">לחידוש או הפעלת המנוי, יש ליצור קשר עם ספק האפליקציה.</p>
+    </div>
+
+    <div id="licenseRetrySection" style="display:none;">
+      <button type="button" id="licenseRetryBtn" class="generate-btn" style="margin-top:4px;">🔄 נסה שוב</button>
     </div>
 
     <button type="button" id="licenseBlockCancelBtn" style="margin-top:12px;width:100%;background:none;border:none;color:var(--slate);font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit;padding:8px;">ביטול — חזרה למסך ההתחברות</button>
@@ -2142,11 +2147,16 @@ async function getUserEmail(token){
 }
 async function checkLicense(email){
   const cached = loadLicenseCache(email);
-  if(cached) return cached;
+  if(cached && cached.allowed) return cached;
   const url = `${LICENSE_API_URL}?email=${encodeURIComponent(email)}&key=${encodeURIComponent(LICENSE_SECRET)}`;
   const res = await fetch(url);
   const result = await res.json();
-  saveLicenseCache(email, result);
+  // Only cache a positive result. Caching a "not registered"/"blocked" result
+  // would mean the block screen stays hidden for up to 6 hours even after
+  // the person registers in the meantime via a different tab/attempt — worse,
+  // it would also mean a genuinely unregistered account might not see the
+  // registration screen again if anything ever cached a stale negative.
+  if(result.allowed) saveLicenseCache(email, result);
   return result;
 }
 function showLicenseBlock(message, notFound){
@@ -2155,11 +2165,40 @@ function showLicenseBlock(message, notFound){
   document.getElementById('licenseBlockMsg').textContent = message || 'חשבון זה אינו רשום כלקוח פעיל.';
   document.getElementById('licenseRegisterSection').style.display = notFound ? 'block' : 'none';
   document.getElementById('licenseContactSection').style.display  = notFound ? 'none'  : 'block';
+  document.getElementById('licenseRetrySection').style.display    = 'none';
+  document.getElementById('licenseBlockBg').classList.add('show');
+}
+/**
+ * Shown when the license check itself couldn't complete (network hiccup,
+ * the check service being briefly unreachable, etc.) — deliberately blocks
+ * access rather than quietly letting the person in, since an unverified
+ * account should never get through just because a check happened to fail.
+ * The trade-off: if the license service is ever down, this also blocks
+ * already-paying customers until it's back — a conscious choice to
+ * prioritize "never let an unregistered account in" over availability.
+ */
+function showLicenseRetry(){
+  resetLoginGateStatus();
+  document.getElementById('licenseBlockTitle').textContent = '⚠️ לא ניתן היה לאמת את החשבון';
+  document.getElementById('licenseBlockMsg').textContent = 'אירעה תקלה זמנית באימות החשבון. יש לבדוק את החיבור לאינטרנט וללחוץ "נסה שוב".';
+  document.getElementById('licenseRegisterSection').style.display = 'none';
+  document.getElementById('licenseContactSection').style.display = 'none';
+  document.getElementById('licenseRetrySection').style.display   = 'block';
   document.getElementById('licenseBlockBg').classList.add('show');
 }
 function hideLicenseBlock(){
   document.getElementById('licenseBlockBg').classList.remove('show');
 }
+document.getElementById('licenseRetryBtn').addEventListener('click', async ()=>{
+  const btn = document.getElementById('licenseRetryBtn');
+  btn.disabled = true; btn.textContent = 'בודק…';
+  hideLicenseBlock();
+  if(accessToken && await enforceLicense(accessToken)){
+    await loadDataForCurrentAccountMode();
+    validateForm();
+  }
+  btn.disabled = false; btn.textContent = '🔄 נסה שוב';
+});
 document.getElementById('licenseBlockCancelBtn').addEventListener('click', ()=>{
   // Returns to the sign-in screen without registering. Deliberately does NOT
   // remember "already seen" anywhere — signing in again with the same
@@ -2178,7 +2217,7 @@ async function enforceLicense(token){
   if(!LICENSE_API_URL){ document.getElementById('loginGate').classList.add('hidden'); return true; } // licensing not configured yet — no-op
   try{
     const email = await getUserEmail(token);
-    if(!email){ document.getElementById('loginGate').classList.add('hidden'); return true; } // couldn't determine email — fail open rather than lock out on a glitch
+    if(!email){ showLicenseRetry(); return false; } // couldn't determine email — block rather than risk letting an unverified account in
     lastCheckedEmail = email;
     const result = await checkLicense(email);
     if(result.senderEmail){
@@ -2189,8 +2228,11 @@ async function enforceLicense(token){
     showLicenseBlock(result.message, !!result.notFound);
     return false;
   }catch(e){
-    document.getElementById('loginGate').classList.add('hidden');
-    return true; // license service unreachable — fail open, don't lock out customers over a network hiccup
+    // License service unreachable/erroring — fail CLOSED. An unregistered
+    // account must never slip through just because a check happened to
+    // fail; the person can retry once the connection/service recovers.
+    showLicenseRetry();
+    return false;
   }
 }
 
