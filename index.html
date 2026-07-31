@@ -119,7 +119,7 @@ body.home-active .home-card{height:auto;overflow:visible;padding-bottom:calc(120
 .mode-select-card img{width:100%;height:110px;object-fit:cover;display:block;}
 .mode-select-card-title{font-size:15px;font-weight:800;color:var(--ink);margin-top:10px;}
 .mode-select-card-sub{font-size:11.5px;color:var(--slate);padding:2px 14px 14px;line-height:1.4;}
-.app-dialog-bg{position:fixed;inset:0;background:rgba(20,28,46,.55);z-index:400;display:none;align-items:center;justify-content:center;padding:20px;}
+.app-dialog-bg{position:fixed;inset:0;background:rgba(20,28,46,.55);z-index:700;display:none;align-items:center;justify-content:center;padding:20px;}
 .app-dialog-bg.show{display:flex;}
 .app-dialog{background:#fff;border-radius:18px;padding:26px 22px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 50px -12px rgba(16,24,40,.35);}
 .app-dialog-icon{font-size:32px;margin-bottom:10px;}
@@ -606,7 +606,7 @@ textarea{resize:vertical;min-height:70px;}
     <div class="home-residents-section" id="homeResidentsSection">
       <div class="home-section-title-row">
         <div class="home-section-title" id="homeResidentsSectionTitle">⏰ תשלומים קרובים</div>
-        <button type="button" class="home-section-manage-link" id="homeManageResidentsBtn">👥 ניהול</button>
+        <button type="button" class="home-section-manage-link" id="homeManageResidentsBtn">📋 ניהול רשימה</button>
       </div>
       <div class="home-residents-list" id="homeResidentsList">
         <div class="home-residents-loading">⏳ טוען נתונים…</div>
@@ -801,9 +801,9 @@ textarea{resize:vertical;min-height:70px;}
 
     <!-- RESIDENTS / CUSTOMERS MANAGEMENT ENTRY -->
     <div class="settings-section">
-      <h4 id="rmmSettingsHeading">👥 ניהול דיירים</h4>
+      <h4 id="rmmSettingsHeading">📋 ניהול רשימת דיירים</h4>
       <p style="font-size:11.5px;color:var(--slate);margin:0 0 12px;line-height:1.6;" id="rmmSettingsDesc">הוספה, עריכה ומחיקה של דיירים ישירות מתוך הגיליון.</p>
-      <button type="button" id="rmmSettingsOpenBtn" class="generate-btn" style="margin:0;">👥 פתיחת ניהול דיירים</button>
+      <button type="button" id="rmmSettingsOpenBtn" class="generate-btn" style="margin:0;">📋 פתיחת ניהול רשימת דיירים</button>
     </div>
 
     <!-- DATA LINKS -->
@@ -830,6 +830,9 @@ textarea{resize:vertical;min-height:70px;}
       <button class="cancel" id="modalCancel">ביטול</button>
       <button class="save" id="modalSave">שמירת הגדרות</button>
     </div>
+    <div style="text-align:center;margin-top:10px;">
+      <button type="button" id="devResetModeBtn" style="background:none;border:none;color:var(--card-line);font-size:10.5px;cursor:pointer;font-family:inherit;padding:4px;">איפוס מצב שימוש (לבדיקות)</button>
+    </div>
   </div>
 </div>
 
@@ -848,7 +851,7 @@ textarea{resize:vertical;min-height:70px;}
 <!-- LICENSE BLOCK OVERLAY -->
 <div class="modal-bg" id="licenseBlockBg" style="z-index:100;">
   <div class="modal" style="text-align:center;">
-    <h3>🔒 גישה לא זמינה</h3>
+    <h3 id="licenseBlockTitle">🔑 כניסה למערכת</h3>
     <p class="modal-desc" id="licenseBlockMsg" style="text-align:center;">חשבון זה אינו רשום כלקוח פעיל.</p>
 
     <div id="licenseRegisterSection" style="display:none;text-align:right;margin-top:14px;">
@@ -881,7 +884,7 @@ textarea{resize:vertical;min-height:70px;}
 <div class="resident-search-modal" id="residentsManageModal">
   <div class="rsm-header">
     <button type="button" id="rmmCloseBtn" class="rsm-close" aria-label="סגירה">✕</button>
-    <span class="rsm-title" id="rmmTitle" style="flex:1;">ניהול דיירים</span>
+    <span class="rsm-title" id="rmmTitle" style="flex:1;">ניהול רשימת דיירים</span>
     <button type="button" id="rmmAddBtn" class="rmm-add-btn">+ הוספה</button>
   </div>
   <div class="rsm-search-wrap">
@@ -1074,12 +1077,12 @@ function applyModeUI(mode){
   document.getElementById('cfg-buildingInfo').placeholder = isBiz ? 'לדוגמה: דנה כהן - עיצוב גרפי' : 'לדוגמה: קונגרס 17, פתח תקווה';
   document.getElementById('businessNumberRow').style.display = isBiz ? 'block' : 'none';
   document.getElementById('pricingSection').style.display    = isBiz ? 'none' : 'block';
-  document.getElementById('rmmSettingsHeading').textContent = isBiz ? '👥 ניהול לקוחות' : '👥 ניהול דיירים';
+  document.getElementById('rmmSettingsHeading').textContent = isBiz ? '📋 ניהול רשימת לקוחות' : '📋 ניהול רשימת דיירים';
   document.getElementById('rmmSettingsDesc').textContent = isBiz
     ? 'הוספה, עריכה ומחיקה של לקוחות ישירות מתוך הגיליון.'
     : 'הוספה, עריכה ומחיקה של דיירים ישירות מתוך הגיליון.';
   const rmmBtn = document.getElementById('rmmSettingsOpenBtn');
-  if(rmmBtn) rmmBtn.textContent = isBiz ? '👥 פתיחת ניהול לקוחות' : '👥 פתיחת ניהול דיירים';
+  if(rmmBtn) rmmBtn.textContent = isBiz ? '📋 פתיחת ניהול רשימת לקוחות' : '📋 פתיחת ניהול רשימת דיירים';
 }
 document.getElementById('modeVaadBtn').addEventListener('click', ()=>applyModeUI('vaad'));
 document.getElementById('modeBusinessBtn').addEventListener('click', ()=>applyModeUI('business'));
@@ -1115,6 +1118,20 @@ function updateLogoPreview(){
   if(url){ prev.src=url; prev.classList.add('show'); } else { prev.classList.remove('show'); }
 }
 document.getElementById('cfg-logoUrl').addEventListener('input', updateLogoPreview);
+
+// Testing-only convenience — resets just the vaad/business first-run choice
+// so the mode-select gate can be seen again, without touching the sheet/
+// folder/building settings the person already has configured.
+document.getElementById('devResetModeBtn').addEventListener('click', async ()=>{
+  const ok = await showAppConfirm('פעולה לבדיקות בלבד: תאפס את בחירת "מצב השימוש" (וועד/עסק) ותציג שוב את מסך הבחירה הראשוני. שאר ההגדרות (גיליון, תיקייה, פרטי הבניין) יישארו כפי שהן. להמשיך?', '🧪');
+  if(!ok) return;
+  delete CFG.usageMode;
+  saveCfg(CFG);
+  document.getElementById('modalBg').classList.remove('show');
+  document.getElementById('homeScreen').style.display='';
+  document.querySelector('.wizard-card').style.display='none';
+  document.getElementById('modeSelectGate').classList.add('show');
+});
 
 document.getElementById('modalSave').onclick = ()=>{
   CFG.usageMode     = document.getElementById('modeBusinessBtn').classList.contains('active') ? 'business' : 'vaad';
@@ -1190,8 +1207,20 @@ document.getElementById('autoCreateBtn').addEventListener('click', async ()=>{
 
     window.open(`https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`, '_blank');
   }catch(err){
-    statusEl.style.color = 'var(--bad)';
-    statusEl.textContent = 'שגיאה ביצירה — אפשר לנסות שוב, או להדביק קישורים לגיליון/תיקייה קיימים ידנית.';
+    const code = err.status || err.result?.error?.code;
+    const msg  = err.result?.error?.message || err.message || '';
+    if(code===401 || code===403 || /insufficient|permission|scope/i.test(msg)){
+      // Most common cause: the person didn't fully click through Google's
+      // "app isn't verified" warning (Advanced → Continue), so the Drive/
+      // Sheets scopes were never actually granted — the request reaches
+      // Google but gets rejected for lacking permission, not for a normal
+      // network/API error.
+      statusEl.style.color = 'var(--bad)';
+      statusEl.textContent = 'Google חסם את הבקשה מפני שההרשאה לגיליון/Drive לא הושלמה. יש להתנתק ולהתחבר שוב, ובמסך של Google ללחוץ על "מתקדם" ואז "מעבר אל קבקליק (לא בטוח)" כדי לאשר את ההרשאות עד הסוף — רק אז התיקייה תיווצר.';
+    } else {
+      statusEl.style.color = 'var(--bad)';
+      statusEl.textContent = 'שגיאה ביצירה — אפשר לנסות שוב, או להדביק קישורים לגיליון/תיקייה קיימים ידנית.';
+    }
     btn.disabled = false; btn.textContent = defaultLabel;
   }
 });
@@ -1938,6 +1967,7 @@ async function checkLicense(email){
   return result;
 }
 function showLicenseBlock(message, notFound){
+  document.getElementById('licenseBlockTitle').textContent = notFound ? '🔑 כניסה למערכת' : '🔔 עדכון מנוי נדרש';
   document.getElementById('licenseBlockMsg').textContent = message || 'חשבון זה אינו רשום כלקוח פעיל.';
   document.getElementById('licenseRegisterSection').style.display = notFound ? 'block' : 'none';
   document.getElementById('licenseContactSection').style.display  = notFound ? 'none'  : 'block';
@@ -2231,7 +2261,7 @@ async function loadResidents(){
 let rmmEditingIndex = -1; // -1 = adding a new resident/customer
 let rmmAddContext   = 'management'; // 'management' | 'wizard' — where to return focus after a successful add
 
-function residentsManageTitle(){ return CFG.usageMode==='business' ? 'ניהול לקוחות' : 'ניהול דיירים'; }
+function residentsManageTitle(){ return CFG.usageMode==='business' ? 'ניהול רשימת לקוחות' : 'ניהול רשימת דיירים'; }
 
 function colLetter(idx){
   let s='', n=idx+1;
@@ -2283,7 +2313,7 @@ function closeResidentsManageModal(){
 
 async function openResidentsManageFromAnywhere(){
   if(!CFG.spreadsheetId||!CFG.folderId){ await showAppAlert('יש להגדיר תחילה קישור לגיליון ולתיקייה בהגדרות.','⚠️'); return; }
-  if(!accessToken){ await showAppAlert('יש להתחבר עם Google לפני ניהול דיירים.','⚠️'); return; }
+  if(!accessToken){ await showAppAlert('יש להתחבר עם Google לפני ניהול רשימת הדיירים.','⚠️'); return; }
   document.getElementById('modalBg').classList.remove('show');
   openResidentsManageModal();
 }
@@ -2362,7 +2392,7 @@ async function saveResidentEdit(){
       if(residentsCols.apartment>-1) rowArr[residentsCols.apartment] = apt;
       await gapi.client.sheets.spreadsheets.values.append({
         spreadsheetId:CFG.spreadsheetId, range:`'${sheetName}'!A:Z`,
-        valueInputOption:'USER_ENTERED', insertDataOption:'INSERT_ROWS',
+        valueInputOption:'RAW', insertDataOption:'INSERT_ROWS',
         resource:{values:[rowArr]}
       });
     } else {
@@ -2378,7 +2408,7 @@ async function saveResidentEdit(){
       }));
       await gapi.client.sheets.spreadsheets.values.batchUpdate({
         spreadsheetId:CFG.spreadsheetId,
-        resource:{valueInputOption:'USER_ENTERED', data}
+        resource:{valueInputOption:'RAW', data}
       });
     }
     const wasWizardAdd = rmmAddContext==='wizard';
@@ -3063,7 +3093,7 @@ const TOUR_STEPS = [
       : 'מזינים כאן את שם/כתובת הבניין. זה מה שיופיע בכותרת ובקבלות עצמן.' },
   { target:'#modalSave', title:'שמירה', inModal:true,
     text:'לא לשכוח ללחוץ כאן לשמירת ההגדרות בסיום.' },
-  { target:'#homeManageResidentsBtn', title:(isBiz)=> isBiz?'ניהול לקוחות':'ניהול דיירים',
+  { target:'#homeManageResidentsBtn', title:(isBiz)=> isBiz?'ניהול רשימת לקוחות':'ניהול רשימת דיירים',
     text: (isBiz)=> `כאן אפשר להוסיף, לערוך ולמחוק ${isBiz?'לקוחות':'דיירים'} ישירות מתוך האפליקציה — בלי לפתוח בכלל את גיליון ה-Google Sheets. שינויים כאן נכתבים ישר לגיליון.` },
   { target:'#homeResidentsSection', title:'תשלומים קרובים',
     text:'כאן רואים אילו דיירים צריכים לשלם בקרוב — המערכת מחשבת את זה אוטומטית לפי הקבלות שכבר הופקו. לוחצים על "הפק קבלה" ליד השם כדי להתחיל ישר עם אותו דייר.' },
