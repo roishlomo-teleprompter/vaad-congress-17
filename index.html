@@ -830,9 +830,6 @@ textarea{resize:vertical;min-height:70px;}
       <button class="cancel" id="modalCancel">ביטול</button>
       <button class="save" id="modalSave">שמירת הגדרות</button>
     </div>
-    <div style="text-align:center;margin-top:10px;">
-      <button type="button" id="devResetModeBtn" style="background:none;border:none;color:var(--card-line);font-size:10.5px;cursor:pointer;font-family:inherit;padding:4px;">איפוס מצב שימוש (לבדיקות)</button>
-    </div>
   </div>
 </div>
 
@@ -845,6 +842,18 @@ textarea{resize:vertical;min-height:70px;}
     <div class="modal-actions">
       <button class="cancel" id="historyCloseBtn">סגירה</button>
     </div>
+  </div>
+</div>
+
+<!-- ACCOUNT MENU (opened from the sign-out icon) -->
+<div class="modal-bg" id="accountMenuBg" style="z-index:300;">
+  <div class="modal" style="text-align:center;max-width:320px;">
+    <h3 style="margin-bottom:16px;">👤 חשבון</h3>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <button type="button" id="accountMenuSwitchModeBtn" class="generate-btn" style="margin:0;">🔀 מעבר בין ועד בית לעצמאי</button>
+      <button type="button" id="accountMenuSignOutBtn" style="margin:0;background:#fff;color:var(--ink);border:1.5px solid var(--card-line);border-radius:12px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">🚪 התנתקות מהחשבון</button>
+    </div>
+    <button type="button" class="cancel" id="accountMenuCancelBtn" style="margin-top:14px;width:100%;">ביטול</button>
   </div>
 </div>
 
@@ -1011,6 +1020,109 @@ function loadCfg(){
 }
 function saveCfg(c){ localStorage.setItem('vaad_generic_cfg', JSON.stringify(c)); }
 
+/* ─── Per-account, per-mode settings ───────────────────────────────────
+   Every Google account gets its own sheet/folder/building-info per usage
+   mode, keyed by email. This is what lets the same device be used with
+   multiple accounts (or one account switching between vaad/business)
+   without one overwriting the other's data. */
+function accountCfgKey(email, mode){ return `kabklik_cfg::${email}::${mode}`; }
+function accountModeKey(email){ return `kabklik_lastmode::${email}`; }
+
+function loadAccountCfg(email, mode){
+  try{ return JSON.parse(localStorage.getItem(accountCfgKey(email, mode))||'null'); }
+  catch(e){ return null; }
+}
+function saveAccountCfg(email, mode, data){
+  try{ localStorage.setItem(accountCfgKey(email, mode), JSON.stringify(data)); }catch(e){}
+}
+function loadLastMode(email){
+  try{ return localStorage.getItem(accountModeKey(email)) || null; }catch(e){ return null; }
+}
+function saveLastMode(email, mode){
+  try{ localStorage.setItem(accountModeKey(email), mode); }catch(e){}
+}
+/** Saves the live CFG fields into this account+mode's own bucket. */
+function persistCurrentAccountCfg(){
+  if(!CFG.email || !CFG.usageMode) return;
+  saveAccountCfg(CFG.email, CFG.usageMode, {
+    spreadsheetId:  CFG.spreadsheetId  || '',
+    folderId:       CFG.folderId       || '',
+    buildingInfo:   CFG.buildingInfo   || '',
+    businessNumber: CFG.businessNumber || '',
+    logoUrl:        CFG.logoUrl        || '',
+    defaultFee:     CFG.defaultFee     || 140
+  });
+}
+/**
+ * One-time migration for installs from before per-account separation
+ * existed: if this email has no saved config in ANY mode yet, but the old
+ * single global config has real data in it, adopt it as this account's
+ * starting point (in whichever mode it was already set up for) — so nobody's
+ * existing sheet/folder connection is lost when this update ships.
+ */
+function migrateLegacyCfgIfNeeded(email){
+  if(loadAccountCfg(email,'vaad') || loadAccountCfg(email,'business')) return;
+  let legacy;
+  try{ legacy = JSON.parse(localStorage.getItem('vaad_generic_cfg')||'null'); }catch(e){ legacy = null; }
+  if(legacy && (legacy.spreadsheetId || legacy.folderId || legacy.buildingInfo)){
+    const mode = legacy.usageMode || 'vaad';
+    saveAccountCfg(email, mode, {
+      spreadsheetId:  legacy.spreadsheetId  || '',
+      folderId:       legacy.folderId       || '',
+      buildingInfo:   legacy.buildingInfo   || '',
+      businessNumber: legacy.businessNumber || '',
+      logoUrl:        legacy.logoUrl        || '',
+      defaultFee:     legacy.defaultFee     || 140
+    });
+    saveLastMode(email, mode);
+  }
+}
+/** Loads this account+mode's saved sheet/folder/branding into the live CFG. */
+function applyAccountAndMode(email, mode){
+  CFG.email     = email;
+  CFG.usageMode = mode;
+  const saved = loadAccountCfg(email, mode) || {};
+  CFG.spreadsheetId  = saved.spreadsheetId  || '';
+  CFG.folderId       = saved.folderId       || '';
+  CFG.buildingInfo   = saved.buildingInfo   || '';
+  CFG.businessNumber = saved.businessNumber || '';
+  CFG.logoUrl        = saved.logoUrl        || '';
+  CFG.defaultFee     = saved.defaultFee     || 140;
+  saveLastMode(email, mode);
+  applyBranding();
+  applyModeTerminology();
+}
+/** Reloads sheet-backed data (residents/receipts) for whatever is now in
+ *  CFG, or clears stale data from a previous account/mode if nothing is
+ *  configured yet for this one. */
+async function loadDataForCurrentAccountMode(){
+  if(CFG.spreadsheetId && CFG.folderId){
+    await Promise.all([loadResidents(), ensureReceiptsSheet()]);
+    await Promise.all([syncSettingsFromSheet(), loadAllReceiptRows()]);
+    validateForm();
+  } else {
+    residents = [];
+    allReceiptRows = [];
+    const badge = document.getElementById('residentsLoadedBadge');
+    if(badge) badge.style.display = 'none';
+    refreshRecentResidents();
+  }
+}
+/** Called once we know who signed in and the license check passed — decides
+ *  whether we already know this account's mode (and loads its data), or
+ *  whether this is their first time and they need to pick vaad/business. */
+function applyAccountAfterLicense(email){
+  migrateLegacyCfgIfNeeded(email);
+  const knownMode = loadLastMode(email);
+  if(knownMode){
+    applyAccountAndMode(email, knownMode);
+  } else {
+    CFG.email = email;
+    CFG.usageMode = null;
+    document.getElementById('modeSelectGate').classList.add('show');
+  }
+}
+
 let CFG = loadCfg();
 
 function isConfigured(){
@@ -1041,6 +1153,8 @@ function applyModeTerminology(){
   const s = document.getElementById('step0Sub');
   if(h) h.textContent = isBiz ? 'מי הלקוח?' : 'מי משלם?';
   if(s) s.textContent = isBiz ? 'בחרו את הלקוח שעבורו מפיקים את הקבלה.' : 'בחרו את הדייר שעבורו מפיקים את הקבלה.';
+  const manageLinkEl = document.getElementById('homeManageResidentsBtn');
+  if(manageLinkEl) manageLinkEl.textContent = isBiz ? '📋 ניהול לקוחות' : '📋 ניהול רשימת דיירים';
 }
 
 function applyBranding(){
@@ -1084,8 +1198,24 @@ function applyModeUI(mode){
   const rmmBtn = document.getElementById('rmmSettingsOpenBtn');
   if(rmmBtn) rmmBtn.textContent = isBiz ? '📋 פתיחת ניהול רשימת לקוחות' : '📋 פתיחת ניהול רשימת דיירים';
 }
-document.getElementById('modeVaadBtn').addEventListener('click', ()=>applyModeUI('vaad'));
-document.getElementById('modeBusinessBtn').addEventListener('click', ()=>applyModeUI('business'));
+function settingsModeSwitchPreview(mode){
+  applyModeUI(mode);
+  // Preview (don't commit) this mode's own saved sheet/folder/building info,
+  // so the settings screen always shows what's actually associated with the
+  // mode you're looking at — committed only if "שמירת הגדרות" is pressed.
+  if(CFG.email){
+    const saved = loadAccountCfg(CFG.email, mode) || {};
+    document.getElementById('cfg-buildingInfo').value   = saved.buildingInfo   || '';
+    document.getElementById('cfg-logoUrl').value        = saved.logoUrl        || '';
+    document.getElementById('cfg-defaultFee').value      = saved.defaultFee     || '';
+    document.getElementById('cfg-businessNumber').value = saved.businessNumber || '';
+    document.getElementById('cfg-spreadsheetId').value  = saved.spreadsheetId  || '';
+    document.getElementById('cfg-folderId').value       = saved.folderId       || '';
+    updateLogoPreview();
+  }
+}
+document.getElementById('modeVaadBtn').addEventListener('click', ()=>settingsModeSwitchPreview('vaad'));
+document.getElementById('modeBusinessBtn').addEventListener('click', ()=>settingsModeSwitchPreview('business'));
 
 document.getElementById('settingsBtn').onclick = ()=>{
   document.getElementById('cfg-buildingInfo').value = CFG.buildingInfo||'';
@@ -1119,34 +1249,27 @@ function updateLogoPreview(){
 }
 document.getElementById('cfg-logoUrl').addEventListener('input', updateLogoPreview);
 
-// Testing-only convenience — resets just the vaad/business first-run choice
-// so the mode-select gate can be seen again, without touching the sheet/
-// folder/building settings the person already has configured.
-document.getElementById('devResetModeBtn').addEventListener('click', async ()=>{
-  const ok = await showAppConfirm('פעולה לבדיקות בלבד: תאפס את בחירת "מצב השימוש" (וועד/עסק) ותציג שוב את מסך הבחירה הראשוני. שאר ההגדרות (גיליון, תיקייה, פרטי הבניין) יישארו כפי שהן. להמשיך?', '🧪');
-  if(!ok) return;
-  delete CFG.usageMode;
-  saveCfg(CFG);
-  document.getElementById('modalBg').classList.remove('show');
-  document.getElementById('homeScreen').style.display='';
-  document.querySelector('.wizard-card').style.display='none';
-  document.getElementById('modeSelectGate').classList.add('show');
-});
-
-document.getElementById('modalSave').onclick = ()=>{
-  CFG.usageMode     = document.getElementById('modeBusinessBtn').classList.contains('active') ? 'business' : 'vaad';
+document.getElementById('modalSave').onclick = async ()=>{
+  if(!CFG.email){
+    await showAppAlert('יש להתחבר עם Google לפני שמירת ההגדרות.','⚠️');
+    return;
+  }
+  const newMode = document.getElementById('modeBusinessBtn').classList.contains('active') ? 'business' : 'vaad';
+  CFG.usageMode     = newMode;
   CFG.buildingInfo  = document.getElementById('cfg-buildingInfo').value.trim();
   CFG.businessNumber= document.getElementById('cfg-businessNumber').value.trim();
   CFG.logoUrl       = document.getElementById('cfg-logoUrl').value.trim();
   CFG.defaultFee    = parseFloat(document.getElementById('cfg-defaultFee').value)||140;
   CFG.spreadsheetId = extractSheetId(document.getElementById('cfg-spreadsheetId').value);
   CFG.folderId      = extractFolderId(document.getElementById('cfg-folderId').value);
-  saveCfg(CFG);
+  persistCurrentAccountCfg();
+  saveLastMode(CFG.email, newMode);
   document.getElementById('modalBg').classList.remove('show');
   applyBranding(); applyModeTerminology();
   refreshPreview();
   initGoogle();
   pushSettingsToSheet();
+  await loadDataForCurrentAccountMode();
   showMsg('ההגדרות נשמרו.','info');
 };
 
@@ -1897,14 +2020,11 @@ function markConnected(){
   document.getElementById('authDot').classList.add('on');
   document.getElementById('authLabel').textContent='מחובר ✓';
   document.getElementById('loginGate').classList.add('hidden');
-  if(!CFG.usageMode) document.getElementById('modeSelectGate').classList.add('show');
 }
-function chooseUsageMode(mode){
-  CFG.usageMode = mode;
-  saveCfg(CFG);
+async function chooseUsageMode(mode){
+  applyAccountAndMode(CFG.email, mode);
   document.getElementById('modeSelectGate').classList.remove('show');
-  applyBranding();
-  applyModeTerminology();
+  await loadDataForCurrentAccountMode();
 }
 document.getElementById('modeSelectVaad').addEventListener('click', ()=>chooseUsageMode('vaad'));
 document.getElementById('modeSelectBusiness').addEventListener('click', ()=>chooseUsageMode('business'));
@@ -1922,14 +2042,38 @@ function signOut(){
   // sign-out should just forget the cached token and show the login gate.
   clearTokenCache();
   clearLicenseCache();
+  // Also clear the in-memory account state (not the per-account storage —
+  // that stays on disk under this account's own key) so nothing from this
+  // account lingers on screen if a different account signs in next.
+  CFG.email = null; CFG.usageMode = null;
+  CFG.spreadsheetId = ''; CFG.folderId = ''; CFG.buildingInfo = '';
+  CFG.businessNumber = ''; CFG.logoUrl = ''; CFG.defaultFee = 140;
+  residents = []; allReceiptRows = [];
   markDisconnected();
   showHomeScreen();
+  applyBranding(); applyModeTerminology();
+  refreshRecentResidents();
 }
 
 document.getElementById('loginGateGoogleBtn').addEventListener('click', ()=>{
   document.getElementById('authBtn').click();
 });
-document.getElementById('signOutBtn').addEventListener('click', signOut);
+document.getElementById('signOutBtn').addEventListener('click', ()=>{
+  document.getElementById('accountMenuBg').classList.add('show');
+});
+document.getElementById('accountMenuCancelBtn').addEventListener('click', ()=>{
+  document.getElementById('accountMenuBg').classList.remove('show');
+});
+document.getElementById('accountMenuSignOutBtn').addEventListener('click', ()=>{
+  document.getElementById('accountMenuBg').classList.remove('show');
+  signOut();
+});
+document.getElementById('accountMenuSwitchModeBtn').addEventListener('click', ()=>{
+  document.getElementById('accountMenuBg').classList.remove('show');
+  document.getElementById('homeScreen').style.display='';
+  document.querySelector('.wizard-card').style.display='none';
+  document.getElementById('modeSelectGate').classList.add('show');
+});
 
 /* ═══════════════════════════════════════
    LICENSE ENFORCEMENT
@@ -1993,7 +2137,7 @@ async function enforceLicense(token){
       senderEmailAddr = result.senderEmail;
       updateSenderEmailDisplay();
     }
-    if(result.allowed){ hideLicenseBlock(); return true; }
+    if(result.allowed){ hideLicenseBlock(); applyAccountAfterLicense(email); return true; }
     showLicenseBlock(result.message, !!result.notFound);
     return false;
   }catch(e){
@@ -2011,13 +2155,8 @@ async function resumeAfterLicenseGranted(){
   if(!accessToken) return;
   gapi.client.setToken({access_token:accessToken});
   markConnected();
-  if(CFG.spreadsheetId && CFG.folderId){
-    // Independent API calls run in parallel instead of one-at-a-time,
-    // which noticeably speeds up how fast the home screen (including the
-    // payment reminder) becomes ready after signing in.
-    await Promise.all([loadResidents(), ensureReceiptsSheet()]);
-    await Promise.all([syncSettingsFromSheet(), loadAllReceiptRows()]);
-  }
+  applyAccountAfterLicense(lastCheckedEmail);
+  await loadDataForCurrentAccountMode();
   validateForm();
 }
 
@@ -2083,16 +2222,12 @@ function initGoogle(){
       // If a still-valid token is cached from a previous visit, reuse it immediately —
       // no popup, no network round trip, no re-login needed.
       const cached = loadTokenCache();
-      if(cached && CFG.spreadsheetId && CFG.folderId){
+      if(cached){
         accessToken = cached;
         gapi.client.setToken({access_token:accessToken});
         markConnected();
         if(await enforceLicense(accessToken)){
-          // Independent API calls run in parallel instead of one-at-a-time,
-          // which noticeably speeds up how fast the home screen (including the
-          // payment reminder) becomes ready after signing in.
-          await Promise.all([loadResidents(), ensureReceiptsSheet()]);
-          await Promise.all([syncSettingsFromSheet(), loadAllReceiptRows()]);
+          await loadDataForCurrentAccountMode();
           validateForm();
         }
       }
@@ -2116,13 +2251,7 @@ function initGoogle(){
         saveTokenCache(accessToken, resp.expires_in);
         markConnected();
         if(!(await enforceLicense(accessToken))) return;
-        if(CFG.spreadsheetId && CFG.folderId){
-          // Independent API calls run in parallel instead of one-at-a-time,
-          // which noticeably speeds up how fast the home screen (including the
-          // payment reminder) becomes ready after signing in.
-          await Promise.all([loadResidents(), ensureReceiptsSheet()]);
-          await Promise.all([syncSettingsFromSheet(), loadAllReceiptRows()]);
-        }
+        await loadDataForCurrentAccountMode();
         validateForm();
       }
     });
@@ -2531,7 +2660,7 @@ async function syncSettingsFromSheet(){
       else if(/מחיר.*ברירת|ברירת.*מחדל|default.*fee/i.test(key)){ if(CFG.defaultFee!==val){ CFG.defaultFee=val; changed=true; } }
     });
     if(changed){
-      saveCfg(CFG);
+      persistCurrentAccountCfg();
       applyBranding(); applyModeTerminology();
     }
   }catch(e){
