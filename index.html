@@ -106,6 +106,19 @@ body.home-active .home-card{height:auto;overflow:visible;padding-bottom:calc(120
 .locked-field-row input[readonly]{background:var(--app-bg);color:var(--slate);cursor:not-allowed;}
 .locked-field-edit-btn{flex:none;width:38px;height:38px;border-radius:10px;border:1.5px solid var(--card-line);background:#fff;cursor:pointer;font-size:14px;transition:.15s;}
 .locked-field-edit-btn:hover{background:var(--blue-soft);border-color:var(--blue);}
+.mode-toggle{display:flex;gap:10px;}
+.mode-toggle-btn{flex:1;padding:14px 8px;border-radius:12px;border:1.5px solid var(--card-line);background:#fff;color:var(--ink-soft);font-family:inherit;font-weight:700;font-size:13.5px;cursor:pointer;transition:.15s;}
+.mode-toggle-btn.active{border-color:var(--blue);background:var(--blue-soft);color:var(--blue-dark);}
+.mode-select-gate{position:fixed;top:0;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#fff;z-index:480;display:none;align-items:center;justify-content:center;padding:24px;overflow-y:auto;}
+.mode-select-gate.show{display:flex;}
+.mode-select-inner{width:100%;max-width:360px;}
+.mode-select-title{text-align:center;font-size:20px;font-weight:900;color:var(--ink);margin:0 0 4px;}
+.mode-select-sub{text-align:center;font-size:12px;color:var(--slate);margin:0 0 20px;}
+.mode-select-card{display:block;width:100%;background:#fff;border:1.5px solid var(--card-line);border-radius:16px;overflow:hidden;padding:0;margin-bottom:14px;cursor:pointer;text-align:center;font-family:inherit;transition:.15s;}
+.mode-select-card:hover{border-color:var(--blue);box-shadow:0 8px 20px -8px rgba(37,99,235,.3);}
+.mode-select-card img{width:100%;height:110px;object-fit:cover;display:block;}
+.mode-select-card-title{font-size:15px;font-weight:800;color:var(--ink);margin-top:10px;}
+.mode-select-card-sub{font-size:11.5px;color:var(--slate);padding:2px 14px 14px;line-height:1.4;}
 .app-dialog-bg{position:fixed;inset:0;background:rgba(20,28,46,.55);z-index:400;display:none;align-items:center;justify-content:center;padding:20px;}
 .app-dialog-bg.show{display:flex;}
 .app-dialog{background:#fff;border-radius:18px;padding:26px 22px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 50px -12px rgba(16,24,40,.35);}
@@ -476,6 +489,24 @@ textarea{resize:vertical;min-height:70px;}
   </div>
 </div>
 
+<!-- MODE SELECTION (shown once, right after first connect, before any usage mode is set) -->
+<div class="mode-select-gate" id="modeSelectGate">
+  <div class="mode-select-inner">
+    <h2 class="mode-select-title">איך תרצו להשתמש בקבקליק?</h2>
+    <p class="mode-select-sub">אפשר לשנות את זה בכל שלב דרך ההגדרות</p>
+    <button type="button" class="mode-select-card" id="modeSelectVaad">
+      <img src="buildings-illustration.jpg" alt="ועד בית">
+      <div class="mode-select-card-title">🏢 ועד בית</div>
+      <div class="mode-select-card-sub">ניהול דיירים, דמי ועד וקבלות חודשיות</div>
+    </button>
+    <button type="button" class="mode-select-card" id="modeSelectBusiness">
+      <img src="login-illustration-freelance.jpg" alt="עסק עצמאי">
+      <div class="mode-select-card-title">💼 עסק עצמאי</div>
+      <div class="mode-select-card-sub">הפקת קבלות ללקוחות על שירותים ומוצרים</div>
+    </button>
+  </div>
+</div>
+
 <div class="app-frame">
 
 <!-- TOPBAR -->
@@ -581,9 +612,9 @@ textarea{resize:vertical;min-height:70px;}
     <div class="wizard-step" id="wizardStep0">
       <div class="wizard-avatar-header">
         <div class="wizard-avatar">🧑</div>
-        <h3>מי משלם?</h3>
+        <h3 id="step0Heading">מי משלם?</h3>
       </div>
-      <p class="wizard-step-sub">בחרו את הדייר שעבורו מפיקים את הקבלה.</p>
+      <p class="wizard-step-sub" id="step0Sub">בחרו את הדייר שעבורו מפיקים את הקבלה.</p>
       <div class="residents-loaded-badge" id="residentsLoadedBadge" style="display:none;"></div>
       <div class="row">
         <label class="field-label">בחירת דייר</label>
@@ -708,18 +739,32 @@ textarea{resize:vertical;min-height:70px;}
     <h3>⚙ הגדרות האפליקציה</h3>
     <p class="modal-desc">הגדר את פרטי הבניין שלך, פרטי ה-Google לחיבור, ומחיר דמי הוועד. ההגדרות נשמרות במכשיר זה.</p>
 
+    <!-- USAGE MODE -->
+    <div class="settings-section">
+      <h4>🎛️ מצב שימוש</h4>
+      <div class="mode-toggle">
+        <button type="button" class="mode-toggle-btn" id="modeVaadBtn" data-mode="vaad">🏢 ועד בית</button>
+        <button type="button" class="mode-toggle-btn" id="modeBusinessBtn" data-mode="business">💼 עסק עצמאי</button>
+      </div>
+    </div>
+
     <!-- BUILDING INFO -->
     <div class="settings-section">
-      <h4>🏢 פרטי הבניין</h4>
-      <label>שם/כתובת הבניין</label>
+      <h4 id="orgInfoHeading">🏢 פרטי הבניין</h4>
+      <label id="orgInfoLabel">שם/כתובת הבניין</label>
       <input type="text" id="cfg-buildingInfo" placeholder="לדוגמה: קונגרס 17, פתח תקווה">
+      <div id="businessNumberRow" style="display:none;">
+        <label>מספר עוסק מורשה/פטור</label>
+        <input type="text" id="cfg-businessNumber" placeholder="לדוגמה: 123456789">
+        <p style="font-size:11.5px;color:var(--slate);margin:4px 0 10px;line-height:1.5;">יופיע על הקבלה — נדרש חוקית לקבלה תקנית של עוסק.</p>
+      </div>
       <label>קישור לתמונת לוגו (URL, אופציונלי)</label>
       <input type="url" id="cfg-logoUrl" placeholder="https://... (השאר ריק להצגת הלוגו של קבקליק)">
       <img id="logoPreview" class="logo-preview" alt="לוגו">
     </div>
 
     <!-- PRICING -->
-    <div class="settings-section">
+    <div class="settings-section" id="pricingSection">
       <h4>💰 תמחור דמי ועד</h4>
       <label>מחיר חודשי ברירת מחדל (₪) — לדיירים ללא מחיר אישי בגיליון</label>
       <input type="number" id="cfg-defaultFee" placeholder="לדוגמה: 140" min="0">
@@ -879,7 +924,7 @@ function extractFolderId(input){
    CONFIG & STORAGE
 ═══════════════════════════════════════ */
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email';
-const RESIDENTS_SHEET = 'אנשי קשר';
+function residentsSheetName(){ return CFG.usageMode==='business' ? 'לקוחות' : 'אנשי קשר'; }
 const RECEIPTS_SHEET  = 'קבלות';
 const SETTINGS_SHEET  = 'הגדרות';
 const MONTH_NAMES = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
@@ -919,6 +964,14 @@ let lastFileName   = null;
 /* ═══════════════════════════════════════
    TOPBAR BRANDING
 ═══════════════════════════════════════ */
+function applyModeTerminology(){
+  const isBiz = CFG.usageMode==='business';
+  const h = document.getElementById('step0Heading');
+  const s = document.getElementById('step0Sub');
+  if(h) h.textContent = isBiz ? 'מי הלקוח?' : 'מי משלם?';
+  if(s) s.textContent = isBiz ? 'בחרו את הלקוח שעבורו מפיקים את הקבלה.' : 'בחרו את הדייר שעבורו מפיקים את הקבלה.';
+}
+
 function applyBranding(){
   const nameEl  = document.getElementById('topBuildingName');
   const addrEl  = document.getElementById('topBuildingAddr');
@@ -939,19 +992,34 @@ function applyBranding(){
 
   document.getElementById('setupBanner').style.display = isConfigured() ? 'none' : 'flex';
 }
-applyBranding();
+applyBranding(); applyModeTerminology();
 
 /* ═══════════════════════════════════════
    SETTINGS MODAL
 ═══════════════════════════════════════ */
+function applyModeUI(mode){
+  document.getElementById('modeVaadBtn').classList.toggle('active', mode!=='business');
+  document.getElementById('modeBusinessBtn').classList.toggle('active', mode==='business');
+  const isBiz = mode==='business';
+  document.getElementById('orgInfoHeading').textContent = isBiz ? '💼 פרטי העסק' : '🏢 פרטי הבניין';
+  document.getElementById('orgInfoLabel').textContent    = isBiz ? 'שם העסק' : 'שם/כתובת הבניין';
+  document.getElementById('cfg-buildingInfo').placeholder = isBiz ? 'לדוגמה: דנה כהן - עיצוב גרפי' : 'לדוגמה: קונגרס 17, פתח תקווה';
+  document.getElementById('businessNumberRow').style.display = isBiz ? 'block' : 'none';
+  document.getElementById('pricingSection').style.display    = isBiz ? 'none' : 'block';
+}
+document.getElementById('modeVaadBtn').addEventListener('click', ()=>applyModeUI('vaad'));
+document.getElementById('modeBusinessBtn').addEventListener('click', ()=>applyModeUI('business'));
+
 document.getElementById('settingsBtn').onclick = ()=>{
   document.getElementById('cfg-buildingInfo').value = CFG.buildingInfo||'';
   document.getElementById('cfg-logoUrl').value      = CFG.logoUrl||'';
   document.getElementById('cfg-defaultFee').value   = CFG.defaultFee||'';
+  document.getElementById('cfg-businessNumber').value = CFG.businessNumber||'';
   document.getElementById('cfg-spreadsheetId').value= CFG.spreadsheetId||'';
   document.getElementById('cfg-folderId').value     = CFG.folderId||'';
   document.getElementById('cfg-spreadsheetId').readOnly = true;
   document.getElementById('cfg-folderId').readOnly = true;
+  applyModeUI(CFG.usageMode||'vaad');
   updateLogoPreview();
   updateSenderEmailDisplay();
   document.getElementById('modalBg').classList.add('show');
@@ -975,14 +1043,16 @@ function updateLogoPreview(){
 document.getElementById('cfg-logoUrl').addEventListener('input', updateLogoPreview);
 
 document.getElementById('modalSave').onclick = ()=>{
+  CFG.usageMode     = document.getElementById('modeBusinessBtn').classList.contains('active') ? 'business' : 'vaad';
   CFG.buildingInfo  = document.getElementById('cfg-buildingInfo').value.trim();
+  CFG.businessNumber= document.getElementById('cfg-businessNumber').value.trim();
   CFG.logoUrl       = document.getElementById('cfg-logoUrl').value.trim();
   CFG.defaultFee    = parseFloat(document.getElementById('cfg-defaultFee').value)||140;
   CFG.spreadsheetId = extractSheetId(document.getElementById('cfg-spreadsheetId').value);
   CFG.folderId      = extractFolderId(document.getElementById('cfg-folderId').value);
   saveCfg(CFG);
   document.getElementById('modalBg').classList.remove('show');
-  applyBranding();
+  applyBranding(); applyModeTerminology();
   refreshPreview();
   initGoogle();
   pushSettingsToSheet();
@@ -1020,13 +1090,14 @@ document.getElementById('autoCreateBtn').addEventListener('click', async ()=>{
     const sheetRes = await gapi.client.sheets.spreadsheets.create({
       resource:{
         properties:{title:`קבקליק - ${buildingName}`},
-        sheets:[{properties:{title:RESIDENTS_SHEET}}]
+        sheets:[{properties:{title:residentsSheetName()}}]
       }
     });
     const spreadsheetId = sheetRes.result.spreadsheetId;
+    const headerRow = CFG.usageMode==='business' ? ['שם','טלפון','מייל'] : ['שם','טלפון','מחיר','מייל','דירה'];
     await gapi.client.sheets.spreadsheets.values.update({
-      spreadsheetId, range:`'${RESIDENTS_SHEET}'!A1:E1`, valueInputOption:'RAW',
-      resource:{values:[['שם','טלפון','מחיר','מייל','דירה']]}
+      spreadsheetId, range:`'${residentsSheetName()}'!A1:${String.fromCharCode(64+headerRow.length)}1`, valueInputOption:'RAW',
+      resource:{values:[headerRow]}
     });
 
     // 2) A Drive folder for the generated receipt PDFs.
@@ -1575,10 +1646,18 @@ function receiptHTML(forPdf=false){
   const fee    = residentFee();
   const total  = isOtherPurpose ? manualAmount() : months.length*fee;
   const bInfo = CFG.buildingInfo || 'ועד בית';
+  const isBiz = CFG.usageMode==='business';
   const receiptNum = Date.now().toString().slice(-6);
   const now = new Date();
   const dateMain = now.toLocaleDateString('he-IL', {day:'numeric', month:'long'});
   const dateYear = now.toLocaleDateString('he-IL', {year:'numeric'});
+  const receiptTitle = isBiz ? `קבלה לכבוד ${escapeHtml2(bInfo)}` : 'קבלה לכבוד תשלום ועד הבית';
+  const businessNumberLine = (isBiz && CFG.businessNumber)
+    ? `<div class="info-row">
+         <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M4 21V9l8-5 8 5v12M9 21v-6h6v6"/></svg></div>
+         <div class="info"><div class="label">מספר עוסק</div><div class="value">${escapeHtml2(CFG.businessNumber)}</div></div>
+       </div>`
+    : '';
 
   const monthsChips = months.map(i=>`<span class="chip">${MONTH_NAMES[i]}</span>`).join('');
   const monthsOrPurpose = isOtherPurpose
@@ -1602,9 +1681,10 @@ function receiptHTML(forPdf=false){
     <div class="divider"><span class="receipt-chip">קבלה מס׳ ${receiptNum}</span></div>
     <section class="meta">
       <div class="meta-side"><span>מס׳ הקבלה</span><strong>${receiptNum}</strong></div>
-      <div class="main-title">קבלה לכבוד תשלום ועד הבית</div>
+      <div class="main-title">${receiptTitle}</div>
       <div class="meta-side left"><span>תאריך</span><strong class="meta-date-value"><span class="meta-date-main">${dateMain}</span><span class="meta-date-year">${dateYear}</span></strong></div>
     </section>
+    ${businessNumberLine}
     <section class="details">
       <div class="info-row">
         <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></div>
@@ -1698,7 +1778,17 @@ function markConnected(){
   document.getElementById('authDot').classList.add('on');
   document.getElementById('authLabel').textContent='מחובר ✓';
   document.getElementById('loginGate').classList.add('hidden');
+  if(!CFG.usageMode) document.getElementById('modeSelectGate').classList.add('show');
 }
+function chooseUsageMode(mode){
+  CFG.usageMode = mode;
+  saveCfg(CFG);
+  document.getElementById('modeSelectGate').classList.remove('show');
+  applyBranding();
+  applyModeTerminology();
+}
+document.getElementById('modeSelectVaad').addEventListener('click', ()=>chooseUsageMode('vaad'));
+document.getElementById('modeSelectBusiness').addEventListener('click', ()=>chooseUsageMode('business'));
 function markDisconnected(){
   accessToken=null;
   document.getElementById('authDot').classList.remove('on');
@@ -1941,7 +2031,7 @@ async function ensureResidentsSheetName(){
   try{
     const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:CFG.spreadsheetId});
     const sheets = meta.result.sheets || [];
-    if(sheets.some(s=>s.properties.title===RESIDENTS_SHEET)) return; // already named correctly
+    if(sheets.some(s=>s.properties.title===residentsSheetName())) return; // already named correctly
 
     // Look for a still-default-named tab (e.g. "Sheet1" / "גיליון1") that the
     // person forgot to rename. Only auto-rename if there's exactly one such
@@ -1952,7 +2042,7 @@ async function ensureResidentsSheetName(){
     await gapi.client.sheets.spreadsheets.batchUpdate({
       spreadsheetId:CFG.spreadsheetId,
       resource:{requests:[{updateSheetProperties:{
-        properties:{sheetId:defaultNamed[0].properties.sheetId, title:RESIDENTS_SHEET},
+        properties:{sheetId:defaultNamed[0].properties.sheetId, title:residentsSheetName()},
         fields:'title'
       }}]}
     });
@@ -1967,7 +2057,7 @@ async function loadResidents(){
   try{
     await ensureResidentsSheetName();
     const res = await gapi.client.sheets.spreadsheets.values.get({
-      spreadsheetId:CFG.spreadsheetId, range:`'${RESIDENTS_SHEET}'!A:Z`
+      spreadsheetId:CFG.spreadsheetId, range:`'${residentsSheetName()}'!A:Z`
     });
     const rows=res.result.values||[];
     if(!rows.length){ showMsg('הגיליון "אנשי קשר" ריק.','error'); return; }
@@ -2098,7 +2188,7 @@ async function syncSettingsFromSheet(){
     });
     if(changed){
       saveCfg(CFG);
-      applyBranding();
+      applyBranding(); applyModeTerminology();
     }
   }catch(e){
     // Non-fatal — the app keeps working with whatever settings are already local.
