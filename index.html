@@ -502,6 +502,7 @@ textarea{resize:vertical;min-height:70px;}
       </svg>
       התחבר עם Google
     </button>
+    <p id="loginGateStatusMsg" style="display:none;text-align:center;font-size:12.5px;color:var(--slate);margin-top:10px;">⏳ מתחברים ובודקים את החשבון, רגע בבקשה…</p>
     <div class="login-privacy-note">🛡️ הנתונים שלכם נשמרים ב-Google בלבד</div>
 
   </div>
@@ -638,10 +639,10 @@ textarea{resize:vertical;min-height:70px;}
       <p class="wizard-step-sub" id="step0Sub">בחרו את הדייר שעבורו מפיקים את הקבלה.</p>
       <div class="residents-loaded-badge" id="residentsLoadedBadge" style="display:none;"></div>
       <div class="row">
-        <label class="field-label">בחירת דייר</label>
+        <label class="field-label" id="residentPickerLabel">בחירת דייר</label>
         <div class="resident-picker" id="residentPicker">
           <input type="text" id="residentSearchInput" autocomplete="off" placeholder="יש להתחבר ולטעון רשימת דיירים" disabled>
-          <button type="button" id="residentClearBtn" class="resident-clear" title="נקה בחירה" aria-label="נקה בחירת דייר">✕</button>
+          <button type="button" id="residentClearBtn" class="resident-clear" title="נקה בחירה" aria-label="נקה בחירה">✕</button>
           <div class="resident-dropdown" id="residentDropdown"></div>
         </div>
         <select id="residentSelect" style="display:none;"><option value="">— יש להתחבר ולטעון רשימת דיירים —</option></select>
@@ -883,10 +884,10 @@ textarea{resize:vertical;min-height:70px;}
 <div class="resident-search-modal" id="residentSearchModal">
   <div class="rsm-header">
     <button type="button" id="rsmCloseBtn" class="rsm-close" aria-label="סגירה">✕</button>
-    <span class="rsm-title">בחירת דייר</span>
+    <span class="rsm-title" id="rsmPickerTitle">בחירת דייר</span>
   </div>
   <div class="rsm-search-wrap">
-    <input type="text" id="rsmSearchInput" placeholder="הקלידו שם דייר לחיפוש..." autocomplete="off">
+    <input type="text" id="rsmSearchInput" placeholder="הקלידו שם לחיפוש..." autocomplete="off">
   </div>
   <div class="rsm-list" id="rsmList"></div>
 </div>
@@ -1158,6 +1159,24 @@ function applyModeTerminology(){
   if(s) s.textContent = isBiz ? 'בחרו את הלקוח שעבורו מפיקים את הקבלה.' : 'בחרו את הדייר שעבורו מפיקים את הקבלה.';
   const manageLinkEl = document.getElementById('homeManageResidentsBtn');
   if(manageLinkEl) manageLinkEl.textContent = isBiz ? '📋 ניהול לקוחות' : '📋 ניהול רשימת דיירים';
+
+  const pickerLabel = document.getElementById('residentPickerLabel');
+  if(pickerLabel) pickerLabel.textContent = isBiz ? 'בחירת לקוח' : 'בחירת דייר';
+  const clearBtn = document.getElementById('residentClearBtn');
+  if(clearBtn) clearBtn.setAttribute('aria-label', isBiz ? 'נקה בחירת לקוח' : 'נקה בחירת דייר');
+  const rsmTitle = document.getElementById('rsmPickerTitle');
+  if(rsmTitle) rsmTitle.textContent = isBiz ? 'בחירת לקוח' : 'בחירת דייר';
+
+  // Phone/apartment placeholders only need updating when nothing is picked
+  // yet — once a resident/customer IS selected, the change handler already
+  // fills in the real value and this would just be overwritten anyway.
+  const phoneBoxEl = document.getElementById('phoneBox');
+  if(phoneBoxEl && !phoneBoxEl.textContent.startsWith('טלפון:')){
+    phoneBoxEl.textContent = isBiz ? 'טלפון יוצג לאחר בחירת לקוח' : 'טלפון יוצג לאחר בחירת דייר';
+  }
+  // Apartment number is a vaad-only concept — hide it entirely for business.
+  const aptBoxEl = document.getElementById('aptBox');
+  if(aptBoxEl) aptBoxEl.style.display = isBiz ? 'none' : '';
 }
 
 function applyBranding(){
@@ -1423,7 +1442,8 @@ const phoneBox       = document.getElementById('phoneBox');
 const aptBox         = document.getElementById('aptBox');
 residentSelect.addEventListener('change',()=>{
   const r = residents[residentSelect.value];
-  phoneBox.textContent = r ? 'טלפון: '+(r.phone||'לא צויין') : 'טלפון יוצג לאחר בחירת דייר';
+  const isBiz = CFG.usageMode==='business';
+  phoneBox.textContent = r ? 'טלפון: '+(r.phone||'לא צויין') : (isBiz ? 'טלפון יוצג לאחר בחירת לקוח' : 'טלפון יוצג לאחר בחירת דייר');
   if(r){
     const hasApt = !!(r.apartment && r.apartment.trim());
     aptBox.textContent = hasApt ? 'דירה: '+r.apartment : 'דירה: לא צויין';
@@ -2043,6 +2063,7 @@ function markDisconnected(){
   document.getElementById('authDot').classList.remove('on');
   document.getElementById('authLabel').textContent='התחברות עם Google';
   document.getElementById('loginGate').classList.remove('hidden');
+  resetLoginGateStatus();
 }
 
 function signOut(){
@@ -2065,7 +2086,15 @@ function signOut(){
   refreshRecentResidents();
 }
 
+function resetLoginGateStatus(){
+  const btn = document.getElementById('loginGateGoogleBtn');
+  const msg = document.getElementById('loginGateStatusMsg');
+  if(btn) btn.disabled = false;
+  if(msg) msg.style.display = 'none';
+}
 document.getElementById('loginGateGoogleBtn').addEventListener('click', ()=>{
+  document.getElementById('loginGateGoogleBtn').disabled = true;
+  document.getElementById('loginGateStatusMsg').style.display = 'block';
   document.getElementById('authBtn').click();
 });
 document.getElementById('signOutBtn').addEventListener('click', ()=>{
@@ -2121,6 +2150,7 @@ async function checkLicense(email){
   return result;
 }
 function showLicenseBlock(message, notFound){
+  resetLoginGateStatus();
   document.getElementById('licenseBlockTitle').textContent = notFound ? '🔑 כניסה למערכת' : '🔔 עדכון מנוי נדרש';
   document.getElementById('licenseBlockMsg').textContent = message || 'חשבון זה אינו רשום כלקוח פעיל.';
   document.getElementById('licenseRegisterSection').style.display = notFound ? 'block' : 'none';
@@ -2262,6 +2292,7 @@ function initGoogle(){
         if(resp.error){
           // A failed *silent* attempt is expected sometimes (e.g. no active Google
           // session yet) — stay quiet and just wait for the user to click the button.
+          resetLoginGateStatus();
           if(!wasSilent) showMsg('ההתחברות נכשלה: '+resp.error,'error');
           return;
         }
@@ -2370,17 +2401,18 @@ async function loadResidents(){
         };
       });
 
-    residentSelect.innerHTML='<option value="">— בחרו דייר —</option>'+
+    const isBiz = CFG.usageMode==='business';
+    residentSelect.innerHTML=`<option value="">— ${isBiz?'בחרו לקוח':'בחרו דייר'} —</option>`+
       residents.map((r,i)=>`<option value="${i}">${r.name}${r.fee?` (${r.fee} ₪/חודש)`:''}</option>`).join('');
 
     const searchInput = document.getElementById('residentSearchInput');
     searchInput.disabled = false;
-    searchInput.placeholder = 'הקלידו שם דייר לחיפוש...';
+    searchInput.placeholder = isBiz ? 'הקלידו שם לקוח לחיפוש...' : 'הקלידו שם דייר לחיפוש...';
     searchInput.value = '';
     toggleResidentClearBtn();
 
     const badge = document.getElementById('residentsLoadedBadge');
-    badge.textContent = `נטענו ${residents.length} דיירים`;
+    badge.textContent = isBiz ? `נטענו ${residents.length} לקוחות` : `נטענו ${residents.length} דיירים`;
     badge.style.display = 'block';
   }catch(e){
     if(e.status===401||e.result?.error?.code===401){
