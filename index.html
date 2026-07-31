@@ -864,8 +864,8 @@ textarea{resize:vertical;min-height:70px;}
     <p class="modal-desc" id="licenseBlockMsg" style="text-align:center;">חשבון זה אינו רשום כלקוח פעיל.</p>
 
     <div id="licenseRegisterSection" style="display:none;text-align:right;margin-top:14px;">
-      <label style="display:block;font-size:12.5px;color:var(--slate);margin-bottom:6px;">שם הבניין / הרחוב</label>
-      <input type="text" id="regBuildingName" placeholder="לדוגמה: קונגרס 17, פתח תקווה">
+      <label style="display:block;font-size:12.5px;color:var(--slate);margin-bottom:6px;">שם הבניין / שם העסק</label>
+      <input type="text" id="regBuildingName" placeholder="">
       <button type="button" id="regSubmitBtn" class="generate-btn" style="margin-top:12px;">🚀 הרשמה לשימוש חינם</button>
       <p id="regStatusMsg" style="font-size:12.5px;margin-top:10px;text-align:center;min-height:1em;"></p>
     </div>
@@ -873,6 +873,8 @@ textarea{resize:vertical;min-height:70px;}
     <div id="licenseContactSection">
       <p class="modal-desc" style="text-align:center;">לחידוש או הפעלת המנוי, יש ליצור קשר עם ספק האפליקציה.</p>
     </div>
+
+    <button type="button" id="licenseBlockCancelBtn" style="margin-top:12px;width:100%;background:none;border:none;color:var(--slate);font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit;padding:8px;">ביטול — חזרה למסך ההתחברות</button>
   </div>
 </div>
 
@@ -1112,6 +1114,7 @@ async function loadDataForCurrentAccountMode(){
  *  whether we already know this account's mode (and loads its data), or
  *  whether this is their first time and they need to pick vaad/business. */
 function applyAccountAfterLicense(email){
+  document.getElementById('loginGate').classList.add('hidden');
   migrateLegacyCfgIfNeeded(email);
   const knownMode = loadLastMode(email);
   if(knownMode){
@@ -2022,7 +2025,11 @@ function clearTokenCache(){
 function markConnected(){
   document.getElementById('authDot').classList.add('on');
   document.getElementById('authLabel').textContent='מחובר ✓';
-  document.getElementById('loginGate').classList.add('hidden');
+  // Deliberately NOT hiding #loginGate here — it stays up (with the license
+  // check happening quietly behind it) until we know the account is actually
+  // licensed. That way an unregistered account sees the registration screen
+  // appear in front of the login gate, never a flash of the vaad/business
+  // home screen it hasn't earned access to yet.
 }
 async function chooseUsageMode(mode){
   applyAccountAndMode(CFG.email, mode);
@@ -2123,6 +2130,14 @@ function showLicenseBlock(message, notFound){
 function hideLicenseBlock(){
   document.getElementById('licenseBlockBg').classList.remove('show');
 }
+document.getElementById('licenseBlockCancelBtn').addEventListener('click', ()=>{
+  // Returns to the sign-in screen without registering. Deliberately does NOT
+  // remember "already seen" anywhere — signing in again with the same
+  // still-unregistered account will show this exact block again, every time,
+  // until registration actually completes.
+  hideLicenseBlock();
+  signOut();
+});
 let senderEmailAddr = '';
 function updateSenderEmailDisplay(){
   const el = document.getElementById('senderEmailDisplay');
@@ -2130,10 +2145,10 @@ function updateSenderEmailDisplay(){
 }
 /* Returns true if allowed to proceed, false if blocked (and shows the block screen). */
 async function enforceLicense(token){
-  if(!LICENSE_API_URL) return true; // licensing not configured yet — no-op
+  if(!LICENSE_API_URL){ document.getElementById('loginGate').classList.add('hidden'); return true; } // licensing not configured yet — no-op
   try{
     const email = await getUserEmail(token);
-    if(!email) return true; // couldn't determine email — fail open rather than lock out on a glitch
+    if(!email){ document.getElementById('loginGate').classList.add('hidden'); return true; } // couldn't determine email — fail open rather than lock out on a glitch
     lastCheckedEmail = email;
     const result = await checkLicense(email);
     if(result.senderEmail){
@@ -2144,6 +2159,7 @@ async function enforceLicense(token){
     showLicenseBlock(result.message, !!result.notFound);
     return false;
   }catch(e){
+    document.getElementById('loginGate').classList.add('hidden');
     return true; // license service unreachable — fail open, don't lock out customers over a network hiccup
   }
 }
