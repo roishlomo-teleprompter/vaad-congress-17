@@ -793,7 +793,6 @@ body.mode-business #homeResidentsList{display:none;}
         <div class="success-title">הקבלה הופקה בהצלחה!</div>
         <div class="success-sub" id="successSub"></div>
         <button class="success-new-btn" id="successNewBtn">➕ הפקת קבלה נוספת</button>
-        <button class="success-new-btn" id="successDoneBtn" style="background:#fff;color:var(--ink);border:1.5px solid var(--card-line);margin-top:8px;">🏠 סיימתי, למסך הבית</button>
       </div>
       <div class="post-actions" id="postActions" style="display:none;">
         <button id="downloadBtn">⬇ הורדת PDF</button>
@@ -1076,7 +1075,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '2026-08-01-8';
+const APP_BUILD = '2026-08-01-9';
 console.log('[קבקליק] גרסה:', APP_BUILD);
 
 const LICENSE_API_URL = 'https://script.google.com/macros/s/AKfycbwo80B9ZmKyMSwdXzQA6HP_sPFLLHETIWiI3VFj60vPazq4vE8DLpC7yxK-JtVqkZ4qyQ/exec';
@@ -2066,12 +2065,6 @@ document.getElementById('successNewBtn').addEventListener('click', ()=>{
   document.getElementById('postActions').style.display = 'none';
   hideMsg();
   clearResidentSelection(); // clears fields and returns to step 0 for a new receipt — wizard stays open
-});
-document.getElementById('successDoneBtn').addEventListener('click', ()=>{
-  document.getElementById('postActions').style.display = 'none';
-  hideMsg();
-  clearResidentSelection();
-  showHomeScreen();
 });
 
 /* ═══════════════════════════════════════
