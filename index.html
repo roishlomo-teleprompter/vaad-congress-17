@@ -389,6 +389,15 @@ textarea{resize:vertical;min-height:70px;}
 /* ── SETTINGS MODAL ── */
 .modal-bg{position:fixed;inset:0;background:rgba(20,28,46,.6);display:none;align-items:flex-start;justify-content:center;z-index:200;overflow-y:auto;padding:20px;}
 
+/* Home screen: which "residents section" variant shows is driven purely by
+   a class on <body> (toggled once in applyModeTerminology) rather than by
+   JS setting .style.display in multiple places — a single source of truth
+   that can't drift out of sync no matter which code path last touched it. */
+#homeBizManageBtn{display:none;}
+body.mode-business #homeBizManageBtn{display:block;}
+body.mode-business #homeResidentsSectionTitle,
+body.mode-business #homeResidentsList{display:none;}
+
 /* ACCOUNT MENU MODAL */
 :root{ --danger:#DC3F3F; --danger-soft:#FFF4F4; }
 .account-modal-overlay{position:fixed;inset:0;background:rgba(16,24,40,.62);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:300;padding:20px;}
@@ -1067,7 +1076,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '2026-08-01-4';
+const APP_BUILD = '2026-08-01-5';
 console.log('[קבקליק] גרסה:', APP_BUILD);
 
 const LICENSE_API_URL = 'https://script.google.com/macros/s/AKfycbwo80B9ZmKyMSwdXzQA6HP_sPFLLHETIWiI3VFj60vPazq4vE8DLpC7yxK-JtVqkZ4qyQ/exec';
@@ -1253,16 +1262,11 @@ function applyModeTerminology(){
   // monthly dues genuinely have a next-due-date). Business receipts are
   // one-off, so "upcoming payments" isn't a real concept there — that whole
   // section is replaced with a single clear button straight into the
-  // customer list instead.
-  const homeTitleEl = document.getElementById('homeResidentsSectionTitle');
-  const homeListEl  = document.getElementById('homeResidentsList');
-  const homeBizBtn  = document.getElementById('homeBizManageBtn');
-  if(homeTitleEl) homeTitleEl.style.display = isBiz ? 'none' : '';
-  if(homeListEl)  homeListEl.style.display  = isBiz ? 'none' : '';
-  if(homeBizBtn){
-    homeBizBtn.style.display = isBiz ? '' : 'none';
-    homeBizBtn.textContent = isBiz ? '🗂️ ניהול והוספת לקוח חדש' : '📋 ניהול והוספת דיירים';
-  }
+  // customer list instead. Visibility itself is driven by CSS off this one
+  // class (see body.mode-business rules) so it can't drift out of sync.
+  document.body.classList.toggle('mode-business', isBiz);
+  const homeBizBtn = document.getElementById('homeBizManageBtn');
+  if(homeBizBtn) homeBizBtn.textContent = isBiz ? '🗂️ ניהול והוספת לקוח חדש' : '📋 ניהול והוספת דיירים';
   // Wizard step 1's management shortcut is vaad-only now — business mode
   // already has a clear, direct "ניהול והוספת לקוח חדש" button on the home
   // screen, so a second one here would just be redundant.
@@ -1443,6 +1447,14 @@ document.getElementById('autoCreateBtn').addEventListener('click', async ()=>{
     return;
   }
   const buildingName = buildingNameInput;
+
+  const currentSheetVal = document.getElementById('cfg-spreadsheetId').value.trim();
+  if(currentSheetVal){
+    statusEl.style.color = 'var(--bad)';
+    statusEl.textContent = 'כבר קיים גיליון מקושר. ניתן ליצור גיליון חדש רק לאחר מחיקת/הסרת הקישור הקיים — לחצו על ✏️ ליד שדה הגיליון, מחקו את תוכנו, ונסו שוב.';
+    return;
+  }
+
   btn.disabled = true; btn.textContent = 'יוצר גיליון ותיקייה…';
   statusEl.style.color = 'var(--slate)';
   statusEl.textContent = '';
@@ -3104,13 +3116,6 @@ function refreshRecentResidents(){
   const list    = document.getElementById('homeResidentsList');
   if(!section || !list) return;
 
-  // Defensive re-assertion: this button should always reflect the current
-  // mode, regardless of what else has run since applyModeTerminology() last
-  // set it — refreshRecentResidents() runs often enough (after every data
-  // load) that this keeps it correct even if something else interferes.
-  const bizBtn = document.getElementById('homeBizManageBtn');
-  if(bizBtn) bizBtn.style.display = CFG.usageMode==='business' ? '' : 'none';
-
   if(!residents.length){
     // Data hasn't loaded yet — keep the section (and its title) visible with
     // a loading placeholder, instead of hiding everything until it's ready.
@@ -3521,7 +3526,9 @@ document.getElementById('generateBtn').onclick=async()=>{
 
   try{
     const blob=await buildPdfBlob();
-    const filename=`${r.name} - קבלה לדמי ועד.pdf`;
+    const filename = CFG.usageMode==='business'
+      ? `${r.name} - קבלה - ${CFG.buildingInfo||'עסק'}.pdf`
+      : `${r.name} - קבלה לדמי ועד.pdf`;
     lastPdfBlob=blob; lastFileName=filename;
 
     // Show the finished receipt immediately — the person can already view,
