@@ -878,7 +878,7 @@ textarea{resize:vertical;min-height:70px;}
       <button class="cancel" id="modalCancel">ביטול</button>
       <button class="save" id="modalSave">שמירת הגדרות</button>
     </div>
-    <p style="text-align:center;font-size:11px;font-weight:800;color:var(--slate);margin:10px 0 0;" id="appVersionMarker"></p>
+    <p style="text-align:center;font-size:10.5px;font-weight:800;color:var(--slate);margin:10px 0 0;line-height:1.6;word-break:break-word;" id="appVersionMarker"></p>
   </div>
 </div>
 
@@ -1067,7 +1067,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '2026-08-01-2';
+const APP_BUILD = '2026-08-01-4';
 console.log('[קבקליק] גרסה:', APP_BUILD);
 
 const LICENSE_API_URL = 'https://script.google.com/macros/s/AKfycbwo80B9ZmKyMSwdXzQA6HP_sPFLLHETIWiI3VFj60vPazq4vE8DLpC7yxK-JtVqkZ4qyQ/exec';
@@ -1375,7 +1375,9 @@ document.getElementById('settingsBtn').onclick = ()=>{
   document.getElementById('cfg-folderId').readOnly = true;
   applyModeUI(CFG.usageMode||'vaad');
   const verEl = document.getElementById('appVersionMarker');
-  if(verEl) verEl.textContent = 'גרסה: '+APP_BUILD;
+  if(verEl){
+    verEl.textContent = `גרסה: ${APP_BUILD} | ${CFG.email||'לא מחובר'} | ${CFG.usageMode||'?'} | גיליון: ${CFG.spreadsheetId ? 'מחובר ('+CFG.spreadsheetId.slice(0,8)+'…)' : 'לא מחובר'}`;
+  }
   document.getElementById('modalBg').classList.add('show');
 };
 document.querySelectorAll('.locked-field-edit-btn').forEach(btn=>{
@@ -2599,8 +2601,54 @@ async function ensureResidentsSheetName(){
   }
 }
 
+/**
+ * Clears any stale in-memory residents/receipts data and invalidates the
+ * local sheet/folder pointer, so the app stops showing data from a
+ * connection that no longer actually works — and so the setup checklist /
+ * "יצירה אוטומטית" become available again immediately, instead of the app
+ * believing it's still configured.
+ */
+function clearDeadDataConnection(message){
+  residents = [];
+  allReceiptRows = [];
+  residentSelect.innerHTML = '';
+  const searchInputEl = document.getElementById('residentSearchInput');
+  if(searchInputEl){
+    searchInputEl.value = '';
+    searchInputEl.disabled = true;
+    searchInputEl.placeholder = 'יש להתחבר ולטעון רשימת דיירים';
+  }
+  const badgeEl = document.getElementById('residentsLoadedBadge');
+  if(badgeEl) badgeEl.style.display = 'none';
+  CFG.spreadsheetId = '';
+  CFG.folderId = '';
+  persistCurrentAccountCfg();
+  updateSetupChecklist();
+  refreshRecentResidents();
+  showMsg(message, 'error');
+}
 async function loadResidents(){
   try{
+    // A file/folder sitting in the Google Drive Trash is still fully
+    // reachable through the API — Google only removes it for real once the
+    // Trash is emptied — so a plain "did the request fail" check misses
+    // exactly this case, which otherwise looks identical to a healthy
+    // connection. Checking the actual `trashed` flag catches it directly.
+    try{
+      const [sheetChk, folderChk] = await Promise.all([
+        gapi.client.drive.files.get({fileId:CFG.spreadsheetId, fields:'trashed'}),
+        gapi.client.drive.files.get({fileId:CFG.folderId, fields:'trashed'})
+      ]);
+      if(sheetChk.result.trashed || folderChk.result.trashed){
+        clearDeadDataConnection('⚠️ הגיליון ו/או התיקייה שהיו מחוברים נמצאים בסל המיחזור ב-Drive, ולכן לא זמינים בפועל. יש לפתוח את ⚙ ההגדרות וליצור גיליון/תיקייה חדשים — או לשחזר אותם מסל המיחזור בגוגל דרייב ולחבר מחדש.');
+        return;
+      }
+    }catch(trashCheckErr){
+      // This pre-check itself failing (e.g. truly deleted, not just
+      // trashed) is fine — the normal read below will hit the same 404
+      // handling a few lines down.
+    }
+
     await ensureResidentsSheetName();
     try{
       const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:CFG.spreadsheetId});
@@ -2674,28 +2722,10 @@ async function loadResidents(){
     const msg = e.result?.error?.message || e.message || String(e);
 
     if(code===404 || /requested entity was not found/i.test(msg)){
-      // The spreadsheet itself is gone (deleted from Drive), not just
-      // missing the expected tab. Clear the stale local pointer AND any
-      // residents already loaded earlier this session, so the home screen
-      // stops showing data from a sheet that no longer exists — and so the
-      // setup checklist / "יצירה אוטומטית" become available again right away,
-      // instead of the app believing it's still configured.
-      residents = [];
-      allReceiptRows = [];
-      residentSelect.innerHTML = '';
-      const searchInputEl = document.getElementById('residentSearchInput');
-      if(searchInputEl){
-        searchInputEl.value = '';
-        searchInputEl.disabled = true;
-        searchInputEl.placeholder = 'יש להתחבר ולטעון רשימת דיירים';
-      }
-      const badgeEl = document.getElementById('residentsLoadedBadge');
-      if(badgeEl) badgeEl.style.display = 'none';
-      CFG.spreadsheetId = '';
-      persistCurrentAccountCfg();
-      updateSetupChecklist();
-      refreshRecentResidents();
-      showMsg('⚠️ הגיליון שהיה מחובר לא נמצא (כנראה נמחק מ-Drive). יש לפתוח את ⚙ ההגדרות וליצור גיליון חדש, או לחבר גיליון קיים.', 'error');
+      // The spreadsheet itself is gone (permanently deleted, not just
+      // trashed — that case is caught earlier above), or the ID is simply
+      // wrong.
+      clearDeadDataConnection('⚠️ הגיליון שהיה מחובר לא נמצא (כנראה נמחק מ-Drive). יש לפתוח את ⚙ ההגדרות וליצור גיליון חדש, או לחבר גיליון קיים.');
       return;
     }
 
