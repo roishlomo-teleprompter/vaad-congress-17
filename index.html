@@ -385,6 +385,51 @@ textarea{resize:vertical;min-height:70px;}
 
 /* ── SETTINGS MODAL ── */
 .modal-bg{position:fixed;inset:0;background:rgba(20,28,46,.6);display:none;align-items:flex-start;justify-content:center;z-index:200;overflow-y:auto;padding:20px;}
+
+/* ACCOUNT MENU MODAL */
+:root{ --danger:#DC3F3F; --danger-soft:#FFF4F4; }
+.account-modal-overlay{position:fixed;inset:0;background:rgba(16,24,40,.62);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:300;padding:20px;}
+.account-modal-overlay.show{display:flex;}
+.account-modal{width:min(92vw,440px);max-height:90vh;overflow-y:auto;background:#fff;border-radius:28px;padding:28px 22px 24px;box-shadow:0 24px 70px rgba(16,24,40,.28);position:relative;text-align:center;}
+.account-modal-close{position:absolute;top:14px;left:14px;width:44px;height:44px;border:0;background:transparent;font-size:26px;color:var(--slate);cursor:pointer;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+.account-modal-close:hover{background:var(--app-bg);}
+.account-modal-icon{width:68px;height:68px;border-radius:50%;background:var(--blue-soft);border:1.5px solid #BFD7FB;color:var(--blue-dark);font-size:30px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;}
+.account-modal-title{font-size:29px;font-weight:900;color:var(--ink);margin:0;}
+.account-modal-divider{display:flex;align-items:center;justify-content:center;gap:6px;margin:10px 0;}
+.account-modal-divider span{width:26px;height:2px;background:var(--blue);border-radius:2px;}
+.account-modal-divider i{width:6px;height:6px;border-radius:50%;background:var(--blue);display:block;}
+.account-modal-subtitle{font-size:16px;color:var(--ink-soft);margin:0 0 20px;font-weight:600;}
+
+.account-action-card{width:100%;border-radius:22px;padding:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;font-family:inherit;text-align:right;min-height:44px;}
+.account-action-card:not(:last-of-type){margin-bottom:14px;}
+.account-card-text{flex:1;min-width:0;}
+.account-card-title{font-size:16px;font-weight:800;margin:0 0 4px;}
+.account-card-title-blue{color:var(--blue-dark);}
+.account-card-title-danger{color:var(--danger);}
+.account-card-sub{font-size:13px;color:var(--ink-soft);line-height:1.5;}
+.account-card-arrow{flex:none;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;}
+.account-card-arrow-blue{background:var(--blue);color:#fff;}
+.account-card-arrow-danger{background:var(--danger);color:#fff;}
+
+.mode-switch-card{border:2px solid var(--blue);background:#fff;}
+.mode-switch-card:active,.mode-switch-card:hover{background:var(--blue-soft);}
+.mode-switch-icons{flex:none;display:flex;align-items:center;gap:6px;}
+.mode-switch-icon{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;}
+.mode-switch-icon-blue{background:var(--blue);color:#fff;}
+.mode-switch-icon-gold{background:var(--gold);color:#fff;}
+.mode-switch-arrows{font-size:14px;color:var(--slate);}
+
+.logout-card{border:2px solid var(--danger);background:var(--danger-soft);}
+.logout-card:active,.logout-card:hover{background:#ffeaea;}
+.logout-card-icon{flex:none;font-size:26px;}
+
+.account-modal-hr{border:none;border-top:1.5px solid var(--card-line);margin:20px 0;height:1px;background:none;}
+.account-modal-cancel{width:100%;min-height:54px;background:#fff;border:1.5px solid var(--card-line);border-radius:16px;color:var(--ink);font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;}
+.account-modal-cancel:hover{background:var(--app-bg);}
+@media(max-width:480px){
+  .account-action-card{flex-wrap:wrap;}
+  .mode-switch-icons{order:3;width:100%;justify-content:flex-start;margin-top:6px;}
+}
 .modal-bg.show{display:flex;}
 .modal{background:#fff;border-radius:16px;padding:28px;width:520px;max-width:94vw;max-height:calc(100vh - 110px);overflow-y:auto;box-shadow:var(--shadow);margin:auto;}
 .modal h3{font-family:'Frank Ruhl Libre',serif;margin:0 0 4px;font-size:20px;}
@@ -846,14 +891,39 @@ textarea{resize:vertical;min-height:70px;}
 </div>
 
 <!-- ACCOUNT MENU (opened from the sign-out icon) -->
-<div class="modal-bg" id="accountMenuBg" style="z-index:300;">
-  <div class="modal" style="text-align:center;max-width:320px;">
-    <h3 style="margin-bottom:16px;">👤 חשבון</h3>
-    <div style="display:flex;flex-direction:column;gap:10px;">
-      <button type="button" id="accountMenuSwitchModeBtn" class="generate-btn" style="margin:0;">🔀 מעבר בין ועד בית לעצמאי</button>
-      <button type="button" id="accountMenuSignOutBtn" style="margin:0;background:#fff;color:var(--ink);border:1.5px solid var(--card-line);border-radius:12px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">🚪 התנתקות מהחשבון</button>
-    </div>
-    <button type="button" id="accountMenuCancelBtn" style="margin-top:14px;width:100%;background:none;border:none;color:var(--slate);font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit;padding:8px;">ביטול</button>
+<div class="account-modal-overlay" id="accountMenuBg">
+  <div class="account-modal">
+    <button type="button" class="account-modal-close" id="accountMenuCloseBtn" aria-label="סגירה">✕</button>
+    <div class="account-modal-icon">👤</div>
+    <h3 class="account-modal-title">החשבון שלי</h3>
+    <div class="account-modal-divider"><span></span><i></i><span></span></div>
+    <p class="account-modal-subtitle">מה תרצה לעשות?</p>
+
+    <button type="button" class="account-action-card mode-switch-card" id="accountMenuSwitchModeBtn">
+      <div class="account-card-text">
+        <div class="account-card-title account-card-title-blue">מעבר לבחירת מצב</div>
+        <div class="account-card-sub">מעבר בין ניהול ועד בית לניהול עסק עצמאי</div>
+      </div>
+      <div class="mode-switch-icons">
+        <div class="mode-switch-icon mode-switch-icon-blue">🏢</div>
+        <div class="mode-switch-arrows">⇄</div>
+        <div class="mode-switch-icon mode-switch-icon-gold">💼</div>
+      </div>
+      <div class="account-card-arrow account-card-arrow-blue">›</div>
+    </button>
+
+    <button type="button" class="account-action-card logout-card" id="accountMenuSignOutBtn">
+      <div class="account-card-text">
+        <div class="account-card-title account-card-title-danger">התנתקות מהחשבון</div>
+        <div class="account-card-sub">יציאה מלאה מהחשבון. בהתחברות הבאה תידרש כניסה מחדש עם Google.</div>
+      </div>
+      <div class="logout-card-icon">🚪</div>
+      <div class="account-card-arrow account-card-arrow-danger">›</div>
+    </button>
+
+    <div class="account-modal-hr"></div>
+
+    <button type="button" class="account-modal-cancel" id="accountMenuCancelBtn">ביטול</button>
   </div>
 </div>
 
@@ -1327,7 +1397,6 @@ document.getElementById('modalSave').onclick = async ()=>{
   initGoogle();
   pushSettingsToSheet();
   await loadDataForCurrentAccountMode();
-  showMsg('ההגדרות נשמרו.','info');
 };
 
 /**
@@ -2166,6 +2235,9 @@ document.getElementById('signOutBtn').addEventListener('click', ()=>{
 document.getElementById('accountMenuCancelBtn').addEventListener('click', ()=>{
   document.getElementById('accountMenuBg').classList.remove('show');
 });
+document.getElementById('accountMenuCloseBtn').addEventListener('click', ()=>{
+  document.getElementById('accountMenuBg').classList.remove('show');
+});
 document.getElementById('accountMenuSignOutBtn').addEventListener('click', ()=>{
   document.getElementById('accountMenuBg').classList.remove('show');
   signOut();
@@ -2959,6 +3031,14 @@ function refreshRecentResidents(){
   const section = document.getElementById('homeResidentsSection');
   const list    = document.getElementById('homeResidentsList');
   if(!section || !list) return;
+
+  // Defensive re-assertion: this button should always reflect the current
+  // mode, regardless of what else has run since applyModeTerminology() last
+  // set it — refreshRecentResidents() runs often enough (after every data
+  // load) that this keeps it correct even if something else interferes.
+  const bizBtn = document.getElementById('homeBizManageBtn');
+  if(bizBtn) bizBtn.style.display = CFG.usageMode==='business' ? '' : 'none';
+
   if(!residents.length){
     // Data hasn't loaded yet — keep the section (and its title) visible with
     // a loading placeholder, instead of hiding everything until it's ready.
