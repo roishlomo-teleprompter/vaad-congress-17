@@ -832,6 +832,11 @@ body.mode-business #homeResidentsList{display:none;}
         <input type="text" id="cfg-businessNumber" placeholder="לדוגמה: 123456789">
         <p style="font-size:11.5px;color:var(--slate);margin:4px 0 10px;line-height:1.5;">יופיע על הקבלה — נדרש חוקית.</p>
       </div>
+      <div style="margin-top:14px;">
+        <label>מספר הקבלה הבא</label>
+        <input type="number" id="cfg-nextReceiptNumber" placeholder="לדוגמה: 1000" min="1">
+        <p style="font-size:11.5px;color:var(--slate);margin:6px 0 0;line-height:1.5;">המספר שיופיע על הקבלה הבאה שתופק. אחריו יעלה אוטומטית ב-1 בכל קבלה (רציף, ייחודי וכרונולוגי — כנדרש בחוק). אם עוברים מפנקס קבלות ידני, אפשר להזין כאן את המספר הבא בתור שם, והמערכת תמשיך ממנו.</p>
+      </div>
       <div id="pricingSection" style="margin-top:14px;">
         <label>מחיר חודשי ברירת מחדל (₪)</label>
         <input type="number" id="cfg-defaultFee" placeholder="לדוגמה: 140" min="0">
@@ -1075,7 +1080,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '140';
+const APP_BUILD = '141';
 console.log('[קבקליק] גרסה:', APP_BUILD);
 
 const LICENSE_API_URL = 'https://script.google.com/macros/s/AKfycbwo80B9ZmKyMSwdXzQA6HP_sPFLLHETIWiI3VFj60vPazq4vE8DLpC7yxK-JtVqkZ4qyQ/exec';
@@ -1148,7 +1153,8 @@ function persistCurrentAccountCfg(){
     logoUrl:        CFG.logoUrl        || '',
     defaultFee:     CFG.defaultFee     || 140,
     businessDefaultAmount:     CFG.businessDefaultAmount     || '',
-    businessDefaultAmountAuto: CFG.businessDefaultAmountAuto || false
+    businessDefaultAmountAuto: CFG.businessDefaultAmountAuto || false,
+    nextReceiptNumber: CFG.nextReceiptNumber || 1000
   });
 }
 /**
@@ -1188,6 +1194,7 @@ function applyAccountAndMode(email, mode){
   CFG.defaultFee     = saved.defaultFee     || 140;
   CFG.businessDefaultAmount     = saved.businessDefaultAmount     || '';
   CFG.businessDefaultAmountAuto = saved.businessDefaultAmountAuto || false;
+  CFG.nextReceiptNumber = saved.nextReceiptNumber || 1000;
   saveLastMode(email, mode);
   applyBranding();
   applyModeTerminology();
@@ -1372,6 +1379,7 @@ document.getElementById('settingsBtn').onclick = ()=>{
   document.getElementById('cfg-businessNumber').value = CFG.businessNumber||'';
   document.getElementById('cfg-businessDefaultAmount').value = CFG.businessDefaultAmount||'';
   document.getElementById('cfg-businessDefaultAmountAuto').checked = !!CFG.businessDefaultAmountAuto;
+  document.getElementById('cfg-nextReceiptNumber').value = CFG.nextReceiptNumber||1000;
   document.getElementById('cfg-spreadsheetId').value= CFG.spreadsheetId||'';
   document.getElementById('cfg-folderId').value     = CFG.folderId||'';
   document.getElementById('cfg-spreadsheetId').readOnly = true;
@@ -1407,6 +1415,14 @@ document.getElementById('modalSave').onclick = async ()=>{
   CFG.defaultFee    = parseFloat(document.getElementById('cfg-defaultFee').value)||140;
   CFG.businessDefaultAmount     = parseFloat(document.getElementById('cfg-businessDefaultAmount').value) || '';
   CFG.businessDefaultAmountAuto = document.getElementById('cfg-businessDefaultAmountAuto').checked;
+  const enteredNextNum = parseInt(document.getElementById('cfg-nextReceiptNumber').value, 10) || 1000;
+  const highestUsed = getHighestUsedReceiptNumber();
+  if(enteredNextNum <= highestUsed){
+    await showAppAlert(`מספר הקבלה הבא חייב להיות גבוה מהמספר האחרון שכבר נוצל (${highestUsed}), כדי לשמור על רצף ייחודי. הוגדר אוטומטית ל-${highestUsed+1}.`, '⚠️');
+    CFG.nextReceiptNumber = highestUsed + 1;
+  } else {
+    CFG.nextReceiptNumber = enteredNextNum;
+  }
   CFG.spreadsheetId = extractSheetId(document.getElementById('cfg-spreadsheetId').value);
   CFG.folderId      = extractFolderId(document.getElementById('cfg-folderId').value);
   persistCurrentAccountCfg();
@@ -2082,7 +2098,7 @@ function receiptHTML(forPdf=false){
   const total  = isOtherPurpose ? manualAmount() : months.length*fee;
   const bInfo = CFG.buildingInfo || 'ועד בית';
   const isBiz = CFG.usageMode==='business';
-  const receiptNum = Date.now().toString().slice(-6);
+  const receiptNum = CFG.nextReceiptNumber || 1000;
   const now = new Date();
   const dateMain = now.toLocaleDateString('he-IL', {day:'numeric', month:'long'});
   const dateYear = now.toLocaleDateString('he-IL', {year:'numeric'});
@@ -2246,6 +2262,7 @@ function signOut(){
   CFG.spreadsheetId = ''; CFG.folderId = ''; CFG.buildingInfo = '';
   CFG.businessNumber = ''; CFG.logoUrl = ''; CFG.defaultFee = 140;
   CFG.businessDefaultAmount = ''; CFG.businessDefaultAmountAuto = false;
+  CFG.nextReceiptNumber = 1000;
   residents = []; allReceiptRows = [];
   markDisconnected();
   showHomeScreen();
@@ -3069,10 +3086,25 @@ async function ensureReceiptsSheet(){
       });
       await gapi.client.sheets.spreadsheets.values.update({
         spreadsheetId:CFG.spreadsheetId,
-        range:`'${RECEIPTS_SHEET}'!A1:I1`,
+        range:`'${RECEIPTS_SHEET}'!A1:J1`,
         valueInputOption:'RAW',
-        resource:{values:[['תאריך הפקה','שם דייר','טלפון','חודשים/מטרה','מספר חודשים','סכום כולל','אמצעי תשלום','שם קובץ','קישור לקובץ']]}
+        resource:{values:[['תאריך הפקה','שם דייר','טלפון','חודשים/מטרה','מספר חודשים','סכום כולל','אמצעי תשלום','שם קובץ','קישור לקובץ','מספר קבלה']]}
       });
+    } else {
+      // Older sheets created before receipt-numbering existed are missing
+      // column J's header — add it (harmless no-op if it's already there).
+      const j1 = await gapi.client.sheets.spreadsheets.values.get({
+        spreadsheetId:CFG.spreadsheetId, range:`'${RECEIPTS_SHEET}'!J1`
+      }).catch(()=>null);
+      const hasHeader = j1 && j1.result.values && j1.result.values[0] && j1.result.values[0][0];
+      if(!hasHeader){
+        await gapi.client.sheets.spreadsheets.values.update({
+          spreadsheetId:CFG.spreadsheetId,
+          range:`'${RECEIPTS_SHEET}'!J1`,
+          valueInputOption:'RAW',
+          resource:{values:[['מספר קבלה']]}
+        }).catch(()=>{});
+      }
     }
   }catch(e){
     showMsg('שגיאה ביצירת גיליון "קבלות": '+(e.result?.error?.message||e.message),'error');
@@ -3082,7 +3114,7 @@ async function ensureReceiptsSheet(){
 async function appendReceiptRow(row){
   return gapi.client.sheets.spreadsheets.values.append({
     spreadsheetId:CFG.spreadsheetId,
-    range:`'${RECEIPTS_SHEET}'!A:I`,
+    range:`'${RECEIPTS_SHEET}'!A:J`,
     valueInputOption:'RAW',
     insertDataOption:'INSERT_ROWS',
     resource:{values:[row]}
@@ -3096,11 +3128,35 @@ let allReceiptRows = [];
 async function loadAllReceiptRows(){
   try{
     const res = await gapi.client.sheets.spreadsheets.values.get({
-      spreadsheetId:CFG.spreadsheetId, range:`'${RECEIPTS_SHEET}'!A2:I`
+      spreadsheetId:CFG.spreadsheetId, range:`'${RECEIPTS_SHEET}'!A2:J`
     });
     allReceiptRows = res.result.values||[];
   }catch(e){ allReceiptRows = []; }
   refreshRecentResidents();
+  syncNextReceiptNumberWithSheet();
+}
+/** Returns the highest receipt number already logged in the sheet, or 0 if none. */
+function getHighestUsedReceiptNumber(){
+  let maxUsed = 0;
+  allReceiptRows.forEach(row=>{
+    const n = parseInt(row[9], 10);
+    if(!isNaN(n) && n > maxUsed) maxUsed = n;
+  });
+  return maxUsed;
+}
+/**
+ * Self-heals the locally-cached "next receipt number" against the sheet —
+ * the actual shared source of truth. If another device (or a manual edit)
+ * has already used a number this device doesn't know about, the local
+ * counter is bumped up to stay strictly sequential and unique; it's never
+ * decreased, so a number is never reused or skipped backwards.
+ */
+function syncNextReceiptNumberWithSheet(){
+  const shouldBeAtLeast = getHighestUsedReceiptNumber() + 1;
+  if(shouldBeAtLeast > (CFG.nextReceiptNumber || 1000)){
+    CFG.nextReceiptNumber = shouldBeAtLeast;
+    persistCurrentAccountCfg();
+  }
 }
 const REMINDER_DISMISS_KEY = 'vaad_reminder_dismissed';
 function loadDismissedReminders(){
@@ -3520,15 +3576,21 @@ async function performGenerateReceipt(){
     months: sortedMonths(),
     fee: residentFee(),
     wantsEmail: document.getElementById('emailSendCheckbox').checked && !!r.email,
-    email: r.email
+    email: r.email,
+    receiptNumber: CFG.nextReceiptNumber || 1000
   };
 
   try{
-    const blob=await buildPdfBlob();
+    const blob=await buildPdfBlob(); // reads CFG.nextReceiptNumber live — must build before advancing the counter below
     const filename = CFG.usageMode==='business'
       ? `${r.name} - קבלה - ${CFG.buildingInfo||'עסק'}.pdf`
       : `${r.name} - קבלה לדמי ועד.pdf`;
     lastPdfBlob=blob; lastFileName=filename;
+
+    // The number on the PDF the person is about to see is now spent — never
+    // hand it out again, even if the background save below fails and retries.
+    CFG.nextReceiptNumber = snap.receiptNumber + 1;
+    persistCurrentAccountCfg();
 
     // Show the finished receipt immediately — the person can already view,
     // download, or share the PDF right now. Saving it to Drive and logging
@@ -3572,9 +3634,9 @@ async function finalizeReceiptInBackground(snap, blob, filename, attempt){
 
     await appendReceiptRow([
       todayStr(),r.name,r.phone||'',monthsCell,
-      snap.isOtherPurpose?0:snap.months.length,total,snap.payMethod,filename,driveFile.webViewLink||''
+      snap.isOtherPurpose?0:snap.months.length,total,snap.payMethod,filename,driveFile.webViewLink||'',snap.receiptNumber
     ]);
-    allReceiptRows.push([todayStr(),r.name,r.phone||'',monthsCell,snap.isOtherPurpose?0:snap.months.length,total,snap.payMethod,filename,driveFile.webViewLink||'']);
+    allReceiptRows.push([todayStr(),r.name,r.phone||'',monthsCell,snap.isOtherPurpose?0:snap.months.length,total,snap.payMethod,filename,driveFile.webViewLink||'',snap.receiptNumber]);
     // Only repaint the months grid if the person is still looking at this
     // same resident — otherwise this would overwrite whatever they've
     // already moved on to selecting for someone else.
