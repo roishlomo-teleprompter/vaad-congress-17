@@ -1075,7 +1075,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '2026-08-01-9';
+const APP_BUILD = '140';
 console.log('[קבקליק] גרסה:', APP_BUILD);
 
 const LICENSE_API_URL = 'https://script.google.com/macros/s/AKfycbwo80B9ZmKyMSwdXzQA6HP_sPFLLHETIWiI3VFj60vPazq4vE8DLpC7yxK-JtVqkZ4qyQ/exec';
@@ -1379,7 +1379,7 @@ document.getElementById('settingsBtn').onclick = ()=>{
   applyModeUI(CFG.usageMode||'vaad');
   const verEl = document.getElementById('appVersionMarker');
   if(verEl){
-    verEl.textContent = `גרסה: ${APP_BUILD} | ${CFG.email||'לא מחובר'} | ${CFG.usageMode||'?'} | גיליון: ${CFG.spreadsheetId ? 'מחובר ('+CFG.spreadsheetId.slice(0,8)+'…)' : 'לא מחובר'}`;
+    verEl.textContent = `גרסה: ${APP_BUILD} | ${CFG.email||'לא מחובר'}`;
   }
   document.getElementById('modalBg').classList.add('show');
 };
@@ -2945,9 +2945,9 @@ async function deleteResident(index){
   }
 }
 
-document.getElementById('wizardManageResidentsBtn').addEventListener('click', openResidentsManageFromAnywhere);
+document.getElementById('wizardManageResidentsBtn').addEventListener('click', ()=>openResidentsManageFromAnywhere());
 document.getElementById('homeBizManageBtn').addEventListener('click', ()=>openResidentsManageFromAnywhere(true));
-document.getElementById('rmmSettingsOpenBtn').addEventListener('click', openResidentsManageFromAnywhere);
+document.getElementById('rmmSettingsOpenBtn').addEventListener('click', ()=>openResidentsManageFromAnywhere());
 document.getElementById('rmmCloseBtn').addEventListener('click', closeResidentsManageModal);
 document.getElementById('rmmAddBtn').addEventListener('click', ()=>openResidentEditModal(-1));
 document.getElementById('rmmSearchInput').addEventListener('input', (e)=>renderResidentsManageList(e.target.value));
@@ -3673,16 +3673,23 @@ const TOUR_STEPS = [
       : 'מזינים כאן את שם/כתובת הבניין. זה מה שיופיע בכותרת ובקבלות עצמן.' },
   { target:'#modalSave', title:'שמירה', inModal:true,
     text:'לא לשכוח ללחוץ כאן לשמירת ההגדרות בסיום.' },
-  { target:'#wizardManageResidentsBtn', title:(isBiz)=> isBiz?'ניהול רשימת לקוחות':'ניהול רשימת דיירים', wizardStep:0,
-    text: (isBiz)=> `כאן אפשר להוסיף, לערוך ולמחוק ${isBiz?'לקוחות':'דיירים'} ישירות מתוך האפליקציה — בלי לפתוח בכלל את גיליון ה-Google Sheets. שינויים כאן נכתבים ישר לגיליון.` },
-  { target:'#homeResidentsSection', title:(isBiz)=> isBiz?'ניהול לקוחות':'תשלומים קרובים',
+  { target:(isBiz)=> isBiz ? '#homeBizManageBtn' : '#wizardManageResidentsBtn',
+    title:(isBiz)=> isBiz?'ניהול והוספת לקוח חדש':'ניהול והוספת דיירים',
+    wizardStep:(isBiz)=> isBiz ? undefined : 0,
     text: (isBiz)=> isBiz
-      ? 'במצב עסק, כאן מופיע ישירות כפתור לניהול רשימת הלקוחות — "תשלומים קרובים" רלוונטי רק לחיובים חוזרים כמו דמי ועד, ולכן אינו מוצג במצב הזה.'
+      ? 'כאן, בדף הבית, אפשר להוסיף לקוח חדש ולנהל את רשימת הלקוחות שלכם ישירות מתוך האפליקציה — בלי לפתוח בכלל את גיליון ה-Google Sheets. שינויים כאן נכתבים ישר לגיליון.'
+      : 'כאן אפשר להוסיף, לערוך ולמחוק דיירים ישירות מתוך האפליקציה — בלי לפתוח בכלל את גיליון ה-Google Sheets. שינויים כאן נכתבים ישר לגיליון.' },
+  { target:(isBiz)=> isBiz ? '#homeStartBtn' : '#homeResidentsSection',
+    title:(isBiz)=> isBiz?'הפקת קבלה':'תשלומים קרובים',
+    text: (isBiz)=> isBiz
+      ? 'לחיצה כאן פותחת את תהליך הפקת הקבלה — בוחרים לקוח, מציינים את מטרת התשלום והסכום, ומפיקים.'
       : 'כאן רואים אילו דיירים צריכים לשלם בקרוב — המערכת מחשבת את זה אוטומטית לפי הקבלות שכבר הופקו. לוחצים על "הפק קבלה" ליד השם כדי להתחיל ישר עם אותו דייר.' },
   { target:'#residentPicker', title:(isBiz)=> isBiz?'בחירת לקוח':'בחירת דייר', wizardStep:0,
     text: (isBiz)=> `כאן בוחרים את ה${isBiz?'לקוח':'דייר'} שעבורו מפיקים את הקבלה. אם ${isBiz?'הלקוח':'הדייר'} עדיין לא ברשימה — פשוט מקלידים את השם החדש, ולוחצים על "➕ הוספה" שמופיעה בתוצאות החיפוש כדי להוסיף ${isBiz?'אותו':'אותו'} ולהמשיך איתו מיד, בלי לצאת מתהליך הקבלה.` },
-  { target:'#otherPurposeToggle', title:'חודשים או מטרה אחרת', wizardStep:1,
-    text:'מסמנים את חודשי התשלום ברשת — חודשים ירוקים כבר שולמו בעבר ולא ניתנים לבחירה. לתשלום חד-פעמי שאינו דמי ועד/שירות חודשי רגיל (למשל שיפוץ, או כל מוצר/שירות אחר), מסמנים כאן "תשלום למטרה אחרת" ומזינים סכום וטקסט חופשי במקום.' },
+  { target:'#otherPurposeToggle', title:(isBiz)=> isBiz?'מטרת התשלום':'חודשים או מטרה אחרת', wizardStep:1,
+    text: (isBiz)=> isBiz
+      ? 'מציינים כאן את מטרת התשלום בטקסט חופשי — לדוגמה: "שיעורים פרטיים", "עיצוב לוגו", "ייעוץ" — ומזינים את הסכום לתשלום.'
+      : 'מסמנים את חודשי התשלום ברשת — חודשים ירוקים כבר שולמו בעבר ולא ניתנים לבחירה. לתשלום חד-פעמי שאינו דמי ועד/שירות חודשי רגיל (למשל שיפוץ, או כל מוצר/שירות אחר), מסמנים כאן "תשלום למטרה אחרת" ומזינים סכום וטקסט חופשי במקום.' },
   { target:'#emailCheckRow', title:'שליחה אוטומטית במייל', wizardStep:2,
     text: (isBiz)=> `רוצים שהקבלה תישלח אוטומטית גם למייל ה${isBiz?'לקוח':'דייר'}? יש לסמן כאן את התיבה. האפשרות מופיעה רק אם יש ל${isBiz?'לקוח':'דייר'} כתובת מייל שמורה בגיליון.` },
   { target:'#wizardCancelBtn', title:'הפקת קבלה', wizardStep:4,
@@ -3747,10 +3754,11 @@ function tourShowStep(i){
   // The settings modal and the receipt wizard are opened/moved to whichever
   // step this tour step needs, automatically, regardless of nav direction.
   tourSetSettingsOpen(!!step.inModal);
-  if(step.wizardStep !== undefined){
+  const resolvedWizardStep = typeof step.wizardStep==='function' ? step.wizardStep(isBiz) : step.wizardStep;
+  if(resolvedWizardStep !== undefined){
     document.getElementById('homeScreen').style.display = 'none';
     document.querySelector('.wizard-card').style.display = '';
-    wizardShowStep(step.wizardStep);
+    wizardShowStep(resolvedWizardStep);
   } else if(!step.inModal){
     document.getElementById('homeScreen').style.display = '';
     document.querySelector('.wizard-card').style.display = 'none';
@@ -3762,7 +3770,8 @@ function tourShowStep(i){
   document.getElementById('tourPrevBtn').style.visibility = i===0 ? 'hidden' : 'visible';
   document.getElementById('tourNextBtn').textContent = i===TOUR_STEPS.length-1 ? 'סיום' : 'הבא';
 
-  tourPositionSpotlight(step.target ? document.querySelector(step.target) : null);
+  const resolvedTarget = typeof step.target==='function' ? step.target(isBiz) : step.target;
+  tourPositionSpotlight(resolvedTarget ? document.querySelector(resolvedTarget) : null);
 }
 
 function tourStart(){
