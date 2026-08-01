@@ -1166,7 +1166,7 @@ function applyModeTerminology(){
   if(homeListEl)  homeListEl.style.display  = isBiz ? 'none' : '';
   if(homeBizBtn){
     homeBizBtn.style.display = isBiz ? '' : 'none';
-    homeBizBtn.textContent = isBiz ? '📋 ניהול רשימת לקוחות' : '📋 ניהול רשימת דיירים';
+    homeBizBtn.textContent = isBiz ? '➕ הוספת לקוח חדש' : '📋 ניהול רשימת דיירים';
   }
   // Wizard step 1 always keeps a small management shortcut, regardless of mode.
   const wizardManageBtn = document.getElementById('wizardManageResidentsBtn');
@@ -2274,22 +2274,36 @@ async function enforceLicense(token, {trustCache=false}={}){
     }
   }
 
-  try{
-    const email = await getUserEmail(token);
-    if(!email){ showLicenseRetry(); return false; } // couldn't determine email — block rather than risk letting an unverified account in
-    lastCheckedEmail = email;
-    const result = await checkLicense(email);
-    if(result.allowed){ hideLicenseBlock(); applyAccountAfterLicense(email); return true; }
-    showLicenseBlock(result.message, !!result.notFound);
-    return false;
-  }catch(e){
-    // License service unreachable/erroring — fail CLOSED. An unregistered
-    // account must never slip through just because a check happened to
-    // fail; the person can retry once the connection/service recovers.
-    console.error('[קבקליק] בדיקת הרישיון נכשלה:', e);
-    showLicenseRetry();
-    return false;
+  // A few silent internal attempts before ever showing an error screen —
+  // smooths over the kind of brief network hiccup that's common right after
+  // signing in for the first time (e.g. mobile data still settling), so a
+  // brand-new customer doesn't get scared off by a technical-looking error
+  // for something that would have resolved itself a second later.
+  const MAX_SILENT_ATTEMPTS = 3;
+  let lastErr = null;
+  for(let attempt=1; attempt<=MAX_SILENT_ATTEMPTS; attempt++){
+    try{
+      const email = await getUserEmail(token);
+      if(!email) throw new Error('לא ניתן לזהות את חשבון הגוגל');
+      lastCheckedEmail = email;
+      const result = await checkLicense(email);
+      if(result.allowed){ hideLicenseBlock(); applyAccountAfterLicense(email); return true; }
+      showLicenseBlock(result.message, !!result.notFound);
+      return false;
+    }catch(e){
+      lastErr = e;
+      if(attempt < MAX_SILENT_ATTEMPTS){
+        await new Promise(res=>setTimeout(res, 1200*attempt));
+      }
+    }
   }
+  // License service unreachable/erroring after every silent retry — fail
+  // CLOSED. An unregistered account must never slip through just because a
+  // check happened to fail; the person can retry once the connection/
+  // service recovers.
+  console.error('[קבקליק] בדיקת הרישיון נכשלה אחרי כמה ניסיונות:', lastErr);
+  showLicenseRetry();
+  return false;
 }
 /**
  * Quietly re-confirms a session that was let in on the fast path. Never
@@ -2598,7 +2612,7 @@ function renderResidentsManageList(filter){
   }).join('');
 }
 
-async function openResidentsManageModal(){
+async function openResidentsManageModal(openAddDirectly){
   document.getElementById('rmmTitle').textContent = residentsManageTitle();
   document.getElementById('rmmSearchInput').value = '';
   document.getElementById('residentsManageModal').classList.add('show');
@@ -2606,16 +2620,17 @@ async function openResidentsManageModal(){
   list.innerHTML = '<div class="home-residents-loading">⏳ טוען נתונים…</div>';
   await loadResidents();
   renderResidentsManageList('');
+  if(openAddDirectly) openResidentEditModal(-1);
 }
 function closeResidentsManageModal(){
   document.getElementById('residentsManageModal').classList.remove('show');
 }
 
-async function openResidentsManageFromAnywhere(){
+async function openResidentsManageFromAnywhere(openAddDirectly){
   if(!CFG.spreadsheetId||!CFG.folderId){ await showAppAlert('יש להגדיר תחילה קישור לגיליון ולתיקייה בהגדרות.','⚠️'); return; }
   if(!accessToken){ await showAppAlert('יש להתחבר עם Google לפני ניהול רשימת הדיירים.','⚠️'); return; }
   document.getElementById('modalBg').classList.remove('show');
-  openResidentsManageModal();
+  openResidentsManageModal(openAddDirectly);
 }
 
 function openResidentEditModal(index, prefillName){
@@ -2749,7 +2764,7 @@ async function deleteResident(index){
 }
 
 document.getElementById('wizardManageResidentsBtn').addEventListener('click', openResidentsManageFromAnywhere);
-document.getElementById('homeBizManageBtn').addEventListener('click', openResidentsManageFromAnywhere);
+document.getElementById('homeBizManageBtn').addEventListener('click', ()=>openResidentsManageFromAnywhere(true));
 document.getElementById('rmmSettingsOpenBtn').addEventListener('click', openResidentsManageFromAnywhere);
 document.getElementById('rmmCloseBtn').addEventListener('click', closeResidentsManageModal);
 document.getElementById('rmmAddBtn').addEventListener('click', ()=>openResidentEditModal(-1));
@@ -3285,58 +3300,116 @@ async function sendPaymentReminderEmail(residentName, email, lastPaidMonthName){
 document.getElementById('generateBtn').onclick=async()=>{
   hideMsg();
   const r=currentResident();
-  if(isOtherPurpose){
-    if(!r||!selectedPay||!document.getElementById('purposeInput').value.trim()||manualAmount()<=0){
+  const purposeText = document.getElementById('purposeInput').value.trim();
+  const manualAmt = manualAmount();
+  const otherPurposeNow = isOtherPurpose;
+  if(otherPurposeNow){
+    if(!r||!selectedPay||!purposeText||manualAmt<=0){
       showMsg('יש למלא את כל השדות.','error'); return;
     }
   } else {
     if(!r||!selectedPay||selectedMonths.size===0){ showMsg('יש למלא את כל השדות.','error'); return; }
   }
   const btn=document.getElementById('generateBtn');
-  btn.disabled=true; btn.textContent='מפיק קבלה…';
+  btn.disabled=true; btn.textContent='📄 הקבלה שלך בהכנה…';
+
+  // Snapshot everything the background save step will need. PDF generation
+  // itself is instant/local, but Drive+Sheets are network calls — capturing
+  // the values now (rather than re-reading form state later) means the
+  // background save is correct even if the person has already moved on to
+  // a different resident or a new receipt by the time it finishes.
+  const snap = {
+    resident: r,
+    payMethod: selectedPay,
+    isOtherPurpose: otherPurposeNow,
+    purposeText,
+    manualAmt,
+    months: sortedMonths(),
+    fee: residentFee(),
+    wantsEmail: document.getElementById('emailSendCheckbox').checked && !!r.email,
+    email: r.email
+  };
+
   try{
     const blob=await buildPdfBlob();
     const filename=`${r.name} - קבלה לדמי ועד.pdf`;
     lastPdfBlob=blob; lastFileName=filename;
-    const driveFile=await uploadToDrive(blob,filename);
 
-    const months=sortedMonths();
-    const fee=residentFee();
-    const total=isOtherPurpose?manualAmount():months.length*fee;
-    const monthsCell=isOtherPurpose
-      ?('מטרה אחרת: '+document.getElementById('purposeInput').value.trim())
-      :months.map(i=>MONTH_NAMES[i]).join(', ');
-
-    await appendReceiptRow([
-      todayStr(),r.name,r.phone||'',monthsCell,
-      isOtherPurpose?0:months.length,total,selectedPay,filename,driveFile.webViewLink||''
-    ]);
-    allReceiptRows.push([todayStr(),r.name,r.phone||'',monthsCell,isOtherPurpose?0:months.length,total,selectedPay,filename,driveFile.webViewLink||'']);
-    paidMonthsSet = getPaidMonthsForResident(r);
-    paintMonthsGrid();
-
+    // Show the finished receipt immediately — the person can already view,
+    // download, or share the PDF right now. Saving it to Drive and logging
+    // it in the sheet happen afterward, in the background, so nobody has to
+    // sit and wait on network calls just to see a receipt that's already
+    // fully ready.
+    const total = snap.isOtherPurpose ? snap.manualAmt : snap.months.length*snap.fee;
     document.getElementById('postActions').style.display='flex';
     document.getElementById('successSub').textContent = `${r.name} · ${total.toLocaleString('he-IL')} ₪`;
     document.getElementById('successBanner').style.display = 'block';
     spawnConfetti();
+    showMsg('✅ הקבלה מוכנה! שומרים אותה עכשיו ב-Drive ברקע…','ok');
 
-    const wantsEmail = document.getElementById('emailSendCheckbox').checked && r.email;
-    if(wantsEmail){
-      try{
-        await sendReceiptByEmail(r, blob, filename, total);
-        showMsg('הקבלה הופקה, נשמרה ב-Drive ונשלחה למייל '+r.email+'.','ok');
-      }catch(emailErr){
-        showMsg('הקבלה הופקה ונשמרה, אך שליחת המייל נכשלה: '+(emailErr.message||emailErr),'error');
-      }
-    } else {
-      showMsg('הקבלה הופקה, נשמרה ב-Drive ותועדה בגיליון "קבלות".','ok');
-    }
+    btn.disabled=false; btn.textContent='הפק קבלה';
+
+    finalizeReceiptInBackground(snap, blob, filename);
   }catch(e){
-    showMsg('שגיאה: '+(e.result?.error?.message||e.message||e),'error');
-  }finally{
+    showMsg('שגיאה בהפקת הקבלה: '+(e.result?.error?.message||e.message||e),'error');
     btn.disabled=false; btn.textContent='הפק קבלה';
   }
 };
+
+/**
+ * Uploads the already-shown receipt to Drive and logs it in the sheet,
+ * without blocking the person who's already holding a finished PDF. If this
+ * fails because of a network issue, it retries automatically — waiting for
+ * the browser's `online` event if there's no connection at all, or with a
+ * short backoff for other transient errors — rather than losing the record
+ * or interrupting whatever the person is doing next.
+ */
+async function finalizeReceiptInBackground(snap, blob, filename, attempt){
+  attempt = attempt || 0;
+  try{
+    const driveFile = await uploadToDrive(blob, filename);
+    const r = snap.resident;
+    const total = snap.isOtherPurpose ? snap.manualAmt : snap.months.length*snap.fee;
+    const monthsCell = snap.isOtherPurpose
+      ? ('מטרה אחרת: '+snap.purposeText)
+      : snap.months.map(i=>MONTH_NAMES[i]).join(', ');
+
+    await appendReceiptRow([
+      todayStr(),r.name,r.phone||'',monthsCell,
+      snap.isOtherPurpose?0:snap.months.length,total,snap.payMethod,filename,driveFile.webViewLink||''
+    ]);
+    allReceiptRows.push([todayStr(),r.name,r.phone||'',monthsCell,snap.isOtherPurpose?0:snap.months.length,total,snap.payMethod,filename,driveFile.webViewLink||'']);
+    // Only repaint the months grid if the person is still looking at this
+    // same resident — otherwise this would overwrite whatever they've
+    // already moved on to selecting for someone else.
+    if(currentResident() === r){
+      paidMonthsSet = getPaidMonthsForResident(r);
+      paintMonthsGrid();
+    }
+
+    if(snap.wantsEmail){
+      try{
+        await sendReceiptByEmail(r, blob, filename, total);
+        showMsg('✅ הקבלה נשמרה ב-Drive ונשלחה למייל '+snap.email+'.','ok');
+      }catch(emailErr){
+        showMsg('הקבלה נשמרה ב-Drive, אך שליחת המייל נכשלה: '+(emailErr.message||emailErr),'error');
+      }
+    } else {
+      showMsg('✅ הקבלה נשמרה ב-Drive ותועדה בגיליון "קבלות".','ok');
+    }
+  }catch(e){
+    console.warn('[קבקליק] שמירת קבלה ברקע נכשלה, ננסה שוב:', e);
+    if(!navigator.onLine){
+      // No connection at all — wait for it to come back rather than
+      // hammering retries; the PDF the person already has is unaffected.
+      window.addEventListener('online', ()=>finalizeReceiptInBackground(snap, blob, filename, attempt+1), {once:true});
+    } else if(attempt < 4){
+      setTimeout(()=>finalizeReceiptInBackground(snap, blob, filename, attempt+1), 4000*(attempt+1));
+    } else {
+      showMsg('⚠️ הקבלה הופקה בהצלחה (ניתן להוריד/לשתף), אך השמירה ב-Drive עדיין נכשלת. יש לבדוק את החיבור ולנסות שוב מאוחר יותר.','error');
+    }
+  }
+}
 
 /* ═══════════════════════════════════════
    DOWNLOAD / SHARE
