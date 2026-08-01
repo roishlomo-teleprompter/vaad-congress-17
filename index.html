@@ -2059,7 +2059,7 @@ function receiptHTML(forPdf=false){
   const now = new Date();
   const dateMain = now.toLocaleDateString('he-IL', {day:'numeric', month:'long'});
   const dateYear = now.toLocaleDateString('he-IL', {year:'numeric'});
-  const receiptTitle = isBiz ? `קבלה לכבוד ${escapeHtml2(bInfo)}` : 'קבלה לכבוד תשלום ועד הבית';
+  const receiptTitle = isBiz ? `קבלה לכבוד ${escapeHtml2(bInfo)}` : `קבלה לתשלום ועד בית - ${escapeHtml2(bInfo)}`;
   const businessNumberLine = (isBiz && CFG.businessNumber)
     ? `<div class="info-row">
          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M4 21V9l8-5 8 5v12M9 21v-6h6v6"/></svg></div>
@@ -2656,7 +2656,35 @@ async function loadResidents(){
       showMsg('החיבור לגוגל פג — יש ללחוץ שוב על "התחברות עם Google".','error');
       return;
     }
+    const code = e.status || e.result?.error?.code;
     const msg = e.result?.error?.message || e.message || String(e);
+
+    if(code===404 || /requested entity was not found/i.test(msg)){
+      // The spreadsheet itself is gone (deleted from Drive), not just
+      // missing the expected tab. Clear the stale local pointer AND any
+      // residents already loaded earlier this session, so the home screen
+      // stops showing data from a sheet that no longer exists — and so the
+      // setup checklist / "יצירה אוטומטית" become available again right away,
+      // instead of the app believing it's still configured.
+      residents = [];
+      allReceiptRows = [];
+      residentSelect.innerHTML = '';
+      const searchInputEl = document.getElementById('residentSearchInput');
+      if(searchInputEl){
+        searchInputEl.value = '';
+        searchInputEl.disabled = true;
+        searchInputEl.placeholder = 'יש להתחבר ולטעון רשימת דיירים';
+      }
+      const badgeEl = document.getElementById('residentsLoadedBadge');
+      if(badgeEl) badgeEl.style.display = 'none';
+      CFG.spreadsheetId = '';
+      persistCurrentAccountCfg();
+      updateSetupChecklist();
+      refreshRecentResidents();
+      showMsg('⚠️ הגיליון שהיה מחובר לא נמצא (כנראה נמחק מ-Drive). יש לפתוח את ⚙ ההגדרות וליצור גיליון חדש, או לחבר גיליון קיים.', 'error');
+      return;
+    }
+
     if(/unable to parse range|not found/i.test(msg)){
       showMsg('לא נמצאה לשונית "אנשי קשר" בגיליון — יש לוודא שקיימת לשונית בשם הזה עם שמות ומספרי טלפון של הדיירים.', 'error');
     } else {
@@ -3343,7 +3371,17 @@ async function uploadToDrive(blob,filename){
   const res=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',{
     method:'POST', headers:{Authorization:'Bearer '+accessToken}, body:form
   });
-  if(!res.ok) throw new Error('שגיאת העלאה ל-Drive: '+res.status);
+  if(!res.ok){
+    if(res.status===404){
+      // The folder itself is gone (deleted from Drive) — retrying won't
+      // ever help, so this gets flagged distinctly rather than treated as a
+      // transient network error (see finalizeReceiptInBackground).
+      const err = new Error('התיקייה שהוגדרה ב-Drive לא נמצאה (כנראה נמחקה).');
+      err.folderMissing = true;
+      throw err;
+    }
+    throw new Error('שגיאת העלאה ל-Drive: '+res.status);
+  }
   return res.json();
 }
 
@@ -3505,7 +3543,17 @@ async function finalizeReceiptInBackground(snap, blob, filename, attempt){
       showMsg('✅ הקבלה נשמרה ב-Drive ותועדה בגיליון "קבלות".','ok');
     }
   }catch(e){
-    console.warn('[קבקליק] שמירת קבלה ברקע נכשלה, ננסה שוב:', e);
+    console.warn('[קבקליק] שמירת קבלה ברקע נכשלה:', e);
+    if(e.folderMissing){
+      // Retrying is pointless — the folder is gone, not just unreachable.
+      // Invalidate the dead pointer so the setup checklist correctly shows
+      // "not connected" again and auto-create becomes available right away.
+      CFG.folderId = '';
+      persistCurrentAccountCfg();
+      updateSetupChecklist();
+      showMsg('⚠️ הקבלה הופקה בהצלחה (ניתן להוריד/לשתף), אך התיקייה ב-Drive שהייתה מוגדרת נמחקה. יש לפתוח את ⚙ ההגדרות וליצור תיקייה חדשה, או לחבר אחת קיימת.','error');
+      return;
+    }
     if(!navigator.onLine){
       // No connection at all — wait for it to come back rather than
       // hammering retries; the PDF the person already has is unaffected.
