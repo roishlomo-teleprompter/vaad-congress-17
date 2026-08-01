@@ -781,6 +781,15 @@ textarea{resize:vertical;min-height:70px;}
         <input type="number" id="cfg-defaultFee" placeholder="לדוגמה: 140" min="0">
         <p style="font-size:11.5px;color:var(--slate);margin:6px 0 0;line-height:1.5;">עמודת <strong>מחיר חודשי</strong> בגיליון גוברת על ברירת המחדל, לדייר ספציפי.</p>
       </div>
+      <div id="businessAmountSection" style="margin-top:14px;display:none;">
+        <label>סכום קבוע לתשלום (₪)</label>
+        <input type="number" id="cfg-businessDefaultAmount" placeholder="לדוגמה: 200" min="0">
+        <label class="email-check-row" style="margin-top:8px;">
+          <input type="checkbox" id="cfg-businessDefaultAmountAuto">
+          <span>למלא אוטומטית בכל קבלה חדשה</span>
+        </label>
+        <p style="font-size:11.5px;color:var(--slate);margin:6px 0 0;line-height:1.5;">כשמסומן, הסכום ימולא מראש בשלב "מטרה" בכל קבלה חדשה — עדיין אפשר לשנות אותו ידנית לפני ההפקה.</p>
+      </div>
     </div>
 
     <!-- PART 2 · DATA CONNECTION -->
@@ -1047,7 +1056,9 @@ function persistCurrentAccountCfg(){
     buildingInfo:   CFG.buildingInfo   || '',
     businessNumber: CFG.businessNumber || '',
     logoUrl:        CFG.logoUrl        || '',
-    defaultFee:     CFG.defaultFee     || 140
+    defaultFee:     CFG.defaultFee     || 140,
+    businessDefaultAmount:     CFG.businessDefaultAmount     || '',
+    businessDefaultAmountAuto: CFG.businessDefaultAmountAuto || false
   });
 }
 /**
@@ -1085,6 +1096,8 @@ function applyAccountAndMode(email, mode){
   CFG.businessNumber = saved.businessNumber || '';
   CFG.logoUrl        = saved.logoUrl        || '';
   CFG.defaultFee     = saved.defaultFee     || 140;
+  CFG.businessDefaultAmount     = saved.businessDefaultAmount     || '';
+  CFG.businessDefaultAmountAuto = saved.businessDefaultAmountAuto || false;
   saveLastMode(email, mode);
   applyBranding();
   applyModeTerminology();
@@ -1166,11 +1179,16 @@ function applyModeTerminology(){
   if(homeListEl)  homeListEl.style.display  = isBiz ? 'none' : '';
   if(homeBizBtn){
     homeBizBtn.style.display = isBiz ? '' : 'none';
-    homeBizBtn.textContent = isBiz ? '➕ הוספת לקוח חדש' : '📋 ניהול רשימת דיירים';
+    homeBizBtn.textContent = isBiz ? '🗂️ ניהול והוספת לקוח חדש' : '📋 ניהול והוספת דיירים';
   }
-  // Wizard step 1 always keeps a small management shortcut, regardless of mode.
+  // Wizard step 1's management shortcut is vaad-only now — business mode
+  // already has a clear, direct "ניהול והוספת לקוח חדש" button on the home
+  // screen, so a second one here would just be redundant.
   const wizardManageBtn = document.getElementById('wizardManageResidentsBtn');
-  if(wizardManageBtn) wizardManageBtn.textContent = isBiz ? '📋 ניהול רשימת לקוחות' : '📋 ניהול רשימת דיירים';
+  if(wizardManageBtn){
+    wizardManageBtn.style.display = isBiz ? 'none' : '';
+    wizardManageBtn.textContent = '📋 ניהול והוספת דיירים';
+  }
 
   const pickerLabel = document.getElementById('residentPickerLabel');
   if(pickerLabel) pickerLabel.textContent = isBiz ? 'בחירת לקוח' : 'בחירת דייר';
@@ -1254,18 +1272,21 @@ function applyModeUI(mode){
   document.getElementById('cfg-buildingInfo').placeholder = isBiz ? 'לדוגמה: דנה כהן - עיצוב גרפי' : 'לדוגמה: קונגרס 17, פתח תקווה';
   document.getElementById('businessNumberRow').style.display = isBiz ? 'block' : 'none';
   document.getElementById('pricingSection').style.display    = isBiz ? 'none' : 'block';
-  document.getElementById('rmmSettingsHeading').textContent = isBiz ? '📋 ניהול רשימת לקוחות' : '📋 ניהול רשימת דיירים';
+  document.getElementById('businessAmountSection').style.display = isBiz ? 'block' : 'none';
+  document.getElementById('rmmSettingsHeading').textContent = isBiz ? '📋 ניהול והוספת לקוחות' : '📋 ניהול והוספת דיירים';
   document.getElementById('rmmSettingsDesc').textContent = isBiz
     ? 'הוספה, עריכה ומחיקה של לקוחות ישירות מתוך הגיליון.'
     : 'הוספה, עריכה ומחיקה של דיירים ישירות מתוך הגיליון.';
   const rmmBtn = document.getElementById('rmmSettingsOpenBtn');
-  if(rmmBtn) rmmBtn.textContent = isBiz ? '📋 פתיחת ניהול רשימת לקוחות' : '📋 פתיחת ניהול רשימת דיירים';
+  if(rmmBtn) rmmBtn.textContent = isBiz ? '📋 פתיחת ניהול והוספת לקוחות' : '📋 פתיחת ניהול והוספת דיירים';
 }
 
 document.getElementById('settingsBtn').onclick = ()=>{
   document.getElementById('cfg-buildingInfo').value = CFG.buildingInfo||'';
   document.getElementById('cfg-defaultFee').value   = CFG.defaultFee||'';
   document.getElementById('cfg-businessNumber').value = CFG.businessNumber||'';
+  document.getElementById('cfg-businessDefaultAmount').value = CFG.businessDefaultAmount||'';
+  document.getElementById('cfg-businessDefaultAmountAuto').checked = !!CFG.businessDefaultAmountAuto;
   document.getElementById('cfg-spreadsheetId').value= CFG.spreadsheetId||'';
   document.getElementById('cfg-folderId').value     = CFG.folderId||'';
   document.getElementById('cfg-spreadsheetId').readOnly = true;
@@ -1295,6 +1316,8 @@ document.getElementById('modalSave').onclick = async ()=>{
   CFG.buildingInfo  = document.getElementById('cfg-buildingInfo').value.trim();
   CFG.businessNumber= document.getElementById('cfg-businessNumber').value.trim();
   CFG.defaultFee    = parseFloat(document.getElementById('cfg-defaultFee').value)||140;
+  CFG.businessDefaultAmount     = parseFloat(document.getElementById('cfg-businessDefaultAmount').value) || '';
+  CFG.businessDefaultAmountAuto = document.getElementById('cfg-businessDefaultAmountAuto').checked;
   CFG.spreadsheetId = extractSheetId(document.getElementById('cfg-spreadsheetId').value);
   CFG.folderId      = extractFolderId(document.getElementById('cfg-folderId').value);
   persistCurrentAccountCfg();
@@ -1502,6 +1525,9 @@ residentSelect.addEventListener('change',()=>{
   updateEmailCheckbox(r);
   paidMonthsSet = getPaidMonthsForResident(r);
   paintMonthsGrid();
+  if(isBiz && r && CFG.businessDefaultAmountAuto && CFG.businessDefaultAmount){
+    document.getElementById('manualAmountInput').value = CFG.businessDefaultAmount;
+  }
   refreshTotal(); refreshPreview();
 });
 
@@ -2123,6 +2149,7 @@ function signOut(){
   CFG.email = null; CFG.usageMode = null;
   CFG.spreadsheetId = ''; CFG.folderId = ''; CFG.buildingInfo = '';
   CFG.businessNumber = ''; CFG.logoUrl = ''; CFG.defaultFee = 140;
+  CFG.businessDefaultAmount = ''; CFG.businessDefaultAmountAuto = false;
   residents = []; allReceiptRows = [];
   markDisconnected();
   showHomeScreen();
@@ -2575,7 +2602,7 @@ async function loadResidents(){
 let rmmEditingIndex = -1; // -1 = adding a new resident/customer
 let rmmAddContext   = 'management'; // 'management' | 'wizard' — where to return focus after a successful add
 
-function residentsManageTitle(){ return CFG.usageMode==='business' ? 'ניהול רשימת לקוחות' : 'ניהול רשימת דיירים'; }
+function residentsManageTitle(){ return CFG.usageMode==='business' ? 'ניהול והוספת לקוחות' : 'ניהול והוספת דיירים'; }
 
 function colLetter(idx){
   let s='', n=idx+1;
@@ -3590,9 +3617,6 @@ document.getElementById('tourSkipBtn').addEventListener('click', tourSkip);
    BOOT
 ═══════════════════════════════════════ */
 window.addEventListener('load',()=>{
-  if(!isConfigured()){
-    showMsg('ברוכים הבאים! יש ללחוץ על ⚙ הגדרות, למלא את פרטי הבניין, ולהדביק קישור לגיליון Google Sheets ולתיקיית Drive שלכם.','info');
-  }
   wizardShowStep(0);
   initGoogle();
 
