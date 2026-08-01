@@ -878,7 +878,7 @@ textarea{resize:vertical;min-height:70px;}
       <button class="cancel" id="modalCancel">ביטול</button>
       <button class="save" id="modalSave">שמירת הגדרות</button>
     </div>
-    <p style="text-align:center;font-size:10px;color:var(--card-line);margin:10px 0 0;" id="appVersionMarker"></p>
+    <p style="text-align:center;font-size:11px;font-weight:800;color:var(--slate);margin:10px 0 0;" id="appVersionMarker"></p>
   </div>
 </div>
 
@@ -1067,7 +1067,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '2026-08-01-1';
+const APP_BUILD = '2026-08-01-2';
 console.log('[קבקליק] גרסה:', APP_BUILD);
 
 const LICENSE_API_URL = 'https://script.google.com/macros/s/AKfycbwo80B9ZmKyMSwdXzQA6HP_sPFLLHETIWiI3VFj60vPazq4vE8DLpC7yxK-JtVqkZ4qyQ/exec';
@@ -3769,6 +3769,24 @@ window.addEventListener('load',()=>{
     }
   }catch(e){}
 });
+
+// An installed PWA on Android is very often suspended and later resumed
+// rather than fully reloaded when someone switches away and back — so any
+// change made elsewhere in the meantime (e.g. the Drive folder/sheet being
+// deleted, or a receipt logged from another device) would otherwise never
+// be noticed until the app happens to be force-closed and relaunched. This
+// re-checks the actual data connection every time the app becomes visible
+// again, at most once a minute, so what's on screen stays trustworthy.
+let lastVisibilityRefresh = Date.now();
+document.addEventListener('visibilitychange', async ()=>{
+  if(document.visibilityState !== 'visible') return;
+  if(!accessToken) return; // not signed in — nothing to refresh
+  if(Date.now() - lastVisibilityRefresh < 60000) return;
+  lastVisibilityRefresh = Date.now();
+  await loadDataForCurrentAccountMode();
+  validateForm();
+});
+
 </script>
 </body>
 </html>
