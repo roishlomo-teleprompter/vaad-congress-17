@@ -787,13 +787,13 @@ body.mode-business #homeResidentsList{display:none;}
       <div class="receipt-preview-wrap" id="receiptPaper">
         <div class="empty-hint">בחרו דייר, אמצעי תשלום וחודשים — התצוגה המקדימה תופיע כאן.</div>
       </div>
-      <button class="generate-btn" id="generateBtn" disabled>הפק קבלה</button>
       <div class="success-banner" id="successBanner" style="display:none;">
         <div class="confetti-wrap" id="confettiWrap"></div>
         <div class="success-check">✓</div>
         <div class="success-title">הקבלה הופקה בהצלחה!</div>
         <div class="success-sub" id="successSub"></div>
         <button class="success-new-btn" id="successNewBtn">➕ הפקת קבלה נוספת</button>
+        <button class="success-new-btn" id="successDoneBtn" style="background:#fff;color:var(--ink);border:1.5px solid var(--card-line);margin-top:8px;">🏠 סיימתי, למסך הבית</button>
       </div>
       <div class="post-actions" id="postActions" style="display:none;">
         <button id="downloadBtn">⬇ הורדת PDF</button>
@@ -804,7 +804,7 @@ body.mode-business #homeResidentsList{display:none;}
 
     <div class="wizard-nav">
       <button class="wizard-back-btn" id="wizardBackBtn" style="visibility:hidden;">→ חזרה</button>
-      <button class="wizard-cancel-btn" id="wizardCancelBtn" style="display:none;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M3 11l9-8 9 8"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/></svg> בית</button>
+      <button class="wizard-cancel-btn generate-btn" id="wizardCancelBtn" style="display:none;width:auto;flex:1;margin:0;" disabled>🧾 הפק קבלה</button>
       <button class="wizard-next-btn" id="wizardNextBtn" disabled>המשך ←</button>
     </div>
   </div>
@@ -1076,7 +1076,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '2026-08-01-7';
+const APP_BUILD = '2026-08-01-8';
 console.log('[קבקליק] גרסה:', APP_BUILD);
 
 const LICENSE_API_URL = 'https://script.google.com/macros/s/AKfycbwo80B9ZmKyMSwdXzQA6HP_sPFLLHETIWiI3VFj60vPazq4vE8DLpC7yxK-JtVqkZ4qyQ/exec';
@@ -1899,7 +1899,8 @@ function validateForm(){
     ok=currentResident()&&selectedPay&&selectedMonths.size>0&&accessToken;
   }
   ok = ok && isConfigured();
-  document.getElementById('generateBtn').disabled=!ok;
+  const cancelBtnForValidate = document.getElementById('wizardCancelBtn');
+  if(cancelBtnForValidate) cancelBtnForValidate.disabled=!ok;
   wizardRefreshNextBtn();
 }
 
@@ -1965,11 +1966,13 @@ function wizardShowStep(i){
     ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--blue);vertical-align:-2px;"><path d="M3 11l9-8 9 8"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/></svg> בית'
     : '→ חזרה';
   document.getElementById('wizardNextBtn').style.display    = wizardIndex===WIZARD_STEP_COUNT-1 ? 'none' : '';
-  document.getElementById('wizardCancelBtn').style.display  = wizardIndex===WIZARD_STEP_COUNT-1 ? '' : 'none';
+  const cancelBtnEl = document.getElementById('wizardCancelBtn');
+  cancelBtnEl.style.display  = wizardIndex===WIZARD_STEP_COUNT-1 ? '' : 'none';
+  if(wizardIndex===WIZARD_STEP_COUNT-1) cancelBtnEl.textContent = '🧾 הפק קבלה';
 
   if(wizardIndex === 3) wizardUpdateSummary();
   if(isLast) refreshPreview(); // step is now display:flex, so clientWidth is real — safe to scale the receipt now
-  wizardRefreshNextBtn();
+  validateForm();
 }
 
 function wizardNext(){
@@ -1987,11 +1990,9 @@ function wizardBack(){
 
 document.getElementById('wizardNextBtn').addEventListener('click', wizardNext);
 document.getElementById('wizardBackBtn').addEventListener('click', wizardBack);
-document.getElementById('wizardCancelBtn').addEventListener('click', ()=>{
-  document.getElementById('postActions').style.display = 'none';
-  hideMsg();
-  clearResidentSelection(); // clears resident/months/purpose/payment and returns to step 1
-  showHomeScreen();
+document.getElementById('wizardCancelBtn').addEventListener('click', async ()=>{
+  const ok = await showAppConfirm('להפיק את הקבלה?', '🧾');
+  if(ok) performGenerateReceipt();
 });
 
 /* ═══════════════════════════════════════
@@ -2062,6 +2063,11 @@ document.getElementById('homeSettingsBtn').addEventListener('click', ()=>documen
 document.getElementById('homeHistoryBtn').addEventListener('click', ()=>document.getElementById('historyBtn').click());
 document.getElementById('homeTourBtn').addEventListener('click', tourStart);
 document.getElementById('successNewBtn').addEventListener('click', ()=>{
+  document.getElementById('postActions').style.display = 'none';
+  hideMsg();
+  clearResidentSelection(); // clears fields and returns to step 0 for a new receipt — wizard stays open
+});
+document.getElementById('successDoneBtn').addEventListener('click', ()=>{
   document.getElementById('postActions').style.display = 'none';
   hideMsg();
   clearResidentSelection();
@@ -3491,7 +3497,7 @@ async function sendPaymentReminderEmail(residentName, email, lastPaidMonthName){
   return data;
 }
 
-document.getElementById('generateBtn').onclick=async()=>{
+async function performGenerateReceipt(){
   hideMsg();
   const r=currentResident();
   const purposeText = document.getElementById('purposeInput').value.trim();
@@ -3504,7 +3510,7 @@ document.getElementById('generateBtn').onclick=async()=>{
   } else {
     if(!r||!selectedPay||selectedMonths.size===0){ showMsg('יש למלא את כל השדות.','error'); return; }
   }
-  const btn=document.getElementById('generateBtn');
+  const btn=document.getElementById('wizardCancelBtn');
   btn.disabled=true; btn.textContent='📄 הקבלה שלך בהכנה…';
 
   // Snapshot everything the background save step will need. PDF generation
@@ -3540,17 +3546,18 @@ document.getElementById('generateBtn').onclick=async()=>{
     document.getElementById('postActions').style.display='flex';
     document.getElementById('successSub').textContent = `${r.name} · ${total.toLocaleString('he-IL')} ₪`;
     document.getElementById('successBanner').style.display = 'block';
+    // The generate action's job is done — the success banner (with its own
+    // "another receipt" / "done" choice) takes over from here.
+    btn.style.display = 'none';
     spawnConfetti();
     showMsg('✅ הקבלה מוכנה! שומרים אותה עכשיו ב-Drive ברקע…','ok');
-
-    btn.disabled=false; btn.textContent='הפק קבלה';
 
     finalizeReceiptInBackground(snap, blob, filename);
   }catch(e){
     showMsg('שגיאה בהפקת הקבלה: '+(e.result?.error?.message||e.message||e),'error');
-    btn.disabled=false; btn.textContent='הפק קבלה';
+    btn.disabled=false; btn.textContent='🧾 הפק קבלה';
   }
-};
+}
 
 /**
  * Uploads the already-shown receipt to Drive and logs it in the sheet,
@@ -3685,8 +3692,8 @@ const TOUR_STEPS = [
     text:'מסמנים את חודשי התשלום ברשת — חודשים ירוקים כבר שולמו בעבר ולא ניתנים לבחירה. לתשלום חד-פעמי שאינו דמי ועד/שירות חודשי רגיל (למשל שיפוץ, או כל מוצר/שירות אחר), מסמנים כאן "תשלום למטרה אחרת" ומזינים סכום וטקסט חופשי במקום.' },
   { target:'#emailCheckRow', title:'שליחה אוטומטית במייל', wizardStep:2,
     text: (isBiz)=> `רוצים שהקבלה תישלח אוטומטית גם למייל ה${isBiz?'לקוח':'דייר'}? יש לסמן כאן את התיבה. האפשרות מופיעה רק אם יש ל${isBiz?'לקוח':'דייר'} כתובת מייל שמורה בגיליון.` },
-  { target:'#generateBtn', title:'הפקת קבלה', wizardStep:4,
-    text:'לוחצים כאן ליצירת קובץ ה-PDF של הקבלה. הקבלה נשמרת אוטומטית בתיקיית ה-Drive שהוגדרה, ונרשמת גם בלשונית "קבלות" בגיליון — לתיעוד מלא של כל הקבלות שהופקו.' },
+  { target:'#wizardCancelBtn', title:'הפקת קבלה', wizardStep:4,
+    text:'לוחצים כאן ומאשרים כדי ליצור את קובץ ה-PDF של הקבלה. הקבלה מוצגת מיד, ונשמרת ברקע בתיקיית ה-Drive שהוגדרה ובלשונית "קבלות" בגיליון — לתיעוד מלא של כל הקבלות שהופקו.' },
   { title:'זהו, מוכנים! 🎉',
     text:'אפשר לפתוח את המדריך הזה שוב בכל רגע דרך כפתור "הדרכה" במסך הבית.' }
 ];
@@ -3819,6 +3826,12 @@ document.addEventListener('visibilitychange', async ()=>{
   if(document.visibilityState !== 'visible') return;
   if(!accessToken) return; // not signed in — nothing to refresh
   if(Date.now() - lastVisibilityRefresh < 60000) return;
+  // Reloading residents rebuilds the picker's option list, which would wipe
+  // out whatever resident/customer is already selected mid-receipt — much
+  // worse than briefly-stale data. Only refresh in the background while the
+  // person is actually on the home screen, not partway through the wizard.
+  const homeScreenEl = document.getElementById('homeScreen');
+  if(!homeScreenEl || homeScreenEl.style.display === 'none') return;
   lastVisibilityRefresh = Date.now();
   await loadDataForCurrentAccountMode();
   validateForm();
