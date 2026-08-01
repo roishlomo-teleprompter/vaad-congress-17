@@ -2167,6 +2167,14 @@ function saveLicenseCache(email, result){
 function clearLicenseCache(){
   try{ localStorage.removeItem(LICENSE_CACHE_KEY); }catch(e){}
 }
+// Remembers which email last successfully signed in on THIS device — lets a
+// returning, already-verified session skip straight past the network calls
+// (see the "fast path" in enforceLicense below) instead of waiting on them
+// on every single app open, and keeps the app usable when briefly offline.
+const LAST_EMAIL_KEY = 'kabklik_last_email';
+function saveLastEmail(email){ try{ localStorage.setItem(LAST_EMAIL_KEY, email); }catch(e){} }
+function loadLastEmail(){ try{ return localStorage.getItem(LAST_EMAIL_KEY) || null; }catch(e){ return null; } }
+function clearLastEmail(){ try{ localStorage.removeItem(LAST_EMAIL_KEY); }catch(e){} }
 let lastCheckedEmail = ''; // set by enforceLicense — used by the self-registration form below
 async function getUserEmail(token){
   const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
@@ -2174,6 +2182,7 @@ async function getUserEmail(token){
   });
   if(!res.ok) return null;
   const data = await res.json();
+  if(data.email) saveLastEmail(data.email);
   return data.email || null;
 }
 async function checkLicense(email){
@@ -2201,12 +2210,10 @@ function showLicenseBlock(message, notFound){
 }
 /**
  * Shown when the license check itself couldn't complete (network hiccup,
- * the check service being briefly unreachable, etc.) — deliberately blocks
- * access rather than quietly letting the person in, since an unverified
- * account should never get through just because a check happened to fail.
- * The trade-off: if the license service is ever down, this also blocks
- * already-paying customers until it's back — a conscious choice to
- * prioritize "never let an unregistered account in" over availability.
+ * the check service being briefly unreachable, etc.) AND there's no locally
+ * cached, already-verified account to fall back on — this only happens for
+ * a brand-new sign-in with no connectivity, since returning sessions use
+ * the offline-friendly fast path in enforceLicense instead.
  */
 function showLicenseRetry(){
   document.getElementById('licenseBlockTitle').textContent = '⚠️ לא ניתן היה לאמת את החשבון';
@@ -2223,7 +2230,7 @@ document.getElementById('licenseRetryBtn').addEventListener('click', async ()=>{
   const btn = document.getElementById('licenseRetryBtn');
   btn.disabled = true; btn.textContent = 'בודק…';
   hideLicenseBlock();
-  if(accessToken && await enforceLicense(accessToken)){
+  if(accessToken && await enforceLicense(accessToken, {trustCache:false})){
     await loadDataForCurrentAccountMode();
     validateForm();
   }
@@ -2237,9 +2244,36 @@ document.getElementById('licenseBlockCancelBtn').addEventListener('click', ()=>{
   hideLicenseBlock();
   signOut();
 });
-/* Returns true if allowed to proceed, false if blocked (and shows the block screen). */
-async function enforceLicense(token){
+/**
+ * Returns true if allowed to proceed, false if blocked (and shows the block
+ * screen). Two modes:
+ *
+ * - trustCache=true (returning session, e.g. a cached token being silently
+ *   reused): if this device already has a verified, still-valid ("allowed")
+ *   license cached for its last-signed-in email, unlock the app INSTANTLY
+ *   with that — no network wait, works offline — then quietly re-verify in
+ *   the background. If the background check ever comes back negative, the
+ *   block screen appears then, even though the person was already in.
+ *
+ * - trustCache=false (a fresh/explicit sign-in, or a manual retry): always
+ *   does the full live check before unlocking anything. This is what keeps
+ *   a genuinely unregistered account — or someone deliberately switching to
+ *   a different Google account — from ever being let in on a stale cache.
+ */
+async function enforceLicense(token, {trustCache=false}={}){
   if(!LICENSE_API_URL){ document.getElementById('loginGate').classList.add('hidden'); return true; } // licensing not configured yet — no-op
+
+  if(trustCache){
+    const cachedEmail = loadLastEmail();
+    const cachedLicense = cachedEmail ? loadLicenseCache(cachedEmail) : null;
+    if(cachedEmail && cachedLicense && cachedLicense.allowed){
+      document.getElementById('loginGate').classList.add('hidden');
+      applyAccountAfterLicense(cachedEmail);
+      verifyLicenseInBackground(token, cachedEmail); // fire-and-forget
+      return true;
+    }
+  }
+
   try{
     const email = await getUserEmail(token);
     if(!email){ showLicenseRetry(); return false; } // couldn't determine email — block rather than risk letting an unverified account in
@@ -2255,6 +2289,30 @@ async function enforceLicense(token){
     console.error('[קבקליק] בדיקת הרישיון נכשלה:', e);
     showLicenseRetry();
     return false;
+  }
+}
+/**
+ * Quietly re-confirms a session that was let in on the fast path. Never
+ * blocks on its own failure (offline is expected and fine — the person
+ * stays in on the cached license, and this just tries again next launch);
+ * it only interrupts the session if the server actively comes back with
+ * "not allowed" (e.g. a cancelled subscription), or if the token turns out
+ * to belong to a different account than the one we trusted.
+ */
+async function verifyLicenseInBackground(token, expectedEmail){
+  try{
+    const email = await getUserEmail(token);
+    if(!email || email!==expectedEmail){
+      clearLicenseCache();
+      return;
+    }
+    lastCheckedEmail = email;
+    const result = await checkLicense(email);
+    if(!result.allowed){
+      showLicenseBlock(result.message, !!result.notFound);
+    }
+  }catch(e){
+    console.warn('[קבקליק] אימות רקע של הרישיון לא הצליח (לא חוסם — ממשיכים על הנתונים השמורים):', e);
   }
 }
 
@@ -2339,7 +2397,7 @@ function initGoogle(){
         accessToken = cached;
         gapi.client.setToken({access_token:accessToken});
         markConnected();
-        if(await enforceLicense(accessToken)){
+        if(await enforceLicense(accessToken, {trustCache:true})){
           await loadDataForCurrentAccountMode();
           validateForm();
         }
@@ -2363,7 +2421,7 @@ function initGoogle(){
         gapi.client.setToken({access_token:accessToken});
         saveTokenCache(accessToken, resp.expires_in);
         markConnected();
-        if(!(await enforceLicense(accessToken))) return;
+        if(!(await enforceLicense(accessToken, {trustCache:wasSilent}))) return;
         await loadDataForCurrentAccountMode();
         validateForm();
       }
