@@ -1080,7 +1080,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '141';
+const APP_BUILD = '142';
 console.log('[קבקליק] גרסה:', APP_BUILD);
 
 const LICENSE_API_URL = 'https://script.google.com/macros/s/AKfycbwo80B9ZmKyMSwdXzQA6HP_sPFLLHETIWiI3VFj60vPazq4vE8DLpC7yxK-JtVqkZ4qyQ/exec';
@@ -1482,7 +1482,7 @@ document.getElementById('autoCreateBtn').addEventListener('click', async ()=>{
     const sheetRes = await gapi.client.sheets.spreadsheets.create({
       resource:{
         properties:{title:`קבקליק - ${buildingName}`},
-        sheets:[{properties:{title:residentsSheetName()}}]
+        sheets:[{properties:{title:residentsSheetName(), rightToLeft:true}}]
       }
     });
     const spreadsheetId = sheetRes.result.spreadsheetId;
@@ -3076,35 +3076,76 @@ async function pushSettingsToSheet(){
    SHEETS: ENSURE "קבלות" EXISTS
 ═══════════════════════════════════════ */
 async function ensureReceiptsSheet(){
+  const isBiz = CFG.usageMode==='business';
+  const NEW_HEADER = [
+    'תאריך הפקה', isBiz?'שם לקוח':'שם דייר', 'טלפון', isBiz?'מטרה':'חודשים / מטרה',
+    'מספר חודשים', 'סכום כולל', 'אמצעי תשלום', 'מספר קבלה', 'שם קובץ', 'קישור לקובץ'
+  ];
   try{
     const meta=await gapi.client.sheets.spreadsheets.get({spreadsheetId:CFG.spreadsheetId});
-    const exists=meta.result.sheets.some(s=>s.properties.title===RECEIPTS_SHEET);
-    if(!exists){
-      await gapi.client.sheets.spreadsheets.batchUpdate({
+    const sheetMeta = meta.result.sheets.find(s=>s.properties.title===RECEIPTS_SHEET);
+    if(!sheetMeta){
+      const addRes = await gapi.client.sheets.spreadsheets.batchUpdate({
         spreadsheetId:CFG.spreadsheetId,
-        resource:{requests:[{addSheet:{properties:{title:RECEIPTS_SHEET}}}]}
+        resource:{requests:[{addSheet:{properties:{title:RECEIPTS_SHEET, rightToLeft:true}}}]}
       });
       await gapi.client.sheets.spreadsheets.values.update({
         spreadsheetId:CFG.spreadsheetId,
         range:`'${RECEIPTS_SHEET}'!A1:J1`,
         valueInputOption:'RAW',
-        resource:{values:[['תאריך הפקה','שם דייר','טלפון','חודשים/מטרה','מספר חודשים','סכום כולל','אמצעי תשלום','שם קובץ','קישור לקובץ','מספר קבלה']]}
+        resource:{values:[NEW_HEADER]}
+      });
+      return;
+    }
+
+    // Existing sheet — make sure it's right-to-left (harmless no-op if
+    // already set) and check whether it still has the old column order
+    // (receipt number in the last column, from before this layout existed).
+    if(sheetMeta.properties.rightToLeft !== true){
+      await gapi.client.sheets.spreadsheets.batchUpdate({
+        spreadsheetId:CFG.spreadsheetId,
+        resource:{requests:[{updateSheetProperties:{
+          properties:{sheetId:sheetMeta.properties.sheetId, rightToLeft:true},
+          fields:'rightToLeft'
+        }}]}
+      }).catch(()=>{});
+    }
+
+    const h1h = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId:CFG.spreadsheetId, range:`'${RECEIPTS_SHEET}'!H1`
+    }).catch(()=>null);
+    const hasNewHeader = h1h && h1h.result.values && h1h.result.values[0] && h1h.result.values[0][0]==='מספר קבלה';
+    if(hasNewHeader) return; // already up to date
+
+    const j1h = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId:CFG.spreadsheetId, range:`'${RECEIPTS_SHEET}'!J1`
+    }).catch(()=>null);
+    const hasOldHeader = j1h && j1h.result.values && j1h.result.values[0] && j1h.result.values[0][0]==='מספר קבלה';
+
+    if(hasOldHeader){
+      // One-time migration: move receipt-number data from the old last
+      // column (J) to its new position (H), before שם קובץ/קישור לקובץ.
+      const allRes = await gapi.client.sheets.spreadsheets.values.get({
+        spreadsheetId:CFG.spreadsheetId, range:`'${RECEIPTS_SHEET}'!A2:J`
+      });
+      const oldRows = allRes.result.values || [];
+      const reordered = oldRows.map(r=>[
+        r[0]||'', r[1]||'', r[2]||'', r[3]||'', r[4]||'', r[5]||'', r[6]||'', r[9]||'', r[7]||'', r[8]||''
+      ]);
+      await gapi.client.sheets.spreadsheets.values.update({
+        spreadsheetId:CFG.spreadsheetId,
+        range:`'${RECEIPTS_SHEET}'!A1:J${reordered.length+1}`,
+        valueInputOption:'RAW',
+        resource:{values:[NEW_HEADER, ...reordered]}
       });
     } else {
-      // Older sheets created before receipt-numbering existed are missing
-      // column J's header — add it (harmless no-op if it's already there).
-      const j1 = await gapi.client.sheets.spreadsheets.values.get({
-        spreadsheetId:CFG.spreadsheetId, range:`'${RECEIPTS_SHEET}'!J1`
-      }).catch(()=>null);
-      const hasHeader = j1 && j1.result.values && j1.result.values[0] && j1.result.values[0][0];
-      if(!hasHeader){
-        await gapi.client.sheets.spreadsheets.values.update({
-          spreadsheetId:CFG.spreadsheetId,
-          range:`'${RECEIPTS_SHEET}'!J1`,
-          valueInputOption:'RAW',
-          resource:{values:[['מספר קבלה']]}
-        }).catch(()=>{});
-      }
+      // No receipt-number column at all yet — just add the header.
+      await gapi.client.sheets.spreadsheets.values.update({
+        spreadsheetId:CFG.spreadsheetId,
+        range:`'${RECEIPTS_SHEET}'!A1:J1`,
+        valueInputOption:'RAW',
+        resource:{values:[NEW_HEADER]}
+      });
     }
   }catch(e){
     showMsg('שגיאה ביצירת גיליון "קבלות": '+(e.result?.error?.message||e.message),'error');
@@ -3139,7 +3180,7 @@ async function loadAllReceiptRows(){
 function getHighestUsedReceiptNumber(){
   let maxUsed = 0;
   allReceiptRows.forEach(row=>{
-    const n = parseInt(row[9], 10);
+    const n = parseInt(row[7], 10);
     if(!isNaN(n) && n > maxUsed) maxUsed = n;
   });
   return maxUsed;
@@ -3634,9 +3675,9 @@ async function finalizeReceiptInBackground(snap, blob, filename, attempt){
 
     await appendReceiptRow([
       todayStr(),r.name,r.phone||'',monthsCell,
-      snap.isOtherPurpose?0:snap.months.length,total,snap.payMethod,filename,driveFile.webViewLink||'',snap.receiptNumber
+      snap.isOtherPurpose?0:snap.months.length,total,snap.payMethod,snap.receiptNumber,filename,driveFile.webViewLink||''
     ]);
-    allReceiptRows.push([todayStr(),r.name,r.phone||'',monthsCell,snap.isOtherPurpose?0:snap.months.length,total,snap.payMethod,filename,driveFile.webViewLink||'',snap.receiptNumber]);
+    allReceiptRows.push([todayStr(),r.name,r.phone||'',monthsCell,snap.isOtherPurpose?0:snap.months.length,total,snap.payMethod,snap.receiptNumber,filename,driveFile.webViewLink||'']);
     // Only repaint the months grid if the person is still looking at this
     // same resident — otherwise this would overwrite whatever they've
     // already moved on to selecting for someone else.
