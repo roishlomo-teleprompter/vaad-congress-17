@@ -1080,7 +1080,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '142';
+const APP_BUILD = '143';
 console.log('[קבקליק] גרסה:', APP_BUILD);
 
 const LICENSE_API_URL = 'https://script.google.com/macros/s/AKfycbwo80B9ZmKyMSwdXzQA6HP_sPFLLHETIWiI3VFj60vPazq4vE8DLpC7yxK-JtVqkZ4qyQ/exec';
@@ -1105,6 +1105,27 @@ function extractFolderId(input){
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email';
 function residentsSheetName(){ return CFG.usageMode==='business' ? 'לקוחות' : 'אנשי קשר'; }
 const RECEIPTS_SHEET  = 'קבלות';
+/**
+ * The receipts log's column layout differs by mode: vaad needs a "מספר
+ * חודשים" column (meaningful for monthly dues), business doesn't (every
+ * receipt is a one-off "מטרה" and that column would always read 0). Since a
+ * vaad account and a business account always live in separate spreadsheets
+ * (never shared), each can safely have its own column count/order.
+ */
+function receiptSheetLayout(){
+  if(CFG.usageMode==='business'){
+    return {
+      lastCol:'I',
+      header:['תאריך הפקה','שם לקוח','טלפון','מטרה','סכום כולל','אמצעי תשלום','מספר קבלה','שם קובץ','קישור לקובץ'],
+      receiptNumIdx:6
+    };
+  }
+  return {
+    lastCol:'J',
+    header:['תאריך הפקה','שם דייר','טלפון','חודשים / מטרה','מספר חודשים','סכום כולל','אמצעי תשלום','מספר קבלה','שם קובץ','קישור לקובץ'],
+    receiptNumIdx:7
+  };
+}
 const SETTINGS_SHEET  = 'הגדרות';
 const MONTH_NAMES = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
 
@@ -2102,7 +2123,7 @@ function receiptHTML(forPdf=false){
   const now = new Date();
   const dateMain = now.toLocaleDateString('he-IL', {day:'numeric', month:'long'});
   const dateYear = now.toLocaleDateString('he-IL', {year:'numeric'});
-  const receiptTitle = isBiz ? `קבלה לכבוד ${escapeHtml2(bInfo)}` : `קבלה לתשלום ועד בית - ${escapeHtml2(bInfo)}`;
+  const receiptTitle = isBiz ? `אישור תשלום עבור ${escapeHtml2(bInfo)}` : `אישור תשלום עבור ועד בית ${escapeHtml2(bInfo)}`;
   const businessNumberLine = (isBiz && CFG.businessNumber)
     ? `<div class="info-row">
          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M4 21V9l8-5 8 5v12M9 21v-6h6v6"/></svg></div>
@@ -2682,6 +2703,17 @@ async function loadResidents(){
       const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:CFG.spreadsheetId});
       const sheetMeta = (meta.result.sheets||[]).find(s=>s.properties.title===residentsSheetName());
       residentsGid = sheetMeta ? sheetMeta.properties.sheetId : null;
+      if(sheetMeta && sheetMeta.properties.rightToLeft !== true){
+        try{
+          await gapi.client.sheets.spreadsheets.batchUpdate({
+            spreadsheetId:CFG.spreadsheetId,
+            resource:{requests:[{updateSheetProperties:{
+              properties:{sheetId:sheetMeta.properties.sheetId, rightToLeft:true},
+              fields:'rightToLeft'
+            }}]}
+          });
+        }catch(e){}
+      }
     }catch(e){ residentsGid = null; } // non-fatal — delete-row just won't be available
     const res = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId:CFG.spreadsheetId, range:`'${residentsSheetName()}'!A:Z`
@@ -3076,76 +3108,82 @@ async function pushSettingsToSheet(){
    SHEETS: ENSURE "קבלות" EXISTS
 ═══════════════════════════════════════ */
 async function ensureReceiptsSheet(){
-  const isBiz = CFG.usageMode==='business';
-  const NEW_HEADER = [
-    'תאריך הפקה', isBiz?'שם לקוח':'שם דייר', 'טלפון', isBiz?'מטרה':'חודשים / מטרה',
-    'מספר חודשים', 'סכום כולל', 'אמצעי תשלום', 'מספר קבלה', 'שם קובץ', 'קישור לקובץ'
-  ];
+  const layout = receiptSheetLayout();
   try{
     const meta=await gapi.client.sheets.spreadsheets.get({spreadsheetId:CFG.spreadsheetId});
     const sheetMeta = meta.result.sheets.find(s=>s.properties.title===RECEIPTS_SHEET);
     if(!sheetMeta){
-      const addRes = await gapi.client.sheets.spreadsheets.batchUpdate({
+      await gapi.client.sheets.spreadsheets.batchUpdate({
         spreadsheetId:CFG.spreadsheetId,
         resource:{requests:[{addSheet:{properties:{title:RECEIPTS_SHEET, rightToLeft:true}}}]}
       });
       await gapi.client.sheets.spreadsheets.values.update({
         spreadsheetId:CFG.spreadsheetId,
-        range:`'${RECEIPTS_SHEET}'!A1:J1`,
+        range:`'${RECEIPTS_SHEET}'!A1:${layout.lastCol}1`,
         valueInputOption:'RAW',
-        resource:{values:[NEW_HEADER]}
+        resource:{values:[layout.header]}
       });
       return;
     }
 
     // Existing sheet — make sure it's right-to-left (harmless no-op if
-    // already set) and check whether it still has the old column order
-    // (receipt number in the last column, from before this layout existed).
+    // already set).
     if(sheetMeta.properties.rightToLeft !== true){
-      await gapi.client.sheets.spreadsheets.batchUpdate({
-        spreadsheetId:CFG.spreadsheetId,
-        resource:{requests:[{updateSheetProperties:{
-          properties:{sheetId:sheetMeta.properties.sheetId, rightToLeft:true},
-          fields:'rightToLeft'
-        }}]}
-      }).catch(()=>{});
+      try{
+        await gapi.client.sheets.spreadsheets.batchUpdate({
+          spreadsheetId:CFG.spreadsheetId,
+          resource:{requests:[{updateSheetProperties:{
+            properties:{sheetId:sheetMeta.properties.sheetId, rightToLeft:true},
+            fields:'rightToLeft'
+          }}]}
+        });
+      }catch(e){}
     }
 
-    const h1h = await gapi.client.sheets.spreadsheets.values.get({
-      spreadsheetId:CFG.spreadsheetId, range:`'${RECEIPTS_SHEET}'!H1`
-    }).catch(()=>null);
-    const hasNewHeader = h1h && h1h.result.values && h1h.result.values[0] && h1h.result.values[0][0]==='מספר קבלה';
-    if(hasNewHeader) return; // already up to date
+    async function tryGetCell(range){
+      try{ return await gapi.client.sheets.spreadsheets.values.get({spreadsheetId:CFG.spreadsheetId, range}); }
+      catch(e){ return null; }
+    }
+    async function cellVal(range){
+      const res = await tryGetCell(range);
+      return res && res.result.values && res.result.values[0] && res.result.values[0][0];
+    }
 
-    const j1h = await gapi.client.sheets.spreadsheets.values.get({
-      spreadsheetId:CFG.spreadsheetId, range:`'${RECEIPTS_SHEET}'!J1`
-    }).catch(()=>null);
-    const hasOldHeader = j1h && j1h.result.values && j1h.result.values[0] && j1h.result.values[0][0]==='מספר קבלה';
+    // Already matches the layout this mode expects — nothing to do.
+    if(await cellVal(`'${RECEIPTS_SHEET}'!${colLetter(layout.receiptNumIdx)}1`) === 'מספר קבלה') return;
 
-    if(hasOldHeader){
-      // One-time migration: move receipt-number data from the old last
-      // column (J) to its new position (H), before שם קובץ/קישור לקובץ.
-      const allRes = await gapi.client.sheets.spreadsheets.values.get({
-        spreadsheetId:CFG.spreadsheetId, range:`'${RECEIPTS_SHEET}'!A2:J`
-      });
-      const oldRows = allRes.result.values || [];
-      const reordered = oldRows.map(r=>[
-        r[0]||'', r[1]||'', r[2]||'', r[3]||'', r[4]||'', r[5]||'', r[6]||'', r[9]||'', r[7]||'', r[8]||''
-      ]);
-      await gapi.client.sheets.spreadsheets.values.update({
-        spreadsheetId:CFG.spreadsheetId,
-        range:`'${RECEIPTS_SHEET}'!A1:J${reordered.length+1}`,
-        valueInputOption:'RAW',
-        resource:{values:[NEW_HEADER, ...reordered]}
-      });
-    } else {
-      // No receipt-number column at all yet — just add the header.
-      await gapi.client.sheets.spreadsheets.values.update({
-        spreadsheetId:CFG.spreadsheetId,
-        range:`'${RECEIPTS_SHEET}'!A1:J1`,
-        valueInputOption:'RAW',
-        resource:{values:[NEW_HEADER]}
-      });
+    // Otherwise, figure out which of the earlier layouts this sheet has (if
+    // any), read everything, and rebuild it under the current layout.
+    const oldReceiptNumIdx =
+      (await cellVal(`'${RECEIPTS_SHEET}'!H1`)) === 'מספר קבלה' ? 7 : // 10-col layout used by both modes until this fix
+      (await cellVal(`'${RECEIPTS_SHEET}'!J1`)) === 'מספר קבלה' ? 9 : // original layout, number appended at the very end
+      -1; // sheet predates receipt numbering entirely
+
+    function extractOldFields(r){
+      if(oldReceiptNumIdx===7)  return {date:r[0],name:r[1],phone:r[2],purpose:r[3],numMonths:r[4],total:r[5],payMethod:r[6],receiptNum:r[7],filename:r[8],link:r[9]};
+      if(oldReceiptNumIdx===9)  return {date:r[0],name:r[1],phone:r[2],purpose:r[3],numMonths:r[4],total:r[5],payMethod:r[6],receiptNum:r[9],filename:r[7],link:r[8]};
+      return                          {date:r[0],name:r[1],phone:r[2],purpose:r[3],numMonths:r[4],total:r[5],payMethod:r[6],receiptNum:'',    filename:r[7],link:r[8]};
+    }
+
+    const allRes = await tryGetCell(`'${RECEIPTS_SHEET}'!A2:J`);
+    const oldRows = (allRes && allRes.result.values) || [];
+    const reordered = oldRows.map(r=>{
+      const f = extractOldFields(r);
+      return CFG.usageMode==='business'
+        ? [f.date||'', f.name||'', f.phone||'', f.purpose||'', f.total||'', f.payMethod||'', f.receiptNum||'', f.filename||'', f.link||'']
+        : [f.date||'', f.name||'', f.phone||'', f.purpose||'', f.numMonths||'', f.total||'', f.payMethod||'', f.receiptNum||'', f.filename||'', f.link||''];
+    });
+
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId:CFG.spreadsheetId,
+      range:`'${RECEIPTS_SHEET}'!A1:${layout.lastCol}${reordered.length+1}`,
+      valueInputOption:'RAW',
+      resource:{values:[layout.header, ...reordered]}
+    });
+    if(layout.lastCol==='I'){
+      // Migrating down from a wider (10-col) layout — clear the now-unused
+      // trailing column so nothing stale lingers next to the new data.
+      try{ await gapi.client.sheets.spreadsheets.values.clear({spreadsheetId:CFG.spreadsheetId, range:`'${RECEIPTS_SHEET}'!J:J`}); }catch(e){}
     }
   }catch(e){
     showMsg('שגיאה ביצירת גיליון "קבלות": '+(e.result?.error?.message||e.message),'error');
@@ -3153,9 +3191,10 @@ async function ensureReceiptsSheet(){
 }
 
 async function appendReceiptRow(row){
+  const layout = receiptSheetLayout();
   return gapi.client.sheets.spreadsheets.values.append({
     spreadsheetId:CFG.spreadsheetId,
-    range:`'${RECEIPTS_SHEET}'!A:J`,
+    range:`'${RECEIPTS_SHEET}'!A:${layout.lastCol}`,
     valueInputOption:'RAW',
     insertDataOption:'INSERT_ROWS',
     resource:{values:[row]}
@@ -3168,8 +3207,9 @@ async function appendReceiptRow(row){
 let allReceiptRows = [];
 async function loadAllReceiptRows(){
   try{
+    const layout = receiptSheetLayout();
     const res = await gapi.client.sheets.spreadsheets.values.get({
-      spreadsheetId:CFG.spreadsheetId, range:`'${RECEIPTS_SHEET}'!A2:J`
+      spreadsheetId:CFG.spreadsheetId, range:`'${RECEIPTS_SHEET}'!A2:${layout.lastCol}`
     });
     allReceiptRows = res.result.values||[];
   }catch(e){ allReceiptRows = []; }
@@ -3178,9 +3218,10 @@ async function loadAllReceiptRows(){
 }
 /** Returns the highest receipt number already logged in the sheet, or 0 if none. */
 function getHighestUsedReceiptNumber(){
+  const idx = receiptSheetLayout().receiptNumIdx;
   let maxUsed = 0;
   allReceiptRows.forEach(row=>{
-    const n = parseInt(row[7], 10);
+    const n = parseInt(row[idx], 10);
     if(!isNaN(n) && n > maxUsed) maxUsed = n;
   });
   return maxUsed;
@@ -3623,9 +3664,8 @@ async function performGenerateReceipt(){
 
   try{
     const blob=await buildPdfBlob(); // reads CFG.nextReceiptNumber live — must build before advancing the counter below
-    const filename = CFG.usageMode==='business'
-      ? `${r.name} - קבלה - ${CFG.buildingInfo||'עסק'}.pdf`
-      : `${r.name} - קבלה לדמי ועד.pdf`;
+    const fileDateStr = new Date().toLocaleDateString('he-IL'); // DD.MM.YYYY — filename-safe
+    const filename = `${r.name} - ${CFG.buildingInfo || (CFG.usageMode==='business'?'עסק':'ועד בית')} - ${fileDateStr}.pdf`;
     lastPdfBlob=blob; lastFileName=filename;
 
     // The number on the PDF the person is about to see is now spent — never
@@ -3673,11 +3713,11 @@ async function finalizeReceiptInBackground(snap, blob, filename, attempt){
       ? ('מטרה אחרת: '+snap.purposeText)
       : snap.months.map(i=>MONTH_NAMES[i]).join(', ');
 
-    await appendReceiptRow([
-      todayStr(),r.name,r.phone||'',monthsCell,
-      snap.isOtherPurpose?0:snap.months.length,total,snap.payMethod,snap.receiptNumber,filename,driveFile.webViewLink||''
-    ]);
-    allReceiptRows.push([todayStr(),r.name,r.phone||'',monthsCell,snap.isOtherPurpose?0:snap.months.length,total,snap.payMethod,snap.receiptNumber,filename,driveFile.webViewLink||'']);
+    const rowValues = CFG.usageMode==='business'
+      ? [todayStr(),r.name,r.phone||'',monthsCell,total,snap.payMethod,snap.receiptNumber,filename,driveFile.webViewLink||'']
+      : [todayStr(),r.name,r.phone||'',monthsCell,snap.isOtherPurpose?0:snap.months.length,total,snap.payMethod,snap.receiptNumber,filename,driveFile.webViewLink||''];
+    await appendReceiptRow(rowValues);
+    allReceiptRows.push(rowValues);
     // Only repaint the months grid if the person is still looking at this
     // same resident — otherwise this would overwrite whatever they've
     // already moved on to selecting for someone else.
