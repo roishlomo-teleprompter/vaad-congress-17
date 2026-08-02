@@ -1080,7 +1080,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '144';
+const APP_BUILD = '145';
 console.log('[קבקליק] גרסה:', APP_BUILD);
 
 const LICENSE_API_URL = 'https://script.google.com/macros/s/AKfycbwo80B9ZmKyMSwdXzQA6HP_sPFLLHETIWiI3VFj60vPazq4vE8DLpC7yxK-JtVqkZ4qyQ/exec';
@@ -2733,18 +2733,30 @@ async function loadResidents(){
     // avoids accidentally treating the header itself as a resident.
     const headerRecognized = nameIdx>-1 || phoneIdx>-1 || feeIdx>-1 || emailIdx>-1 || aptIdx>-1;
     let startRow = headerRecognized ? 1 : 0;
-    if(nameIdx===-1)  nameIdx = 0;
-    if(phoneIdx===-1) phoneIdx = 1;
-    // feeIdx / emailIdx / aptIdx may be -1 → optional, no default column guess
+    // Position-based fallback (assume column A=name, B=phone) is only safe
+    // when NO header was recognized at all — i.e. this looks like a sheet
+    // with no header row, so "first two columns" is a reasonable guess.
+    // If a header WAS recognized (so we know row 0 is real) but name/phone
+    // specifically aren't in it — e.g. someone deleted the "טלפון" column —
+    // guessing a raw position would silently misread whatever data shifted
+    // into that slot. Treat it as genuinely missing instead (healed below,
+    // same as the optional columns) rather than guessing wrong.
+    if(!headerRecognized){
+      if(nameIdx===-1)  nameIdx = 0;
+      if(phoneIdx===-1) phoneIdx = 1;
+    }
 
-    // Auto-complete the sheet itself: if this mode's optional-but-expected
-    // columns aren't there yet, add them as new columns at the end — so a
-    // freshly-pasted sheet becomes fully structured for this mode without
-    // the person having to guess our exact expected header names. This is
+    // Auto-complete the sheet itself: if this mode's expected columns aren't
+    // there yet, add them as new columns at the end — so a freshly-pasted
+    // sheet becomes fully structured for this mode without the person
+    // having to guess our exact expected header names, and without ever
+    // silently reading the wrong data into the wrong field. This is
     // idempotent: once added, later loads find them via the regex above and
     // this block has nothing left to do.
     const isBizCols = CFG.usageMode==='business';
     const missingCols = [];
+    if(nameIdx===-1){               missingCols.push({key:'name', label:isBizCols?'שם הלקוח':'שם הדייר'}); }
+    if(phoneIdx===-1){              missingCols.push({key:'phone',label:'טלפון'}); }
     if(!isBizCols && feeIdx===-1){ missingCols.push({key:'fee',  label:'מחיר חודשי'}); }
     if(emailIdx===-1){             missingCols.push({key:'email',label:'מייל'}); }
     if(!isBizCols && aptIdx===-1){ missingCols.push({key:'apt',  label:'דירה'}); }
@@ -2759,7 +2771,9 @@ async function loadResidents(){
         });
         missingCols.forEach((c,i)=>{
           const newIdx = startColIdx + i;
-          if(c.key==='fee') feeIdx = newIdx;
+          if(c.key==='name') nameIdx = newIdx;
+          else if(c.key==='phone') phoneIdx = newIdx;
+          else if(c.key==='fee') feeIdx = newIdx;
           else if(c.key==='email') emailIdx = newIdx;
           else if(c.key==='apt') aptIdx = newIdx;
         });
