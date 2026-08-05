@@ -859,21 +859,20 @@ body.mode-business #homeResidentsList{display:none;}
     <div class="settings-section">
       <p class="settings-part-label">חלק 2 מתוך 3 · חיבור לנתונים</p>
       <h4>🔗 חיבור לגיליון ולתיקייה שלך</h4>
-      <p style="font-size:11.5px;color:var(--slate);margin:0 0 10px;line-height:1.6;">הדביקו קישור לגיליון Google Sheets ולתיקיית Drive לשמירת קבלות — בדיוק כפי שמופיעים בשורת הכתובת בדפדפן.</p>
+      <p style="font-size:11.5px;color:var(--slate);margin:0 0 10px;line-height:1.6;">קבקליק יוצרת עבורכם אוטומטית גיליון Google Sheets ותיקיית Drive ייעודיים — כדי לשמור על הרשאת גישה מצומצמת ובטוחה יותר, לא ניתן לחבר גיליון/תיקייה קיימים באמצעות הדבקת קישור.</p>
 
-      <button type="button" id="autoCreateBtn" class="generate-btn" style="margin:2px 0 14px;">✨ אין לך גיליון עדיין? ליצור אחד אוטומטית</button>
+      <button type="button" id="autoCreateBtn" class="generate-btn" style="margin:2px 0 14px;">✨ יצירת גיליון ותיקייה אוטומטית</button>
       <p id="autoCreateStatus" style="font-size:12.5px;margin:-8px 0 14px;text-align:center;min-height:1em;"></p>
 
-      <label>קישור לגיליון Google Sheets ("אנשי קשר")</label>
+      <label>גיליון Google Sheets מחובר</label>
       <div class="locked-field-row">
-        <input type="text" id="cfg-spreadsheetId" class="ltr-input" placeholder="https://docs.google.com/spreadsheets/d/..." readonly>
-        <button type="button" class="locked-field-edit-btn" data-target="cfg-spreadsheetId" title="עריכה" aria-label="עריכת הקישור לגיליון">✏️</button>
+        <input type="text" id="cfg-spreadsheetId" class="ltr-input" placeholder="עדיין לא נוצר — לחצו למעלה על יצירה אוטומטית" readonly>
       </div>
-      <label>קישור לתיקיית Drive (לשמירת קבלות)</label>
+      <label>תיקיית Drive מחוברת</label>
       <div class="locked-field-row">
-        <input type="text" id="cfg-folderId" class="ltr-input" placeholder="https://drive.google.com/drive/folders/..." readonly>
-        <button type="button" class="locked-field-edit-btn" data-target="cfg-folderId" title="עריכה" aria-label="עריכת הקישור לתיקייה">✏️</button>
+        <input type="text" id="cfg-folderId" class="ltr-input" placeholder="עדיין לא נוצרה — לחצו למעלה על יצירה אוטומטית" readonly>
       </div>
+      <button type="button" id="resetConnectionBtn" class="small-btn" style="width:100%;margin-top:10px;">🔄 ניתוק וחיבור מחדש (יצירת גיליון/תיקייה חדשים)</button>
 
       <div style="margin-top:18px;padding-top:16px;border-top:1.5px dashed var(--card-line);">
         <h4 id="rmmSettingsHeading" style="margin-bottom:6px;">📋 ניהול רשימת דיירים</h4>
@@ -1104,7 +1103,7 @@ function extractFolderId(input){
 /* ═══════════════════════════════════════
    CONFIG & STORAGE
 ═══════════════════════════════════════ */
-const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email';
+const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email';
 function residentsSheetName(){ return CFG.usageMode==='business' ? 'לקוחות' : 'אנשי קשר'; }
 const RECEIPTS_SHEET  = 'קבלות';
 /**
@@ -1365,7 +1364,7 @@ function updateSetupChecklist(){
     { ok: !!CFG.buildingInfo, label: isBiz ? 'שם העסק' : 'שם הבניין' }
   ];
   if(isBiz) items.push({ ok: !!CFG.businessNumber, label: 'מספר עוסק מורשה/פטור (ח"פ)' });
-  items.push({ ok: !!(CFG.spreadsheetId && CFG.folderId), label: 'חיבור לגיליון Google Sheets — הדבקת קישור קיים, או לחיצה על "יצירה אוטומטית"' });
+  items.push({ ok: !!(CFG.spreadsheetId && CFG.folderId), label: 'חיבור לגיליון Google Sheets — לחיצה על "יצירת גיליון ותיקייה אוטומטית"' });
 
   const banner = document.getElementById('setupBanner');
   const allOk = items.every(i=>i.ok);
@@ -1414,14 +1413,11 @@ document.getElementById('settingsBtn').onclick = ()=>{
   }
   document.getElementById('modalBg').classList.add('show');
 };
-document.querySelectorAll('.locked-field-edit-btn').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    const input = document.getElementById(btn.dataset.target);
-    if(!input) return;
-    input.readOnly = false;
-    input.focus();
-    input.select();
-  });
+document.getElementById('resetConnectionBtn').addEventListener('click', async ()=>{
+  const ok = await showAppConfirm('לנתק את הגיליון/התיקייה המחוברים כעת? הנתונים עצמם יישארו קיימים ב-Drive שלכם (לא נמחקים), אך האפליקציה תפסיק לקרוא/לכתוב אליהם עד שתיצרו חיבור חדש.', '🔄');
+  if(!ok) return;
+  document.getElementById('cfg-spreadsheetId').value = '';
+  document.getElementById('cfg-folderId').value = '';
 });
 document.getElementById('modalCancel').onclick = ()=> document.getElementById('modalBg').classList.remove('show');
 
@@ -3854,8 +3850,8 @@ const TOUR_STEPS = [
     text:'קבקליק תומכת בשני מצבי שימוש: <b>ועד בית</b> — עם דיירים, דירות ודמי ועד חודשיים, ו<b>עסק עצמאי</b> — עם לקוחות וקבלות על שירותים או מוצרים. למעבר בין המצבים, לוחצים כאן על אייקון החשבון ובוחרים "מעבר בין ועד לעצמאי". כל הטרמינולוגיה באפליקציה — מהטפסים ועד הקבלה עצמה — מתאימה את עצמה אוטומטית.' },
   { target:'#autoCreateBtn', title:'גיליון ב-Google Drive', inModal:true,
     text: (isBiz)=> isBiz
-      ? 'גיליון Google Sheets בתוך Google Drive שלכם.\n\n<b>יש לכם גיליון קיים?</b><br>מדביקים למטה קישור לגיליון ולתיקייה. נדרשת לשונית שנקראת "לקוחות" עם העמודות: שם, טלפון, ומייל (אופציונלי).\n\n<b>אין לכם גיליון עדיין?</b><br>לוחצים כאן ליצירה אוטומטית.'
-      : 'גיליון Google Sheets בתוך Google Drive שלכם.\n\n<b>יש לכם גיליון קיים?</b><br>מדביקים למטה קישור לגיליון ולתיקייה. נדרשת לשונית שנקראת "אנשי קשר" עם העמודות: איש קשר, טלפון, דירה, מחיר, אימייל.\n\n<b>אין לכם גיליון עדיין?</b><br>לוחצים כאן ליצירה אוטומטית.' },
+      ? 'לוחצים כאן ליצירה אוטומטית של גיליון Google Sheets ותיקיית Drive ייעודיים בתוך חשבון ה-Google שלכם. הלשונית "לקוחות" תיווצר עם העמודות: שם, טלפון, ומייל (אופציונלי).'
+      : 'לוחצים כאן ליצירה אוטומטית של גיליון Google Sheets ותיקיית Drive ייעודיים בתוך חשבון ה-Google שלכם. הלשונית "אנשי קשר" תיווצר עם העמודות: איש קשר, טלפון, דירה, מחיר, אימייל.' },
   { target:'#cfg-buildingInfo', title:(isBiz)=> isBiz?'פרטי העסק':'פרטי הבניין', inModal:true,
     text: (isBiz)=> isBiz
       ? 'מזינים כאן את שם העסק. אם הזנתם גם מספר עוסק מורשה/פטור בשדה שמופיע מתחת, הוא יופיע אוטומטית על גבי הקבלות שתפיקו — נדרש חוקית לקבלה תקנית.'
