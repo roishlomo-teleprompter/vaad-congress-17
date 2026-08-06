@@ -99,7 +99,8 @@ body.home-active .home-card{height:auto;overflow:visible;padding-bottom:calc(120
 .home-refresh-btn.spinning .home-refresh-icon{animation:footer-icon-spin .8s linear infinite;}
 
 /* ── FINANCE SCREEN · הוצאות והכנסות ── */
-.finance-screen{grid-column:1 / -1;max-width:640px;margin:0 auto;width:100%;height:100%;display:flex;flex-direction:column;padding-top:18px;padding-bottom:calc(260px + env(safe-area-inset-bottom));overflow-y:auto;-webkit-overflow-scrolling:touch;text-align:right;}
+.finance-screen{grid-column:1 / -1;max-width:640px;margin:0 auto;width:100%;height:100%;display:flex;flex-direction:column;padding-top:18px;padding-bottom:calc(320px + env(safe-area-inset-bottom));overflow-y:auto;-webkit-overflow-scrolling:touch;text-align:right;}
+.finance-screen .finance-card:last-of-type{margin-bottom:30px;}
 body.home-active .finance-screen{height:auto;overflow:visible;}
 .finance-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
 .finance-screen .finance-header h2{margin:0;font-size:22px;font-weight:900;color:var(--ink);flex:1;text-align:center;display:block;}
@@ -189,6 +190,9 @@ body.home-active .finance-screen{height:auto;overflow:visible;}
 .locked-field-row{display:flex;gap:8px;align-items:center;}
 .locked-field-row input{flex:1;}
 .locked-field-row input[readonly]{background:var(--app-bg);color:var(--slate);cursor:not-allowed;}
+.open-link-btn{flex:none;width:38px;height:38px;border-radius:10px;border:1.5px solid var(--card-line);background:#fff;cursor:pointer;font-size:15px;transition:.15s;}
+.open-link-btn:hover:not(:disabled){background:var(--blue-soft);border-color:var(--blue);}
+.open-link-btn:disabled{opacity:.4;cursor:not-allowed;}
 .locked-field-edit-btn{flex:none;width:38px;height:38px;border-radius:10px;border:1.5px solid var(--card-line);background:#fff;cursor:pointer;font-size:14px;transition:.15s;}
 .locked-field-edit-btn:hover{background:var(--blue-soft);border-color:var(--blue);}
 .mode-select-gate{position:fixed;top:0;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#fff;z-index:510;display:none;align-items:center;justify-content:center;padding:24px;overflow-y:auto;}
@@ -1018,10 +1022,12 @@ body.mode-business .home-refresh-status{display:none;}
       <label>גיליון Google Sheets מחובר</label>
       <div class="locked-field-row">
         <input type="text" id="cfg-spreadsheetId" class="ltr-input" placeholder="עדיין לא נוצר — לחצו למעלה על יצירה אוטומטית" readonly>
+        <button type="button" class="open-link-btn" id="openSheetBtn" title="פתיחת הגיליון" aria-label="פתיחת הגיליון בטאב חדש">🔗</button>
       </div>
       <label>תיקיית Drive מחוברת</label>
       <div class="locked-field-row">
         <input type="text" id="cfg-folderId" class="ltr-input" placeholder="עדיין לא נוצרה — לחצו למעלה על יצירה אוטומטית" readonly>
+        <button type="button" class="open-link-btn" id="openFolderBtn" title="פתיחת התיקייה" aria-label="פתיחת התיקייה בטאב חדש">🔗</button>
       </div>
       <button type="button" id="resetConnectionBtn" class="small-btn" style="width:100%;margin-top:10px;">🔄 ניתוק וחיבור מחדש (יצירת גיליון/תיקייה חדשים)</button>
 
@@ -1290,7 +1296,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '150';
+const APP_BUILD = '151';
 console.log('[קבקליק] גרסה:', APP_BUILD);
 
 const LICENSE_API_URL = 'https://script.google.com/macros/s/AKfycbwo80B9ZmKyMSwdXzQA6HP_sPFLLHETIWiI3VFj60vPazq4vE8DLpC7yxK-JtVqkZ4qyQ/exec';
@@ -1615,6 +1621,8 @@ document.getElementById('settingsBtn').onclick = ()=>{
   document.getElementById('cfg-folderId').value     = CFG.folderId||'';
   document.getElementById('cfg-spreadsheetId').readOnly = true;
   document.getElementById('cfg-folderId').readOnly = true;
+  document.getElementById('openSheetBtn').disabled  = !CFG.spreadsheetId;
+  document.getElementById('openFolderBtn').disabled = !CFG.folderId;
   applyModeUI(CFG.usageMode||'vaad');
   const verEl = document.getElementById('appVersionMarker');
   if(verEl){
@@ -1622,11 +1630,21 @@ document.getElementById('settingsBtn').onclick = ()=>{
   }
   document.getElementById('modalBg').classList.add('show');
 };
+document.getElementById('openSheetBtn').addEventListener('click', ()=>{
+  if(!CFG.spreadsheetId) return;
+  window.open(`https://docs.google.com/spreadsheets/d/${CFG.spreadsheetId}/edit`, '_blank');
+});
+document.getElementById('openFolderBtn').addEventListener('click', ()=>{
+  if(!CFG.folderId) return;
+  window.open(`https://drive.google.com/drive/folders/${CFG.folderId}`, '_blank');
+});
 document.getElementById('resetConnectionBtn').addEventListener('click', async ()=>{
   const ok = await showAppConfirm('לנתק את הגיליון/התיקייה המחוברים כעת? הנתונים עצמם יישארו קיימים ב-Drive שלכם (לא נמחקים), אך האפליקציה תפסיק לקרוא/לכתוב אליהם עד שתיצרו חיבור חדש.', '🔄');
   if(!ok) return;
   document.getElementById('cfg-spreadsheetId').value = '';
   document.getElementById('cfg-folderId').value = '';
+  document.getElementById('openSheetBtn').disabled = true;
+  document.getElementById('openFolderBtn').disabled = true;
 });
 document.getElementById('modalCancel').onclick = ()=> document.getElementById('modalBg').classList.remove('show');
 
@@ -3500,19 +3518,61 @@ const FINANCE_CATEGORY_ICONS = {
 function financeCategoryIcon(cat){ return FINANCE_CATEGORY_ICONS[cat] || '📄'; }
 
 async function ensureFinanceSheet(){
-  const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:CFG.spreadsheetId});
-  const sheet = meta.result.sheets.find(s=>s.properties.title===FINANCE_SHEET);
+  const meta = await gapi.client.sheets.spreadsheets.get({
+    spreadsheetId:CFG.spreadsheetId,
+    fields:'sheets(properties,conditionalFormats)'
+  });
+  let sheet = meta.result.sheets.find(s=>s.properties.title===FINANCE_SHEET);
+  let sheetId;
+
   if(!sheet){
-    await gapi.client.sheets.spreadsheets.batchUpdate({
+    const addRes = await gapi.client.sheets.spreadsheets.batchUpdate({
       spreadsheetId:CFG.spreadsheetId,
       resource:{requests:[{addSheet:{properties:{title:FINANCE_SHEET, rightToLeft:true}}}]}
     });
+    sheetId = addRes.result.replies[0].addSheet.properties.sheetId;
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId:CFG.spreadsheetId,
       range:`'${FINANCE_SHEET}'!A1:G1`,
       valueInputOption:'RAW',
       resource:{values:[FINANCE_HEADER]}
     });
+  } else {
+    sheetId = sheet.properties.sheetId;
+  }
+
+  // Conditional formatting (not one-time per-row coloring) so every row —
+  // past and future, including ones added directly in the sheet — is
+  // colored automatically based on column B ("סוג"), never goes stale.
+  // Checked every time (not just on first creation) so a tab that already
+  // existed before this feature shipped still picks it up automatically.
+  const alreadyHasFormatting = sheet && sheet.conditionalFormats && sheet.conditionalFormats.length > 0;
+  if(!alreadyHasFormatting){
+    try{
+      await gapi.client.sheets.spreadsheets.batchUpdate({
+        spreadsheetId:CFG.spreadsheetId,
+        resource:{requests:[
+          {addConditionalFormatRule:{index:0, rule:{
+            ranges:[{sheetId, startRowIndex:1, startColumnIndex:0, endColumnIndex:7}],
+            booleanRule:{
+              condition:{type:'CUSTOM_FORMULA', values:[{userEnteredValue:'=$B2="הוצאה"'}]},
+              format:{backgroundColor:{red:0.984, green:0.914, blue:0.914}}
+            }
+          }}},
+          {addConditionalFormatRule:{index:0, rule:{
+            ranges:[{sheetId, startRowIndex:1, startColumnIndex:0, endColumnIndex:7}],
+            booleanRule:{
+              condition:{type:'CUSTOM_FORMULA', values:[{userEnteredValue:'=$B2="הכנסה"'}]},
+              format:{backgroundColor:{red:0.906, green:0.969, blue:0.945}}
+            }
+          }}}
+        ]}
+      });
+    }catch(e){
+      // Non-fatal — the sheet still works perfectly without the coloring,
+      // this is a cosmetic nice-to-have.
+      console.warn('[קבקליק] הגדרת צביעה אוטומטית בגיליון הוצאות/הכנסות נכשלה:', e);
+    }
   }
 }
 
