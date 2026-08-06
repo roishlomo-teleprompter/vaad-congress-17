@@ -1290,7 +1290,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '149';
+const APP_BUILD = '150';
 console.log('[קבקליק] גרסה:', APP_BUILD);
 
 const LICENSE_API_URL = 'https://script.google.com/macros/s/AKfycbwo80B9ZmKyMSwdXzQA6HP_sPFLLHETIWiI3VFj60vPazq4vE8DLpC7yxK-JtVqkZ4qyQ/exec';
@@ -4461,6 +4461,7 @@ async function finalizeReceiptInBackground(snap, blob, filename, attempt){
       paintMonthsGrid();
     }
 
+    let financeLogFailed = false;
     try{
       const isBiz = CFG.usageMode==='business';
       const financeTitle = isBiz ? 'לקוח' : 'תשלום ועד';
@@ -4478,20 +4479,22 @@ async function finalizeReceiptInBackground(snap, blob, filename, attempt){
     }catch(financeErr){
       // Non-fatal — the receipt itself is already saved and logged; a
       // finance-tracking hiccup shouldn't ever block or alarm the person
-      // over a receipt that succeeded. Logged loudly (not just console.warn)
-      // so this is easy to spot in devtools if it keeps happening.
+      // over a receipt that succeeded. Surfaced in the in-app message below
+      // (not just devtools console) so this is visible without opening
+      // DevTools.
+      financeLogFailed = true;
       console.error('[קבקליק] רישום אוטומטי בהוצאות/הכנסות נכשל (לא חוסם, אבל בדקו למה):', financeErr);
     }
 
     if(snap.wantsEmail){
       try{
         await sendReceiptByEmail(r, blob, filename, total);
-        showMsg('✅ הקבלה נשמרה ב-Drive ונשלחה למייל '+snap.email+'.','ok');
+        showMsg('✅ הקבלה נשמרה ב-Drive ונשלחה למייל '+snap.email+'.'+(financeLogFailed?' ⚠️ רישום אוטומטי בהוצאות/הכנסות נכשל.':''),'ok');
       }catch(emailErr){
         showMsg('הקבלה נשמרה ב-Drive, אך שליחת המייל נכשלה: '+(emailErr.message||emailErr),'error');
       }
     } else {
-      showMsg('✅ הקבלה נשמרה ב-Drive ותועדה בגיליון "קבלות".','ok');
+      showMsg('✅ הקבלה נשמרה ב-Drive ותועדה בגיליון "קבלות".'+(financeLogFailed?' ⚠️ רישום אוטומטי בהוצאות/הכנסות נכשל — פרטי השגיאה במסוף (F12 → Console).':''), financeLogFailed?'error':'ok');
     }
   }catch(e){
     console.warn('[קבקליק] שמירת קבלה ברקע נכשלה:', e);
