@@ -1290,7 +1290,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '148';
+const APP_BUILD = '149';
 console.log('[קבקליק] גרסה:', APP_BUILD);
 
 const LICENSE_API_URL = 'https://script.google.com/macros/s/AKfycbwo80B9ZmKyMSwdXzQA6HP_sPFLLHETIWiI3VFj60vPazq4vE8DLpC7yxK-JtVqkZ4qyQ/exec';
@@ -4463,9 +4463,9 @@ async function finalizeReceiptInBackground(snap, blob, filename, attempt){
 
     try{
       const isBiz = CFG.usageMode==='business';
-      const financeCategory = isBiz ? 'הכנסה מלקוח' : (snap.isOtherPurpose ? 'תשלום מיוחד' : 'דמי ועד');
-      const financeTitle = isBiz ? r.name : (snap.isOtherPurpose ? `${snap.purposeText} - ${r.name}` : `דמי ועד - ${r.name}`);
-      const financeNote = snap.isOtherPurpose ? '' : `חודשים: ${monthsCell} · קבלה מס' ${snap.receiptNumber}`;
+      const financeTitle = isBiz ? 'לקוח' : 'תשלום ועד';
+      const financeCategory = r.name; // per spec: category = the resident/client's own name
+      const financeNote = snap.isOtherPurpose ? snap.purposeText : monthsCell;
       await appendFinanceRow({
         date: new Date().toISOString().slice(0,10),
         type: 'income',
@@ -4473,13 +4473,14 @@ async function finalizeReceiptInBackground(snap, blob, filename, attempt){
         category: financeCategory,
         amount: total,
         paymethod: snap.payMethod,
-        note: financeNote || `קבלה מס' ${snap.receiptNumber}`
+        note: financeNote
       });
     }catch(financeErr){
       // Non-fatal — the receipt itself is already saved and logged; a
       // finance-tracking hiccup shouldn't ever block or alarm the person
-      // over a receipt that succeeded.
-      console.warn('[קבקליק] רישום אוטומטי בהוצאות/הכנסות נכשל (לא חוסם):', financeErr);
+      // over a receipt that succeeded. Logged loudly (not just console.warn)
+      // so this is easy to spot in devtools if it keeps happening.
+      console.error('[קבקליק] רישום אוטומטי בהוצאות/הכנסות נכשל (לא חוסם, אבל בדקו למה):', financeErr);
     }
 
     if(snap.wantsEmail){
