@@ -89,6 +89,73 @@ body.home-active .wrap{overflow:visible;height:auto;}
 .wizard-head{flex:none;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
 .home-card{grid-column:1 / -1;max-width:640px;margin:0 auto;width:100%;height:100%;text-align:center;display:flex;flex-direction:column;justify-content:flex-start;padding-top:22px;padding-bottom:calc(260px + env(safe-area-inset-bottom));overflow-y:auto;-webkit-overflow-scrolling:touch;}
 body.home-active .home-card{height:auto;overflow:visible;padding-bottom:calc(120px + env(safe-area-inset-bottom));}
+
+/* ── UPCOMING-PAYMENTS REFRESH (moved off the old footer "home" button) ── */
+.home-refresh-status{font-size:10.5px;color:var(--slate);font-weight:600;margin-top:2px;min-height:1.3em;}
+.home-refresh-btn{flex:none;width:40px;height:40px;border-radius:50%;background:#fff;border:1.5px solid var(--card-line);color:var(--slate);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.15s;}
+.home-refresh-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-soft);}
+.home-refresh-btn:disabled{opacity:.6;cursor:not-allowed;}
+.home-refresh-icon{width:18px;height:18px;}
+.home-refresh-btn.spinning .home-refresh-icon{animation:footer-icon-spin .8s linear infinite;}
+
+/* ── FINANCE SCREEN · הוצאות והכנסות ── */
+.finance-screen{grid-column:1 / -1;max-width:640px;margin:0 auto;width:100%;height:100%;display:flex;flex-direction:column;padding-top:18px;padding-bottom:calc(120px + env(safe-area-inset-bottom));overflow-y:auto;-webkit-overflow-scrolling:touch;text-align:right;}
+body.home-active .finance-screen{height:auto;overflow:visible;}
+.finance-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.finance-screen .finance-header h2{margin:0;font-size:22px;font-weight:900;color:var(--ink);flex:1;text-align:center;display:block;}
+.finance-header-btn{flex:none;width:38px;height:38px;border-radius:50%;background:#fff;border:1.5px solid var(--card-line);color:var(--ink-soft);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.15s;}
+.finance-header-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-soft);}
+
+.finance-summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
+.finance-summary-card{border-radius:16px;padding:16px 14px;text-align:center;}
+.finance-summary-card.income{background:var(--good-soft);}
+.finance-summary-card.expense{background:#FBEAEA;}
+.finance-summary-label{font-size:12.5px;font-weight:700;color:var(--ink-soft);margin-bottom:6px;}
+.finance-summary-amount{font-size:22px;font-weight:900;}
+.finance-summary-card.income .finance-summary-amount{color:var(--good);}
+.finance-summary-card.expense .finance-summary-amount{color:var(--bad);}
+.finance-summary-period{font-size:11px;color:var(--slate);margin-top:2px;}
+
+.finance-card{background:#fff;border:1.5px solid var(--card-line);border-radius:18px;box-shadow:var(--card-shadow);padding:16px;margin-bottom:14px;}
+.finance-card-title{display:flex;align-items:center;justify-content:space-between;font-size:14.5px;font-weight:800;color:var(--ink);margin-bottom:12px;}
+.finance-card-plus{width:24px;height:24px;border-radius:50%;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900;}
+.finance-showall-btn{background:none;border:none;color:var(--blue);font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;}
+.finance-showall-btn:hover{text-decoration:underline;}
+
+.finance-add-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.finance-add-btn{display:flex;align-items:center;justify-content:space-between;gap:8px;border-radius:12px;padding:12px 14px;font-family:inherit;font-weight:700;font-size:13.5px;cursor:pointer;transition:.15s;}
+.finance-add-btn.income{background:var(--good-soft);border:1.5px solid var(--good);color:var(--good);}
+.finance-add-btn.income:hover{background:#DEF4E9;}
+.finance-add-btn.expense{background:#FBEAEA;border:1.5px solid var(--bad);color:var(--bad);}
+.finance-add-btn.expense:hover{background:#F7DEDE;}
+.finance-add-icon{width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.65);display:flex;align-items:center;justify-content:center;font-weight:900;flex:none;}
+
+.finance-tx-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--card-line);}
+.finance-tx-row:last-child{border-bottom:none;}
+.finance-tx-icon{width:36px;height:36px;border-radius:50%;background:var(--app-bg);display:flex;align-items:center;justify-content:center;font-size:16px;flex:none;}
+.finance-tx-info{flex:1;min-width:0;text-align:right;}
+.finance-tx-title{font-size:13px;font-weight:700;color:var(--ink);}
+.finance-tx-category{font-size:11px;color:var(--slate);margin-top:1px;}
+.finance-tx-right{text-align:left;flex:none;}
+.finance-tx-amount{font-size:14px;font-weight:800;}
+.finance-tx-amount.income{color:var(--good);}
+.finance-tx-amount.expense{color:var(--bad);}
+.finance-tx-date{font-size:10.5px;color:var(--slate);margin-top:1px;direction:ltr;}
+.finance-empty{padding:20px 4px;text-align:center;color:var(--slate);font-size:13px;}
+
+.finance-donut-row{display:flex;align-items:center;gap:18px;}
+.finance-donut{flex:none;width:96px;height:96px;border-radius:50%;background:conic-gradient(var(--slate) 0deg 360deg);}
+.finance-donut-legend{flex:1;display:flex;flex-direction:column;gap:8px;}
+.finance-donut-legend-row{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;}
+.finance-donut-legend-row .dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-left:6px;}
+.finance-donut-legend-name{display:flex;align-items:center;color:var(--ink-soft);font-weight:600;}
+.finance-donut-legend-pct{font-weight:800;color:var(--ink);}
+
+/* ── FINANCE ADD/EDIT FORM (full-screen sheet) ── */
+.finance-form-type-toggle{display:flex;gap:8px;margin-bottom:14px;}
+.finance-type-opt{flex:1;padding:10px;border-radius:10px;text-align:center;font-size:13.5px;font-weight:700;cursor:pointer;border:1.5px solid var(--card-line);color:var(--ink-soft);transition:.15s;user-select:none;}
+.finance-type-opt.active-income{border-color:var(--good);background:var(--good-soft);color:var(--good);}
+.finance-type-opt.active-expense{border-color:var(--bad);background:#FBEAEA;color:var(--bad);}
 .home-badge{flex:none;display:inline-flex;align-items:center;gap:6px;align-self:center;background:var(--blue-soft);border:1px dashed var(--blue);border-radius:10px;padding:9px 16px;font-size:12.5px;font-weight:700;color:var(--ink-soft);margin-bottom:14px;}
 .home-badge-pin{font-size:13px;}
 .home-illustration{flex:none;border-radius:16px;overflow:hidden;margin-bottom:14px;line-height:0;}
@@ -396,7 +463,9 @@ textarea{resize:vertical;min-height:70px;}
 #homeBizManageBtn{display:none;}
 body.mode-business #homeBizManageBtn{display:block;}
 body.mode-business #homeResidentsSectionTitle,
-body.mode-business #homeResidentsList{display:none;}
+body.mode-business #homeResidentsList,
+body.mode-business .home-refresh-btn,
+body.mode-business .home-refresh-status{display:none;}
 
 /* ACCOUNT MENU MODAL */
 :root{ --danger:#DC3F3F; --danger-soft:#FFF4F4; }
@@ -640,37 +709,76 @@ body.mode-business #homeResidentsList{display:none;}
       <div class="home-greeting-sub" id="homeGreetingSub"></div>
     </div>
 
-    <div class="home-footer-nav">
-      <button type="button" class="footer-nav-btn active" id="footerHomeBtn">
-        <svg class="footer-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/></svg>
-        <span class="footer-nav-label">בית</span>
-      </button>
-      <button type="button" class="footer-nav-btn" id="homeSettingsBtn">
-        <svg class="footer-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        <span class="footer-nav-label">הגדרות</span>
-      </button>
-      <button type="button" class="footer-nav-fab" id="homeStartBtn">
-        <span class="footer-fab-icon">+</span><span class="footer-fab-label">הפק קבלה</span>
-      </button>
-      <button type="button" class="footer-nav-btn" id="homeHistoryBtn">
-        <svg class="footer-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-        <span class="footer-nav-label">קבלות החודש</span>
-      </button>
-      <button type="button" class="footer-nav-btn" id="homeTourBtn">
-        <svg class="footer-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.7-2.5 2-2.5 4"/><path d="M12 17h.01"/></svg>
-        <span class="footer-nav-label">הדרכה</span>
-      </button>
-    </div>
-
     <div class="home-residents-section" id="homeResidentsSection">
       <div class="home-section-title-row">
-        <div class="home-section-title" id="homeResidentsSectionTitle">⏰ תשלומים קרובים</div>
+        <div>
+          <div class="home-section-title" id="homeResidentsSectionTitle">⏰ תשלומים קרובים</div>
+          <div class="home-refresh-status" id="homeRefreshStatus"></div>
+        </div>
+        <button type="button" class="home-refresh-btn" id="homeRefreshBtn" aria-label="רענון תשלומים קרובים" title="רענון נתונים">
+          <svg class="home-refresh-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        </button>
       </div>
       <div class="home-residents-list" id="homeResidentsList">
         <div class="home-residents-loading">⏳ טוען נתונים…</div>
       </div>
     </div>
     <button type="button" id="homeBizManageBtn" class="generate-btn" style="margin:0;">📋 ניהול רשימת לקוחות</button>
+  </div>
+
+  <!-- FINANCE SCREEN · הוצאות והכנסות -->
+  <div class="card finance-screen" id="financeScreen" style="display:none;">
+    <div class="finance-header">
+      <button type="button" class="finance-header-btn" id="financeBackBtn" aria-label="חזרה">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </button>
+      <h2>הוצאות והכנסות</h2>
+      <button type="button" class="finance-header-btn" id="financeFilterBtn" aria-label="סינון">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>
+      </button>
+    </div>
+
+    <div class="finance-summary-grid">
+      <div class="finance-summary-card income">
+        <div class="finance-summary-label">סה"כ הכנסות</div>
+        <div class="finance-summary-amount" id="financeIncomeTotal">0 ₪</div>
+        <div class="finance-summary-period">החודש</div>
+      </div>
+      <div class="finance-summary-card expense">
+        <div class="finance-summary-label">סה"כ הוצאות</div>
+        <div class="finance-summary-amount" id="financeExpenseTotal">0 ₪</div>
+        <div class="finance-summary-period">החודש</div>
+      </div>
+    </div>
+
+    <div class="finance-card">
+      <div class="finance-card-title"><span>הוספת תנועה חדשה</span><span class="finance-card-plus">+</span></div>
+      <div class="finance-add-grid">
+        <button type="button" class="finance-add-btn expense" id="addExpenseBtn">
+          <span>הוספת הוצאה</span>
+          <span class="finance-add-icon">↓</span>
+        </button>
+        <button type="button" class="finance-add-btn income" id="addIncomeBtn">
+          <span>הוספת הכנסה</span>
+          <span class="finance-add-icon">↑</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="finance-card">
+      <div class="finance-card-title"><span>תנועות אחרונות</span><button type="button" class="finance-showall-btn" id="financeShowAllBtn">הצג הכל</button></div>
+      <div id="financeTxList">
+        <div class="home-residents-loading">⏳ טוען נתונים…</div>
+      </div>
+    </div>
+
+    <div class="finance-card">
+      <div class="finance-card-title"><span>סיכום לפי קטגוריות</span></div>
+      <div class="finance-donut-row">
+        <div class="finance-donut" id="financeDonut"></div>
+        <div class="finance-donut-legend" id="financeDonutLegend"></div>
+      </div>
+    </div>
   </div>
 
   <!-- FORM (WIZARD) -->
@@ -808,6 +916,28 @@ body.mode-business #homeResidentsList{display:none;}
     </div>
   </div>
 
+</div>
+
+<div class="home-footer-nav" id="homeFooterNav">
+  <button type="button" class="footer-nav-btn" id="homeFinanceBtn">
+    <svg class="footer-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
+    <span class="footer-nav-label">הוצאות<br>והכנסות</span>
+  </button>
+  <button type="button" class="footer-nav-btn" id="homeSettingsBtn">
+    <svg class="footer-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    <span class="footer-nav-label">הגדרות</span>
+  </button>
+  <button type="button" class="footer-nav-fab" id="homeStartBtn">
+    <span class="footer-fab-icon">+</span><span class="footer-fab-label">הפק קבלה</span>
+  </button>
+  <button type="button" class="footer-nav-btn" id="homeHistoryBtn">
+    <svg class="footer-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+    <span class="footer-nav-label">קבלות החודש</span>
+  </button>
+  <button type="button" class="footer-nav-btn" id="homeTourBtn">
+    <svg class="footer-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.7-2.5 2-2.5 4"/><path d="M12 17h.01"/></svg>
+    <span class="footer-nav-label">הדרכה</span>
+  </button>
 </div>
 
 </div>
@@ -1019,6 +1149,44 @@ body.mode-business #homeResidentsList{display:none;}
   </div>
 </div>
 
+<!-- FINANCE TRANSACTION ADD/EDIT MODAL -->
+<div class="modal-bg" id="financeFormModalBg" style="z-index:660;">
+  <div class="modal">
+    <h3 id="financeFormTitle">הוספת תנועה</h3>
+    <div class="finance-form-type-toggle">
+      <div class="finance-type-opt" id="financeTypeExpenseOpt" data-type="expense">↓ הוצאה</div>
+      <div class="finance-type-opt" id="financeTypeIncomeOpt" data-type="income">↑ הכנסה</div>
+    </div>
+    <label>סכום (₪)</label>
+    <input type="number" id="fin-amount" min="0" placeholder="לדוגמה: 450">
+    <label>תאריך</label>
+    <input type="date" id="fin-date" class="ltr-input">
+    <label>תיאור</label>
+    <input type="text" id="fin-title" placeholder="לדוגמה: תשלום חשמל">
+    <label>קטגוריה</label>
+    <select id="fin-category"></select>
+    <div id="finCategoryOtherRow" style="display:none;">
+      <label>קטגוריה (טקסט חופשי)</label>
+      <input type="text" id="fin-category-other" placeholder="הזינו קטגוריה">
+    </div>
+    <label>אמצעי תשלום (אופציונלי)</label>
+    <select id="fin-paymethod">
+      <option value="">— לא צוין —</option>
+      <option value="העברה בנקאית">העברה בנקאית</option>
+      <option value="צ'קים">צ'קים</option>
+      <option value="הוראת קבע">הוראת קבע</option>
+      <option value="מזומן">מזומן</option>
+      <option value="כרטיס אשראי">כרטיס אשראי</option>
+    </select>
+    <label>הערה (אופציונלי)</label>
+    <textarea id="fin-note" placeholder="הערה חופשית..."></textarea>
+    <div class="modal-actions">
+      <button class="cancel" id="finCancelBtn">ביטול</button>
+      <button class="save" id="finSaveBtn">שמירה</button>
+    </div>
+  </div>
+</div>
+
 <!-- CUSTOM APP DIALOG (replaces native confirm()/alert() which show the site's URL) -->
 <div class="app-dialog-bg" id="appDialogBg">
   <div class="app-dialog">
@@ -1079,7 +1247,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '145';
+const APP_BUILD = '146';
 console.log('[קבקליק] גרסה:', APP_BUILD);
 
 const LICENSE_API_URL = 'https://script.google.com/macros/s/AKfycbwo80B9ZmKyMSwdXzQA6HP_sPFLLHETIWiI3VFj60vPazq4vE8DLpC7yxK-JtVqkZ4qyQ/exec';
@@ -2028,49 +2196,72 @@ document.getElementById('wizardCancelBtn').addEventListener('click', async ()=>{
 });
 
 /* ═══════════════════════════════════════
-   HOME SCREEN
+   HOME / FINANCE / WIZARD SCREEN SWITCHING
 ═══════════════════════════════════════ */
+function setFooterNavVisible(show){
+  const nav = document.getElementById('homeFooterNav');
+  if(nav) nav.style.display = show ? '' : 'none';
+}
+function setFooterNavActive(screen){ // 'home' | 'finance'
+  const financeBtn = document.getElementById('homeFinanceBtn');
+  if(financeBtn) financeBtn.classList.toggle('active', screen==='finance');
+}
 function showWizardFromHome(){
   document.getElementById('homeScreen').style.display = 'none';
+  document.getElementById('financeScreen').style.display = 'none';
   document.querySelector('.wizard-card').style.display = '';
   document.body.classList.remove('home-active');
+  setFooterNavVisible(false);
   wizardShowStep(0);
 }
 function showHomeScreen(){
   document.querySelector('.wizard-card').style.display = 'none';
+  document.getElementById('financeScreen').style.display = 'none';
   document.getElementById('homeScreen').style.display = '';
   document.body.classList.add('home-active');
+  setFooterNavVisible(true);
+  setFooterNavActive('home');
   refreshRecentResidents();
+}
+async function showFinanceScreen(){
+  document.querySelector('.wizard-card').style.display = 'none';
+  document.getElementById('homeScreen').style.display = 'none';
+  document.getElementById('financeScreen').style.display = '';
+  document.body.classList.add('home-active');
+  setFooterNavVisible(true);
+  setFooterNavActive('finance');
+  await loadAndRenderFinanceScreen();
 }
 
 /**
- * Gives the "בית" footer button a real job: re-fetch residents + receipts
- * from Google Sheets and refresh the "תשלומים קרובים" list — handy if
- * something changed directly in the sheet (a new resident, a manual edit)
- * and you don't want to sign out/in again just to see it reflected.
+ * Relocated from the old footer "בית" button to a dedicated refresh icon
+ * next to the "תשלומים קרובים" heading — same underlying refresh logic
+ * (re-fetch residents + receipts from Google Sheets), just triggered from
+ * its new home so the footer button itself could become "הוצאות והכנסות".
  */
-async function refreshHomeData(){
-  showHomeScreen();
-  if(!accessToken || !CFG.spreadsheetId) return; // nothing to refresh yet
-  const btn   = document.getElementById('footerHomeBtn');
-  const label = btn.querySelector('.footer-nav-label');
-  const list  = document.getElementById('homeResidentsList');
-  const originalLabel = label.textContent;
+async function refreshUpcomingPayments(){
+  if(!accessToken || !CFG.spreadsheetId) return;
+
+  const btn    = document.getElementById('homeRefreshBtn');
+  const status = document.getElementById('homeRefreshStatus');
+  const list   = document.getElementById('homeResidentsList');
   const originalListHtml = list.innerHTML;
 
   btn.classList.add('spinning');
   btn.disabled = true;
-  label.textContent = 'טוען…';
+  status.textContent = 'מעדכן…';
   list.innerHTML = '<div class="home-residents-loading">⏳ טוען נתונים מהגיליון…</div>';
 
   try{
     await Promise.all([loadResidents(), loadAllReceiptRows()]);
+    refreshRecentResidents();
+    status.textContent = 'עודכן עכשיו';
   }catch(e){
     list.innerHTML = originalListHtml; // refresh failed — restore whatever was showing before
+    status.textContent = 'לא ניתן לרענן כרגע';
   }finally{
     btn.classList.remove('spinning');
     btn.disabled = false;
-    label.textContent = originalLabel;
   }
 }
 
@@ -2090,7 +2281,9 @@ function spawnConfetti(){
 }
 
 document.getElementById('homeStartBtn').addEventListener('click', showWizardFromHome);
-document.getElementById('footerHomeBtn').addEventListener('click', refreshHomeData);
+document.getElementById('homeFinanceBtn').addEventListener('click', showFinanceScreen);
+document.getElementById('homeRefreshBtn').addEventListener('click', refreshUpcomingPayments);
+document.getElementById('financeBackBtn').addEventListener('click', showHomeScreen);
 document.getElementById('homeSettingsBtn').addEventListener('click', ()=>document.getElementById('settingsBtn').click());
 document.getElementById('homeHistoryBtn').addEventListener('click', ()=>document.getElementById('historyBtn').click());
 document.getElementById('homeTourBtn').addEventListener('click', tourStart);
@@ -3240,6 +3433,253 @@ async function appendReceiptRow(row){
     resource:{values:[row]}
   });
 }
+
+/* ═══════════════════════════════════════
+   FINANCE · הוצאות והכנסות
+   A separate sheet tab from "קבלות" on purpose — different shape of data
+   (income/expense/category/note vs resident/months/receipt-number), so it
+   doesn't disturb the existing receipts logic at all.
+═══════════════════════════════════════ */
+const FINANCE_SHEET  = 'הוצאות והכנסות';
+const FINANCE_HEADER = ['תאריך','סוג','כותרת','קטגוריה','סכום','אמצעי תשלום','הערה'];
+const FINANCE_CATEGORIES = {
+  income:  ['דמי ועד','תשלום מיוחד','החזר','הכנסה אחרת'],
+  expense: ['חשמל','מים','ניקיון','תחזוקה','מעלית','גינון','ביטוח','תיקונים','הוצאה אחרת']
+};
+const FINANCE_CATEGORY_ICONS = {
+  'חשמל':'💡','מים':'💧','ניקיון':'🧹','תחזוקה':'🔧','מעלית':'🛗','גינון':'🌳',
+  'ביטוח':'🛡️','תיקונים':'🔨','הוצאה אחרת':'📄',
+  'דמי ועד':'👤','תשלום מיוחד':'💰','החזר':'🔁','הכנסה אחרת':'📄'
+};
+function financeCategoryIcon(cat){ return FINANCE_CATEGORY_ICONS[cat] || '📄'; }
+
+async function ensureFinanceSheet(){
+  const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:CFG.spreadsheetId});
+  const sheet = meta.result.sheets.find(s=>s.properties.title===FINANCE_SHEET);
+  if(!sheet){
+    await gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId:CFG.spreadsheetId,
+      resource:{requests:[{addSheet:{properties:{title:FINANCE_SHEET, rightToLeft:true}}}]}
+    });
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId:CFG.spreadsheetId,
+      range:`'${FINANCE_SHEET}'!A1:G1`,
+      valueInputOption:'RAW',
+      resource:{values:[FINANCE_HEADER]}
+    });
+  }
+}
+
+let financeRows = []; // [{date:'YYYY-MM-DD', type:'income'|'expense', title, category, amount, paymethod, note}]
+async function loadFinanceRows(){
+  try{
+    await ensureFinanceSheet();
+    const res = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId:CFG.spreadsheetId, range:`'${FINANCE_SHEET}'!A2:G`
+    });
+    const raw = res.result.values || [];
+    financeRows = raw
+      .filter(r=>r[0])
+      .map(r=>({
+        date: (r[0]||'').toString(),
+        type: (r[1]||'').toString()==='הכנסה' ? 'income' : 'expense',
+        title: (r[2]||'').toString(),
+        category: (r[3]||'').toString(),
+        amount: parseFloat(r[4])||0,
+        paymethod: (r[5]||'').toString(),
+        note: (r[6]||'').toString()
+      }));
+  }catch(e){
+    console.warn('שגיאה בטעינת הוצאות/הכנסות:', e);
+    financeRows = [];
+  }
+}
+async function appendFinanceRow(entry){
+  await ensureFinanceSheet();
+  const row = [
+    entry.date,
+    entry.type==='income' ? 'הכנסה' : 'הוצאה',
+    entry.title,
+    entry.category,
+    entry.amount,
+    entry.paymethod||'',
+    entry.note||''
+  ];
+  await gapi.client.sheets.spreadsheets.values.append({
+    spreadsheetId:CFG.spreadsheetId,
+    range:`'${FINANCE_SHEET}'!A:G`,
+    valueInputOption:'RAW',
+    insertDataOption:'INSERT_ROWS',
+    resource:{values:[row]}
+  });
+  financeRows.push(entry);
+}
+
+function financeCurrentMonthKey(){
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+}
+function financeRowsThisMonth(){
+  const key = financeCurrentMonthKey();
+  return financeRows.filter(r=>r.date && r.date.slice(0,7)===key);
+}
+function financeFormatAmount(n){ return n.toLocaleString('he-IL')+' ₪'; }
+function financeFormatDate(iso){
+  if(!iso) return '';
+  const [y,m,d] = iso.split('-');
+  if(!y||!m||!d) return iso;
+  return `${d}/${m}/${y}`;
+}
+
+function renderFinanceSummary(){
+  const rows = financeRowsThisMonth();
+  const income  = rows.filter(r=>r.type==='income').reduce((s,r)=>s+r.amount,0);
+  const expense = rows.filter(r=>r.type==='expense').reduce((s,r)=>s+r.amount,0);
+  document.getElementById('financeIncomeTotal').textContent  = financeFormatAmount(income);
+  document.getElementById('financeExpenseTotal').textContent = financeFormatAmount(expense);
+  return {income, expense};
+}
+
+function renderFinanceTxList(limit){
+  const list = document.getElementById('financeTxList');
+  const sorted = [...financeRows].sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+  const rows = typeof limit==='number' ? sorted.slice(0,limit) : sorted;
+  if(!rows.length){
+    list.innerHTML = '<div class="finance-empty">עדיין אין תנועות רשומות — הוסיפו הכנסה או הוצאה למעלה.</div>';
+    return;
+  }
+  list.innerHTML = rows.map(r=>{
+    const sign = r.type==='income' ? '+' : '-';
+    return `<div class="finance-tx-row">
+      <div class="finance-tx-icon">${financeCategoryIcon(r.category)}</div>
+      <div class="finance-tx-info">
+        <div class="finance-tx-title">${escapeHtml2(r.title||r.category||'—')}</div>
+        <div class="finance-tx-category">${escapeHtml2(r.category||'')}</div>
+      </div>
+      <div class="finance-tx-right">
+        <div class="finance-tx-amount ${r.type}">${sign} ${r.amount.toLocaleString('he-IL')} ₪</div>
+        <div class="finance-tx-date">${financeFormatDate(r.date)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+let financeShowingAll = false;
+function renderFinanceDonut(totals){
+  const {income, expense} = totals;
+  const total = income + expense;
+  const donut  = document.getElementById('financeDonut');
+  const legend = document.getElementById('financeDonutLegend');
+  if(total<=0){
+    donut.style.background = 'conic-gradient(var(--card-line) 0deg 360deg)';
+    legend.innerHTML = '<div class="finance-empty" style="padding:4px 0;">אין עדיין תנועות החודש לסיכום.</div>';
+    return;
+  }
+  const incomePct  = Math.round((income/total)*100);
+  const expensePct = 100 - incomePct;
+  const incomeDeg  = (income/total)*360;
+  donut.style.background = `conic-gradient(var(--good) 0deg ${incomeDeg}deg, var(--bad) ${incomeDeg}deg 360deg)`;
+  legend.innerHTML = `
+    <div class="finance-donut-legend-row">
+      <span class="finance-donut-legend-name"><span class="dot" style="background:var(--good);"></span>הכנסות</span>
+      <span class="finance-donut-legend-pct">${incomePct}%</span>
+    </div>
+    <div class="finance-donut-legend-row">
+      <span class="finance-donut-legend-name"><span class="dot" style="background:var(--bad);"></span>הוצאות</span>
+      <span class="finance-donut-legend-pct">${expensePct}%</span>
+    </div>`;
+}
+
+async function loadAndRenderFinanceScreen(){
+  document.getElementById('financeTxList').innerHTML = '<div class="home-residents-loading">⏳ טוען נתונים…</div>';
+  if(!accessToken || !CFG.spreadsheetId){
+    document.getElementById('financeTxList').innerHTML = '<div class="finance-empty">יש להתחבר ולהגדיר גיליון לפני שרואים נתונים.</div>';
+    return;
+  }
+  await loadFinanceRows();
+  const totals = renderFinanceSummary();
+  renderFinanceTxList(financeShowingAll ? undefined : 5);
+  renderFinanceDonut(totals);
+}
+
+document.getElementById('financeShowAllBtn').addEventListener('click', ()=>{
+  financeShowingAll = !financeShowingAll;
+  document.getElementById('financeShowAllBtn').textContent = financeShowingAll ? 'הצג פחות' : 'הצג הכל';
+  renderFinanceTxList(financeShowingAll ? undefined : 5);
+});
+
+/* ── Add/edit transaction form ── */
+let financeFormType = 'expense';
+function populateFinanceCategories(type){
+  const sel = document.getElementById('fin-category');
+  const cats = FINANCE_CATEGORIES[type] || [];
+  sel.innerHTML = cats.map(c=>`<option value="${escapeHtml2(c)}">${escapeHtml2(c)}</option>`).join('');
+  toggleFinanceCategoryOther();
+}
+function toggleFinanceCategoryOther(){
+  const sel = document.getElementById('fin-category');
+  const isOther = /אחר/.test(sel.value);
+  document.getElementById('finCategoryOtherRow').style.display = isOther ? 'block' : 'none';
+}
+document.getElementById('fin-category').addEventListener('change', toggleFinanceCategoryOther);
+
+function setFinanceFormType(type){
+  financeFormType = type;
+  document.getElementById('financeTypeExpenseOpt').classList.toggle('active-expense', type==='expense');
+  document.getElementById('financeTypeIncomeOpt').classList.toggle('active-income', type==='income');
+  populateFinanceCategories(type);
+}
+document.getElementById('financeTypeExpenseOpt').addEventListener('click', ()=>setFinanceFormType('expense'));
+document.getElementById('financeTypeIncomeOpt').addEventListener('click', ()=>setFinanceFormType('income'));
+
+function openFinanceForm(type){
+  document.getElementById('financeFormTitle').textContent = type==='income' ? 'הוספת הכנסה' : 'הוספת הוצאה';
+  setFinanceFormType(type);
+  document.getElementById('fin-amount').value = '';
+  document.getElementById('fin-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('fin-title').value = '';
+  document.getElementById('fin-category-other').value = '';
+  document.getElementById('fin-paymethod').value = '';
+  document.getElementById('fin-note').value = '';
+  document.getElementById('financeFormModalBg').classList.add('show');
+}
+function closeFinanceForm(){
+  document.getElementById('financeFormModalBg').classList.remove('show');
+}
+document.getElementById('addExpenseBtn').addEventListener('click', ()=>openFinanceForm('expense'));
+document.getElementById('addIncomeBtn').addEventListener('click', ()=>openFinanceForm('income'));
+document.getElementById('finCancelBtn').addEventListener('click', closeFinanceForm);
+
+document.getElementById('finSaveBtn').addEventListener('click', async ()=>{
+  const amount = parseFloat(document.getElementById('fin-amount').value);
+  const date   = document.getElementById('fin-date').value;
+  const title  = document.getElementById('fin-title').value.trim();
+  const catSel = document.getElementById('fin-category').value;
+  const catOther = document.getElementById('fin-category-other').value.trim();
+  const category = /אחר/.test(catSel) ? (catOther || catSel) : catSel;
+  const paymethod = document.getElementById('fin-paymethod').value;
+  const note = document.getElementById('fin-note').value.trim();
+
+  if(!amount || amount<=0){ await showAppAlert('יש להזין סכום תקין.','⚠️'); return; }
+  if(!date){ await showAppAlert('יש לבחור תאריך.','⚠️'); return; }
+  if(!title){ await showAppAlert('יש להזין תיאור.','⚠️'); return; }
+  if(/אחר/.test(catSel) && !catOther){ await showAppAlert('יש להזין קטגוריה חופשית.','⚠️'); return; }
+  if(!accessToken || !CFG.spreadsheetId){ await showAppAlert('יש להתחבר ולהגדיר גיליון לפני הוספת תנועה.','⚠️'); return; }
+
+  const saveBtn = document.getElementById('finSaveBtn');
+  saveBtn.disabled = true; saveBtn.textContent = 'שומר…';
+  try{
+    await appendFinanceRow({date, type:financeFormType, title, category, amount, paymethod, note});
+    closeFinanceForm();
+    const totals = renderFinanceSummary();
+    renderFinanceTxList(financeShowingAll ? undefined : 5);
+    renderFinanceDonut(totals);
+  }catch(e){
+    await showAppAlert('שגיאה בשמירה: '+(e.result?.error?.message||e.message||String(e)), '⚠️');
+  }finally{
+    saveBtn.disabled = false; saveBtn.textContent = 'שמירה';
+  }
+});
 
 /* ═══════════════════════════════════════
    SHEETS: RECEIPT ROWS CACHE (drives the "שולם" state in the months grid)
