@@ -35,8 +35,8 @@
   --app-bg:#F5F8FB; --card-line:#E3E9F0; --card-shadow:0 8px 24px -14px rgba(16,24,40,.18);
 }
 *{box-sizing:border-box;}
-html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-serif;height:100%;overflow:hidden;}
-body.home-active{overflow-y:auto;-webkit-overflow-scrolling:touch;}
+html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-serif;height:100%;overflow:hidden;overscroll-behavior-y:contain;}
+body.home-active{overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;}
 .app-frame{max-width:480px;margin:0 auto;background:var(--app-bg);height:100vh;height:100dvh;height:var(--app-vh,100dvh);box-shadow:0 0 60px rgba(16,24,40,.12);display:flex;flex-direction:column;overflow:hidden;}
 body.home-active .app-frame{height:auto;min-height:100vh;min-height:100dvh;overflow:visible;}
 @media (max-width:480px){ .app-frame{ box-shadow:none; } }
@@ -307,7 +307,7 @@ body.home-active .finance-screen{height:auto;overflow:visible;}
 .wizard-summary-row b{color:var(--ink);font-weight:700;max-width:60%;text-align:left;}
 .wizard-nav{flex:none;background:#fff;display:flex;gap:10px;margin-top:12px;padding:10px 0 2px;box-shadow:0 -8px 16px -10px rgba(16,24,40,.1);}
 .wizard-step{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;}
-.wizard-step.scrollable{overflow-y:auto;}
+.wizard-step.scrollable{overflow-y:auto;overscroll-behavior-y:contain;}
 .wizard-step > *{flex-shrink:0;}
 .wizard-back-btn{flex:0 0 110px;background:#fff;border:1.5px solid var(--card-line);border-radius:12px;padding:14px;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;color:var(--ink);}
 .wizard-back-btn:hover{background:var(--app-bg);}
@@ -1346,7 +1346,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '163';
+const APP_BUILD = '164';
 console.log('[קבקליק] גרסה:', APP_BUILD);
 
 const LICENSE_API_URL = 'https://script.google.com/macros/s/AKfycbwo80B9ZmKyMSwdXzQA6HP_sPFLLHETIWiI3VFj60vPazq4vE8DLpC7yxK-JtVqkZ4qyQ/exec';
