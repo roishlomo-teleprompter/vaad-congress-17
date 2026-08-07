@@ -1346,7 +1346,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '158';
+const APP_BUILD = '159';
 console.log('[קבקליק] גרסה:', APP_BUILD);
 
 const LICENSE_API_URL = 'https://script.google.com/macros/s/AKfycbwo80B9ZmKyMSwdXzQA6HP_sPFLLHETIWiI3VFj60vPazq4vE8DLpC7yxK-JtVqkZ4qyQ/exec';
@@ -4534,8 +4534,9 @@ document.getElementById('historyBtn').onclick=async()=>{
   document.getElementById('historyModalBg').classList.add('show');
   try{
     await ensureReceiptsSheet();
+    const layout = receiptSheetLayout();
     const res=await gapi.client.sheets.spreadsheets.values.get({
-      spreadsheetId:CFG.spreadsheetId, range:`'${RECEIPTS_SHEET}'!A2:F`
+      spreadsheetId:CFG.spreadsheetId, range:`'${RECEIPTS_SHEET}'!A2:${layout.lastCol}`
     });
     const rows=res.result.values||[];
     const thisMonth=rows.filter(r=>{
@@ -4546,8 +4547,12 @@ document.getElementById('historyBtn').onclick=async()=>{
       listEl.innerHTML='<div class="history-empty">אין קבלות שהופקו החודש.</div>';
       return;
     }
+    // Column layout differs by mode (business has no "מספר חודשים" column,
+    // so everything after it shifts one column to the left) — read the
+    // amount from the correct index for whichever mode this is.
+    const amountIdx = CFG.usageMode==='business' ? 4 : 5;
     listEl.innerHTML = thisMonth.map(r=>{
-      const [date,name,,,,amount]=r;
+      const date = r[0], name = r[1], amount = r[amountIdx];
       const sum=parseFloat(amount)||0;
       return `<div class="history-row">
         <div><div class="history-name">${escapeHtml(name||'')}</div><div class="history-date">${escapeHtml(date||'')}</div></div>
