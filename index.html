@@ -121,6 +121,15 @@ body.home-active .finance-screen{height:auto;overflow:visible;}
 .finance-report-email-row{display:flex;gap:8px;margin-top:10px;}
 .finance-report-email-row input{flex:1;}
 .finance-report-email-row .finance-report-action-btn{flex:none;white-space:nowrap;}
+.finance-report-controls{background:var(--app-bg);border:1px dashed var(--card-line);border-radius:12px;padding:12px;margin-bottom:14px;}
+.finance-report-controls-row{display:flex;gap:10px;align-items:flex-end;}
+.finance-report-controls-row+.finance-report-controls-row{margin-top:10px;}
+.finance-report-field{flex:1;min-width:0;}
+.finance-report-field label{display:block;font-size:11px;color:var(--slate);margin-bottom:4px;}
+.finance-report-field input,.finance-report-field select{width:100%;padding:9px 10px;border:1.5px solid var(--card-line);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;color:var(--ink);}
+.finance-report-refresh-btn{flex:none;background:var(--blue);color:#fff;border-color:var(--blue);}
+.finance-report-refresh-btn:hover{background:var(--blue-dark);color:#fff;}
+.finance-report-share-btn{background:var(--blue-soft);border-color:var(--blue);color:var(--blue-dark);font-weight:800;}
 
 .finance-summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
 .finance-summary-card{border-radius:16px;padding:16px 14px;text-align:center;}
@@ -1038,9 +1047,20 @@ body.mode-business .home-refresh-status{display:none;}
       </div>
     </div>
 
-    <!-- PART 3 · SENDING -->
+    <!-- PART 3 · FINANCE OPENING BALANCE -->
     <div class="settings-section">
-      <p class="settings-part-label">חלק 3 מתוך 3 · שליחת קבלות</p>
+      <p class="settings-part-label">חלק 3 מתוך 4 · יתרת פתיחה</p>
+      <h4>🏦 יתרה מוקדמת (לפני תחילת השימוש בקבקליק)</h4>
+      <p style="font-size:11.5px;color:var(--slate);margin:0 0 10px;line-height:1.6;">אם הייתה יתרה בקופה לפני שהתחלתם לתעד הוצאות/הכנסות כאן (למשל ממעקב ידני קודם) — הזינו אותה כאן. היא תיכנס אוטומטית לחישוב "יתרה בקופה" ולדוח, בלי צורך להוסיף אותה כתנועה נפרדת.</p>
+      <label>סכום יתרת הפתיחה (₪)</label>
+      <input type="number" id="cfg-financeOpeningBalance" placeholder="לדוגמה: 1199">
+      <label>נכון לתאריך (אופציונלי)</label>
+      <input type="date" id="cfg-financeOpeningBalanceDate" class="ltr-input">
+    </div>
+
+    <!-- PART 4 · SENDING -->
+    <div class="settings-section">
+      <p class="settings-part-label">חלק 4 מתוך 4 · שליחת קבלות</p>
       <h4>📧 שליחת קבלות במייל</h4>
       <p style="font-size:11.5px;color:var(--slate);margin:0;line-height:1.6;">"שלח קבלה גם למייל" בטופס שולח מחשבון ה-Gmail המחובר כרגע.</p>
     </div>
@@ -1223,10 +1243,33 @@ body.mode-business .home-refresh-status{display:none;}
     <span class="rsm-title">דוח הוצאות והכנסות</span>
   </div>
   <div class="finance-report-body">
+    <div class="finance-report-controls">
+      <div class="finance-report-controls-row">
+        <div class="finance-report-field">
+          <label>מתאריך</label>
+          <input type="date" id="financeReportFrom" class="ltr-input">
+        </div>
+        <div class="finance-report-field">
+          <label>עד תאריך</label>
+          <input type="date" id="financeReportTo" class="ltr-input">
+        </div>
+      </div>
+      <div class="finance-report-controls-row">
+        <div class="finance-report-field">
+          <label>שפת הדוח</label>
+          <select id="financeReportLang">
+            <option value="he">עברית</option>
+            <option value="ru">Русский</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+        <button type="button" id="financeReportRefreshBtn" class="finance-report-action-btn finance-report-refresh-btn">🔄 עדכון תצוגה</button>
+      </div>
+    </div>
     <div class="receipt-preview-wrap" id="financeReportPaper"></div>
     <div class="finance-report-actions">
       <button type="button" id="financeReportDownloadBtn" class="finance-report-action-btn">⬇ הורדת PDF</button>
-      <button type="button" id="financeReportShareBtn" class="finance-report-action-btn">↗ שיתוף (כולל WhatsApp)</button>
+      <button type="button" id="financeReportShareBtn" class="finance-report-action-btn finance-report-share-btn">↗ שיתוף (כולל WhatsApp)</button>
     </div>
     <div class="finance-report-email-row">
       <input type="email" id="financeReportEmailInput" class="ltr-input" placeholder="כתובת מייל לשליחת הדוח">
@@ -1296,7 +1339,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '151';
+const APP_BUILD = '154';
 console.log('[קבקליק] גרסה:', APP_BUILD);
 
 const LICENSE_API_URL = 'https://script.google.com/macros/s/AKfycbwo80B9ZmKyMSwdXzQA6HP_sPFLLHETIWiI3VFj60vPazq4vE8DLpC7yxK-JtVqkZ4qyQ/exec';
@@ -1391,7 +1434,9 @@ function persistCurrentAccountCfg(){
     defaultFee:     CFG.defaultFee     || 140,
     businessDefaultAmount:     CFG.businessDefaultAmount     || '',
     businessDefaultAmountAuto: CFG.businessDefaultAmountAuto || false,
-    nextReceiptNumber: CFG.nextReceiptNumber || 1000
+    nextReceiptNumber: CFG.nextReceiptNumber || 1000,
+    financeOpeningBalance: CFG.financeOpeningBalance || 0,
+    financeOpeningBalanceDate: CFG.financeOpeningBalanceDate || ''
   });
 }
 /**
@@ -1432,6 +1477,8 @@ function applyAccountAndMode(email, mode){
   CFG.businessDefaultAmount     = saved.businessDefaultAmount     || '';
   CFG.businessDefaultAmountAuto = saved.businessDefaultAmountAuto || false;
   CFG.nextReceiptNumber = saved.nextReceiptNumber || 1000;
+  CFG.financeOpeningBalance = saved.financeOpeningBalance || 0;
+  CFG.financeOpeningBalanceDate = saved.financeOpeningBalanceDate || '';
   saveLastMode(email, mode);
   applyBranding();
   applyModeTerminology();
@@ -1623,6 +1670,8 @@ document.getElementById('settingsBtn').onclick = ()=>{
   document.getElementById('cfg-folderId').readOnly = true;
   document.getElementById('openSheetBtn').disabled  = !CFG.spreadsheetId;
   document.getElementById('openFolderBtn').disabled = !CFG.folderId;
+  document.getElementById('cfg-financeOpeningBalance').value = CFG.financeOpeningBalance || '';
+  document.getElementById('cfg-financeOpeningBalanceDate').value = CFG.financeOpeningBalanceDate || '';
   applyModeUI(CFG.usageMode||'vaad');
   const verEl = document.getElementById('appVersionMarker');
   if(verEl){
@@ -1671,6 +1720,8 @@ document.getElementById('modalSave').onclick = async ()=>{
   }
   CFG.spreadsheetId = extractSheetId(document.getElementById('cfg-spreadsheetId').value);
   CFG.folderId      = extractFolderId(document.getElementById('cfg-folderId').value);
+  CFG.financeOpeningBalance = parseFloat(document.getElementById('cfg-financeOpeningBalance').value) || 0;
+  CFG.financeOpeningBalanceDate = document.getElementById('cfg-financeOpeningBalanceDate').value || '';
   persistCurrentAccountCfg();
   document.getElementById('modalBg').classList.remove('show');
   applyBranding(); applyModeTerminology();
@@ -2537,6 +2588,7 @@ function signOut(){
   CFG.businessNumber = ''; CFG.logoUrl = ''; CFG.defaultFee = 140;
   CFG.businessDefaultAmount = ''; CFG.businessDefaultAmountAuto = false;
   CFG.nextReceiptNumber = 1000;
+  CFG.financeOpeningBalance = 0; CFG.financeOpeningBalanceDate = '';
   residents = []; allReceiptRows = [];
   markDisconnected();
   showHomeScreen();
@@ -3318,7 +3370,9 @@ function buildSettingsRows(){
     ['מפתח','ערך'],
     ['שם/כתובת בניין', CFG.buildingInfo || ''],
     ['קישור ללוגו',     CFG.logoUrl     || ''],
-    ['מחיר ברירת מחדל', CFG.defaultFee  || '']
+    ['מחיר ברירת מחדל', CFG.defaultFee  || ''],
+    ['יתרת פתיחה (הוצאות/הכנסות)', CFG.financeOpeningBalance || ''],
+    ['תאריך יתרת פתיחה', CFG.financeOpeningBalanceDate || '']
   ];
 }
 
@@ -3354,7 +3408,7 @@ async function syncSettingsFromSheet(){
       // so the first device to connect defines the shared starting point.
       await gapi.client.sheets.spreadsheets.values.update({
         spreadsheetId:CFG.spreadsheetId,
-        range:`'${SETTINGS_SHEET}'!A1:B4`,
+        range:`'${SETTINGS_SHEET}'!A1:B6`,
         valueInputOption:'RAW',
         resource:{values: buildSettingsRows()}
       });
@@ -3373,6 +3427,8 @@ async function syncSettingsFromSheet(){
       if(/שם.*בניין|כתובת|building/i.test(key)){ if(CFG.buildingInfo!==val){ CFG.buildingInfo=val; changed=true; } }
       else if(/לוגו|logo/i.test(key)){ if(CFG.logoUrl!==val){ CFG.logoUrl=val; changed=true; } }
       else if(/מחיר.*ברירת|ברירת.*מחדל|default.*fee/i.test(key)){ if(CFG.defaultFee!==val){ CFG.defaultFee=val; changed=true; } }
+      else if(/יתרת פתיחה \(/i.test(key)){ const n=parseFloat(val)||0; if(CFG.financeOpeningBalance!==n){ CFG.financeOpeningBalance=n; changed=true; } }
+      else if(/תאריך יתרת פתיחה/i.test(key)){ if(CFG.financeOpeningBalanceDate!==val){ CFG.financeOpeningBalanceDate=val; changed=true; } }
     });
     if(changed){
       persistCurrentAccountCfg();
@@ -3390,7 +3446,7 @@ async function pushSettingsToSheet(){
     await ensureSettingsSheet();
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId:CFG.spreadsheetId,
-      range:`'${SETTINGS_SHEET}'!A1:B4`,
+      range:`'${SETTINGS_SHEET}'!A1:B6`,
       valueInputOption:'RAW',
       resource:{values: buildSettingsRows()}
     });
@@ -3574,6 +3630,24 @@ async function ensureFinanceSheet(){
       console.warn('[קבקליק] הגדרת צביעה אוטומטית בגיליון הוצאות/הכנסות נכשלה:', e);
     }
   }
+
+  // Visible in the sheet itself (not just inside the app) — off to the
+  // side in columns I/J so it never collides with the A:G data table.
+  try{
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId:CFG.spreadsheetId,
+      range:`'${FINANCE_SHEET}'!I1:J2`,
+      valueInputOption:'RAW',
+      resource:{values:[
+        ['יתרת פתיחה', CFG.financeOpeningBalance || 0],
+        ['נכון לתאריך', CFG.financeOpeningBalanceDate || '']
+      ]}
+    });
+  }catch(e){
+    // Non-fatal — the opening balance still works correctly inside the app
+    // either way; this is just for visibility when opening the raw sheet.
+    console.warn('[קבקליק] כתיבת יתרת הפתיחה הגלויה לגיליון נכשלה:', e);
+  }
 }
 
 let financeRows = []; // [{date:'YYYY-MM-DD', type:'income'|'expense', title, category, amount, paymethod, note}]
@@ -3648,9 +3722,12 @@ function renderFinanceSummary(){
 }
 
 /** "כמה יש בקופה" — cumulative balance across ALL recorded transactions,
- *  not just the current month (unlike the two summary cards above it). */
+ *  not just the current month (unlike the two summary cards above it),
+ *  plus any opening balance carried over from before the sheet started
+ *  (e.g. from a previous manual tracking system). */
 function financeAllTimeBalance(){
-  return financeRows.reduce((sum,r)=> sum + (r.type==='income' ? r.amount : -r.amount), 0);
+  const txTotal = financeRows.reduce((sum,r)=> sum + (r.type==='income' ? r.amount : -r.amount), 0);
+  return (CFG.financeOpeningBalance || 0) + txTotal;
 }
 function renderFinanceBalance(){
   const balance = financeAllTimeBalance();
@@ -3806,8 +3883,42 @@ document.getElementById('finSaveBtn').addEventListener('click', async ()=>{
    receipts, so WhatsApp (and any other installed app) shows up automatically
    in the device's own share sheet — no WhatsApp-specific integration code
    needed for that part. */
-function financeReportPeriodLabel(){
-  return new Date().toLocaleDateString('he-IL',{month:'long',year:'numeric'});
+const FIN_I18N = {
+  he: {
+    title:'דוח הוצאות והכנסות', prevBalance:'יתרה קודמת', income:'הכנסות', expense:'הוצאות',
+    balance:'מאזן', currentBalance:'יתרה נוכחית', period:'התקופה', incomeMinusExpense:'הכנסות פחות הוצאות',
+    incomeByCategory:'פירוט הכנסות לפי קטגוריה', expenseByCategory:'פירוט הוצאות לפי קטגוריה',
+    allTransactions:'כל התנועות בתקופה', category:'קטגוריה', amount:'סכום', percent:'אחוז',
+    date:'תאריך', description:'תיאור', noData:'אין נתונים', noTransactions:'אין תנועות בתקופה שנבחרה',
+    generatedBy:'הופק אוטומטית על ידי קבקליק', asOf:'נכון ל', dataFromOpening:(d)=>`הנתונים כוללים תנועות שתועדו באפליקציה מתאריך יתרת הפתיחה (${d}) ואילך`
+  },
+  ru: {
+    title:'Отчёт о доходах и расходах', prevBalance:'Предыдущий остаток', income:'Доходы', expense:'Расходы',
+    balance:'Баланс', currentBalance:'Текущий остаток', period:'Период', incomeMinusExpense:'Доходы минус расходы',
+    incomeByCategory:'Доходы по категориям', expenseByCategory:'Расходы по категориям',
+    allTransactions:'Все операции за период', category:'Категория', amount:'Сумма', percent:'%',
+    date:'Дата', description:'Описание', noData:'Нет данных', noTransactions:'Нет операций за выбранный период',
+    generatedBy:'Автоматически создано KabKlik', asOf:'по состоянию на', dataFromOpening:(d)=>`Данные включают операции, зафиксированные в приложении начиная с даты начального остатка (${d})`
+  },
+  en: {
+    title:'Income & Expense Report', prevBalance:'Previous balance', income:'Income', expense:'Expenses',
+    balance:'Net balance', currentBalance:'Current balance', period:'Period', incomeMinusExpense:'Income minus expenses',
+    incomeByCategory:'Income by category', expenseByCategory:'Expenses by category',
+    allTransactions:'All transactions in period', category:'Category', amount:'Amount', percent:'%',
+    date:'Date', description:'Description', noData:'No data', noTransactions:'No transactions in the selected period',
+    generatedBy:'Automatically generated by KabKlik', asOf:'as of', dataFromOpening:(d)=>`Data includes transactions logged in the app from the opening-balance date (${d}) onward`
+  }
+};
+
+function financeReportPeriodLabel(from, to, lang){
+  if(!from || !to) return '';
+  const locale = lang==='ru' ? 'ru-RU' : lang==='en' ? 'en-GB' : 'he-IL';
+  const f = new Date(from+'T00:00:00').toLocaleDateString(locale,{day:'numeric',month:'short',year:'numeric'});
+  const t = new Date(to+'T00:00:00').toLocaleDateString(locale,{day:'numeric',month:'short',year:'numeric'});
+  return `${f} – ${t}`;
+}
+function financeRowsInRange(from, to){
+  return financeRows.filter(r=> r.date && r.date>=from && r.date<=to);
 }
 function financeCategoryBreakdownRows(rows, type){
   const byCat = {};
@@ -3817,53 +3928,74 @@ function financeCategoryBreakdownRows(rows, type){
     .sort((a,b)=>b[1]-a[1])
     .map(([cat,amt])=>({cat, amt, pct: total>0 ? Math.round((amt/total)*100) : 0}));
 }
-function financeReportHTML(){
-  const rows = financeRowsThisMonth();
+function financeReportHTML(from, to, lang){
+  const t = FIN_I18N[lang] || FIN_I18N.he;
+  const dir = lang==='he' ? 'rtl' : 'ltr';
+  const align = lang==='he' ? 'right' : 'left';
+  const numLocale = lang==='ru' ? 'ru-RU' : lang==='en' ? 'en-GB' : 'he-IL';
+  const rows = financeRowsInRange(from, to);
   const income  = rows.filter(r=>r.type==='income').reduce((s,r)=>s+r.amount,0);
   const expense = rows.filter(r=>r.type==='expense').reduce((s,r)=>s+r.amount,0);
-  const balance = financeAllTimeBalance();
+  const net = income - expense;
+  const opening = CFG.financeOpeningBalance || 0;
+  const currentBalance = financeAllTimeBalance();
   const incomeBreak  = financeCategoryBreakdownRows(rows,'income');
   const expenseBreak = financeCategoryBreakdownRows(rows,'expense');
-  const bInfo = CFG.buildingInfo || (CFG.usageMode==='business' ? 'עסק' : 'ועד בית');
+  const bInfo = CFG.buildingInfo || (CFG.usageMode==='business' ? 'קבקליק' : 'קבקליק');
   const sortedRows = [...rows].sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+  const fmt = (n)=> n.toLocaleString(numLocale)+' ₪';
 
   const breakdownRowsHtml = (list)=> list.length
-    ? list.map(b=>`<tr><td>${escapeHtml2(b.cat)}</td><td>${b.amt.toLocaleString('he-IL')} ₪</td><td>${b.pct}%</td></tr>`).join('')
-    : `<tr><td colspan="3" style="color:#94a3b8;text-align:center;">אין נתונים</td></tr>`;
+    ? list.map(b=>`<tr><td>${escapeHtml2(b.cat)}</td><td>${fmt(b.amt)}</td><td>${b.pct}%</td></tr>`).join('')
+    : `<tr><td colspan="3" style="color:#94a3b8;text-align:center;">${t.noData}</td></tr>`;
   const txRowsHtml = sortedRows.length
-    ? sortedRows.map(r=>`<tr><td>${financeFormatDate(r.date)}</td><td>${escapeHtml2(r.title||r.category)}</td><td>${escapeHtml2(r.category)}</td><td style="color:${r.type==='income'?'#0E9F6E':'#A33E3E'};font-weight:700;">${r.type==='income'?'+':'-'} ${r.amount.toLocaleString('he-IL')} ₪</td></tr>`).join('')
-    : `<tr><td colspan="4" style="color:#94a3b8;text-align:center;">אין תנועות החודש</td></tr>`;
+    ? sortedRows.map(r=>`<tr><td>${financeFormatDate(r.date)}</td><td>${escapeHtml2(r.title||r.category)}</td><td>${escapeHtml2(r.category)}</td><td style="color:${r.type==='income'?'#0E9F6E':'#A33E3E'};font-weight:700;">${r.type==='income'?'+':'-'} ${fmt(r.amount)}</td></tr>`).join('')
+    : `<tr><td colspan="4" style="color:#94a3b8;text-align:center;">${t.noTransactions}</td></tr>`;
+
+  const kpi = (label, value, color, sub)=> `
+    <div style="flex:1;min-width:0;background:#F8FAFC;border-top:4px solid ${color};border-radius:10px;padding:10px 8px;text-align:center;">
+      <div style="font-size:9.5px;font-weight:700;color:#64748B;text-transform:uppercase;margin-bottom:4px;">${escapeHtml2(label)}</div>
+      <div style="font-size:15px;font-weight:900;color:${color};line-height:1.15;">${value}</div>
+      ${sub?`<div style="font-size:8.5px;color:#94a3b8;margin-top:3px;">${escapeHtml2(sub)}</div>`:''}
+    </div>`;
+
+  const openingNote = CFG.financeOpeningBalanceDate
+    ? `<div style="font-size:9.5px;color:#94a3b8;text-align:center;margin-top:10px;">${escapeHtml2(t.dataFromOpening(financeFormatDate(CFG.financeOpeningBalanceDate)))}</div>`
+    : '';
 
   return `
-  <div class="receipt-paper" style="min-height:1123px;">
+  <div class="receipt-paper" dir="${dir}" style="min-height:1123px;text-align:${align};">
     <header class="r-brand">
-      <img class="r-brand-logo" src="icon-mark-192.png" alt="קבקליק">
+      <img class="r-brand-logo" src="icon-mark-192.png" alt="KabKlik">
       <div class="r-brand-name"><span class="dark">קב</span>קליק</div>
-      <div class="r-brand-tag">דוח הוצאות והכנסות</div>
+      <div class="r-brand-tag">${t.title}</div>
     </header>
-    <div class="divider"><span class="receipt-chip">${escapeHtml2(financeReportPeriodLabel())}</span></div>
-    <div style="text-align:center;font-size:18px;font-weight:800;margin-bottom:18px;">${escapeHtml2(bInfo)}</div>
+    <div class="divider"><span class="receipt-chip">${escapeHtml2(financeReportPeriodLabel(from,to,lang))}</span></div>
+    <div style="text-align:center;font-size:18px;font-weight:800;margin-bottom:16px;">${escapeHtml2(bInfo)}</div>
 
-    <section class="meta" style="margin-bottom:18px;">
-      <div class="meta-side"><span>הכנסות החודש</span><strong style="color:#0E9F6E;">${income.toLocaleString('he-IL')} ₪</strong></div>
-      <div class="main-title" style="font-size:15px;">יתרה בקופה<br><span style="font-size:22px;color:${balance<0?'#A33E3E':'#2563EB'};">${balance.toLocaleString('he-IL')} ₪</span></div>
-      <div class="meta-side left"><span>הוצאות החודש</span><strong style="color:#A33E3E;">${expense.toLocaleString('he-IL')} ₪</strong></div>
+    <section style="display:flex;gap:6px;margin-bottom:6px;">
+      ${kpi(t.prevBalance, fmt(opening), '#2563EB', CFG.financeOpeningBalanceDate ? financeFormatDate(CFG.financeOpeningBalanceDate) : '')}
+      ${kpi(t.income, fmt(income), '#0E9F6E', t.period)}
+      ${kpi(t.expense, fmt(expense), '#A33E3E', t.period)}
+      ${kpi(t.balance, (net>=0?'+':'')+fmt(net), '#7C3AED', t.incomeMinusExpense)}
+      ${kpi(t.currentBalance, fmt(currentBalance), currentBalance<0?'#A33E3E':'#D97706', '')}
     </section>
+    ${openingNote}
 
-    <section class="details">
-      <div style="font-weight:800;font-size:14px;margin-bottom:8px;">פירוט הכנסות לפי קטגוריה</div>
+    <section class="details" style="margin-top:18px;">
+      <div style="font-weight:800;font-size:14px;margin-bottom:8px;">${t.incomeByCategory}</div>
       <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:16px;">
-        <thead><tr style="border-bottom:1.5px solid #E3E9F0;"><th style="text-align:right;padding:6px 0;">קטגוריה</th><th style="text-align:right;">סכום</th><th style="text-align:right;">אחוז</th></tr></thead>
+        <thead><tr style="border-bottom:1.5px solid #E3E9F0;"><th style="text-align:${align};padding:6px 0;">${t.category}</th><th style="text-align:${align};">${t.amount}</th><th style="text-align:${align};">${t.percent}</th></tr></thead>
         <tbody>${breakdownRowsHtml(incomeBreak)}</tbody>
       </table>
-      <div style="font-weight:800;font-size:14px;margin-bottom:8px;">פירוט הוצאות לפי קטגוריה</div>
+      <div style="font-weight:800;font-size:14px;margin-bottom:8px;">${t.expenseByCategory}</div>
       <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:16px;">
-        <thead><tr style="border-bottom:1.5px solid #E3E9F0;"><th style="text-align:right;padding:6px 0;">קטגוריה</th><th style="text-align:right;">סכום</th><th style="text-align:right;">אחוז</th></tr></thead>
+        <thead><tr style="border-bottom:1.5px solid #E3E9F0;"><th style="text-align:${align};padding:6px 0;">${t.category}</th><th style="text-align:${align};">${t.amount}</th><th style="text-align:${align};">${t.percent}</th></tr></thead>
         <tbody>${breakdownRowsHtml(expenseBreak)}</tbody>
       </table>
-      <div style="font-weight:800;font-size:14px;margin-bottom:8px;">כל התנועות החודש</div>
+      <div style="font-weight:800;font-size:14px;margin-bottom:8px;">${t.allTransactions}</div>
       <table style="width:100%;border-collapse:collapse;font-size:11.5px;">
-        <thead><tr style="border-bottom:1.5px solid #E3E9F0;"><th style="text-align:right;padding:6px 0;">תאריך</th><th style="text-align:right;">תיאור</th><th style="text-align:right;">קטגוריה</th><th style="text-align:right;">סכום</th></tr></thead>
+        <thead><tr style="border-bottom:1.5px solid #E3E9F0;"><th style="text-align:${align};padding:6px 0;">${t.date}</th><th style="text-align:${align};">${t.description}</th><th style="text-align:${align};">${t.category}</th><th style="text-align:${align};">${t.amount}</th></tr></thead>
         <tbody>${txRowsHtml}</tbody>
       </table>
     </section>
@@ -3872,18 +4004,25 @@ function financeReportHTML(){
       <div class="thanks-line"><span></span><div class="heart">♡</div><span></span></div>
       <div class="committee">${escapeHtml2(bInfo)}</div>
       <div class="trust">
-        <div class="trust-main">🛡️ <b>הופק אוטומטית על ידי קבקליק</b></div>
+        <div class="trust-main">🛡️ <b>${t.generatedBy}</b></div>
       </div>
     </footer>
   </div>`;
 }
 
 let lastFinanceReportBlob = null, lastFinanceReportFilename = null;
-function openFinanceReport(){
+function financeDefaultRange(){
+  const now = new Date();
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const last  = new Date(now.getFullYear(), now.getMonth()+1, 0);
+  return { from: first.toISOString().slice(0,10), to: last.toISOString().slice(0,10) };
+}
+function renderFinanceReportPreview(){
+  const from = document.getElementById('financeReportFrom').value;
+  const to   = document.getElementById('financeReportTo').value;
+  const lang = document.getElementById('financeReportLang').value;
   const box = document.getElementById('financeReportPaper');
-  box.innerHTML = financeReportHTML();
-  document.getElementById('financeReportMsg').className = 'msg';
-  document.getElementById('financeReportModal').classList.add('show');
+  box.innerHTML = financeReportHTML(from, to, lang);
   requestAnimationFrame(()=>{
     const paper = box.querySelector('.receipt-paper');
     if(!paper) return;
@@ -3892,14 +4031,33 @@ function openFinanceReport(){
     box.style.height = (paper.offsetHeight * scale) + 'px';
   });
 }
+function openFinanceReport(){
+  const range = financeDefaultRange();
+  document.getElementById('financeReportFrom').value = range.from;
+  document.getElementById('financeReportTo').value = range.to;
+  document.getElementById('financeReportLang').value = 'he';
+  document.getElementById('financeReportMsg').className = 'msg';
+  document.getElementById('financeReportModal').classList.add('show');
+  renderFinanceReportPreview();
+}
 function closeFinanceReport(){
   document.getElementById('financeReportModal').classList.remove('show');
 }
 document.getElementById('financeReportBtn').addEventListener('click', openFinanceReport);
 document.getElementById('financeReportCloseBtn').addEventListener('click', closeFinanceReport);
+document.getElementById('financeReportRefreshBtn').addEventListener('click', renderFinanceReportPreview);
 
 function financeReportFilename(){
-  return `דוח הוצאות והכנסות - ${CFG.buildingInfo || 'קבקליק'} - ${financeReportPeriodLabel()}.pdf`;
+  const from = document.getElementById('financeReportFrom').value;
+  const to   = document.getElementById('financeReportTo').value;
+  const lang = document.getElementById('financeReportLang').value;
+  return `${FIN_I18N[lang].title} - ${CFG.buildingInfo || 'קבקליק'} - ${financeReportPeriodLabel(from,to,lang)}.pdf`;
+}
+function currentFinanceReportHTML(){
+  const from = document.getElementById('financeReportFrom').value;
+  const to   = document.getElementById('financeReportTo').value;
+  const lang = document.getElementById('financeReportLang').value;
+  return financeReportHTML(from, to, lang);
 }
 
 document.getElementById('financeReportDownloadBtn').addEventListener('click', async ()=>{
@@ -3907,7 +4065,7 @@ document.getElementById('financeReportDownloadBtn').addEventListener('click', as
   const original = btn.textContent;
   btn.disabled = true; btn.textContent = 'מכין PDF…';
   try{
-    const blob = await buildPdfBlob(financeReportHTML());
+    const blob = await buildPdfBlob(currentFinanceReportHTML());
     lastFinanceReportBlob = blob; lastFinanceReportFilename = financeReportFilename();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -3926,7 +4084,7 @@ document.getElementById('financeReportShareBtn').addEventListener('click', async
   const original = btn.textContent;
   btn.disabled = true; btn.textContent = 'מכין…';
   try{
-    const blob = await buildPdfBlob(financeReportHTML());
+    const blob = await buildPdfBlob(currentFinanceReportHTML());
     const filename = 'finance-report.pdf'; // ASCII-safe, same reasoning as receipt sharing
     const file = new File([blob], filename, {type:'application/pdf'});
     if(navigator.canShare && navigator.canShare({files:[file]})){
@@ -3984,7 +4142,7 @@ document.getElementById('financeReportEmailBtn').addEventListener('click', async
   btn.disabled = true; btn.textContent = 'שולח…';
   msgEl.className = 'msg';
   try{
-    const blob = await buildPdfBlob(financeReportHTML());
+    const blob = await buildPdfBlob(currentFinanceReportHTML());
     await sendFinanceReportByEmail(email, blob, financeReportFilename());
     msgEl.className = 'msg show ok';
     msgEl.textContent = '✅ הדוח נשלח בהצלחה ל-'+email+'.';
