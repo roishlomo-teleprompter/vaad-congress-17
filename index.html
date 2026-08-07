@@ -772,6 +772,8 @@ body.mode-business .home-refresh-status{display:none;}
       <span class="finance-header-btn-spacer"></span>
     </div>
 
+    <div class="msg" id="financeScreenMsg" style="margin-bottom:12px;"></div>
+
     <div class="finance-balance-bar">
       <div>
         <div class="finance-balance-label">יתרה בקופה</div>
@@ -1346,7 +1348,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '159';
+const APP_BUILD = '160';
 console.log('[קבקליק] גרסה:', APP_BUILD);
 
 const LICENSE_API_URL = 'https://script.google.com/macros/s/AKfycbwo80B9ZmKyMSwdXzQA6HP_sPFLLHETIWiI3VFj60vPazq4vE8DLpC7yxK-JtVqkZ4qyQ/exec';
@@ -3605,6 +3607,7 @@ const FINANCE_CATEGORY_ICONS = {
 function financeCategoryIcon(cat){ return FINANCE_CATEGORY_ICONS[cat] || '📄'; }
 
 async function ensureFinanceSheet(){
+  financeColoringError = null;
   const meta = await gapi.client.sheets.spreadsheets.get({
     spreadsheetId:CFG.spreadsheetId,
     fields:'sheets(properties,conditionalFormats)'
@@ -3657,7 +3660,10 @@ async function ensureFinanceSheet(){
       });
     }catch(e){
       // Non-fatal — the sheet still works perfectly without the coloring,
-      // this is a cosmetic nice-to-have.
+      // this is a cosmetic nice-to-have. Captured (not just console.warn'd)
+      // so it can be shown directly on the finance screen — no DevTools
+      // needed to see what went wrong.
+      financeColoringError = e.result?.error?.message || e.message || String(e);
       console.warn('[קבקליק] הגדרת צביעה אוטומטית בגיליון הוצאות/הכנסות נכשלה:', e);
     }
   }
@@ -3683,6 +3689,7 @@ async function ensureFinanceSheet(){
 
 let financeRows = []; // [{date:'YYYY-MM-DD', type:'income'|'expense', title, category, amount, paymethod, note, sheetRow}]
 let financeSheetGid = null;
+let financeColoringError = null;
 async function loadFinanceRows(){
   try{
     await ensureFinanceSheet();
@@ -3878,6 +3885,7 @@ function renderFinanceDonut(totals){
 
 async function loadAndRenderFinanceScreen(){
   document.getElementById('financeTxList').innerHTML = '<div class="home-residents-loading">⏳ טוען נתונים…</div>';
+  document.getElementById('financeScreenMsg').className = 'msg';
   if(!accessToken || !CFG.spreadsheetId){
     document.getElementById('financeTxList').innerHTML = '<div class="finance-empty">יש להתחבר ולהגדיר גיליון לפני שרואים נתונים.</div>';
     return;
@@ -3886,6 +3894,11 @@ async function loadAndRenderFinanceScreen(){
   const totals = renderFinanceSummary();
   renderFinanceTxList(financeShowingAll ? undefined : 5);
   renderFinanceDonut(totals);
+  if(financeColoringError){
+    const msgEl = document.getElementById('financeScreenMsg');
+    msgEl.className = 'msg show error';
+    msgEl.textContent = '⚠️ צביעת השורות האוטומטית בגיליון נכשלה: ' + financeColoringError;
+  }
 }
 
 document.getElementById('financeScreen').addEventListener('click', (e)=>{
