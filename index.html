@@ -116,12 +116,8 @@ body.home-active .finance-screen{height:auto;overflow:visible;}
 .finance-report-btn:hover{background:#EAF1FE;}
 
 .finance-report-body{flex:1;min-height:0;overflow-y:auto;padding:16px;}
-.finance-report-actions{display:flex;gap:10px;margin-top:14px;}
 .finance-report-action-btn{flex:1;padding:12px;border-radius:10px;border:1.5px solid var(--card-line);background:#fff;color:var(--ink);font-family:inherit;font-size:13.5px;font-weight:700;cursor:pointer;transition:.15s;}
 .finance-report-action-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-soft);}
-.finance-report-email-row{display:flex;gap:8px;margin-top:10px;}
-.finance-report-email-row input{flex:1;}
-.finance-report-email-row .finance-report-action-btn{flex:none;white-space:nowrap;}
 .finance-report-controls{background:var(--app-bg);border:1px dashed var(--card-line);border-radius:12px;padding:12px;margin-bottom:14px;}
 .finance-report-controls-row{display:flex;gap:10px;align-items:flex-end;}
 .finance-report-controls-row+.finance-report-controls-row{margin-top:10px;}
@@ -130,7 +126,6 @@ body.home-active .finance-screen{height:auto;overflow:visible;}
 .finance-report-field input,.finance-report-field select{width:100%;padding:9px 10px;border:1.5px solid var(--card-line);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;color:var(--ink);}
 .finance-report-refresh-btn{flex:none;background:var(--blue);color:#fff;border-color:var(--blue);}
 .finance-report-refresh-btn:hover{background:var(--blue-dark);color:#fff;}
-.finance-report-share-btn{background:var(--blue-soft);border-color:var(--blue);color:var(--blue-dark);font-weight:800;}
 
 .finance-summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
 .finance-summary-card{border-radius:16px;padding:16px 14px;text-align:center;}
@@ -930,17 +925,6 @@ body.mode-business .home-refresh-status{display:none;}
       <div class="receipt-preview-wrap" id="receiptPaper">
         <div class="empty-hint">בחרו דייר, אמצעי תשלום וחודשים — התצוגה המקדימה תופיע כאן.</div>
       </div>
-      <div class="success-banner" id="successBanner" style="display:none;">
-        <div class="confetti-wrap" id="confettiWrap"></div>
-        <div class="success-check">✓</div>
-        <div class="success-title">הקבלה הופקה בהצלחה!</div>
-        <div class="success-sub" id="successSub"></div>
-        <button class="success-new-btn" id="successNewBtn">➕ הפקת קבלה נוספת</button>
-      </div>
-      <div class="post-actions" id="postActions" style="display:none;">
-        <button id="downloadBtn">⬇ הורדת PDF</button>
-        <button id="shareBtn">↗ שיתוף PDF</button>
-      </div>
       <div class="msg" id="msgBox"></div>
     </div>
 
@@ -1069,6 +1053,22 @@ body.mode-business .home-refresh-status{display:none;}
       <button class="save" id="modalSave">שמירת הגדרות</button>
     </div>
     <p style="text-align:center;font-size:10.5px;font-weight:800;color:var(--slate);margin:10px 0 0;line-height:1.6;word-break:break-word;" id="appVersionMarker"></p>
+  </div>
+</div>
+
+<!-- RECEIPT SUCCESS POPUP (shown after a receipt is generated) -->
+<div class="modal-bg" id="receiptSuccessModalBg" style="z-index:400;">
+  <div class="modal" style="text-align:center;position:relative;">
+    <button type="button" id="receiptSuccessCloseBtn" class="account-modal-close" aria-label="סגירה" style="position:absolute;top:10px;left:10px;">✕</button>
+    <div class="confetti-wrap" id="confettiWrap"></div>
+    <div class="success-check">✓</div>
+    <div class="success-title">הקבלה הופקה בהצלחה!</div>
+    <div class="success-sub" id="successSub"></div>
+    <div class="post-actions">
+      <button id="downloadBtn">⬇ הורדת PDF</button>
+      <button id="shareBtn">↗ שיתוף PDF</button>
+    </div>
+    <button class="success-new-btn" id="successNewBtn" style="margin-top:12px;">➕ הפקת קבלה נוספת</button>
   </div>
 </div>
 
@@ -1266,13 +1266,9 @@ body.mode-business .home-refresh-status{display:none;}
       </div>
     </div>
     <div class="receipt-preview-wrap" id="financeReportPaper"></div>
-    <div class="finance-report-actions">
-      <button type="button" id="financeReportDownloadBtn" class="finance-report-action-btn">⬇ הורדת PDF</button>
-      <button type="button" id="financeReportShareBtn" class="finance-report-action-btn finance-report-share-btn">↗ שיתוף (כולל WhatsApp)</button>
-    </div>
-    <div class="finance-report-email-row">
-      <input type="email" id="financeReportEmailInput" class="ltr-input" placeholder="כתובת מייל לשליחת הדוח">
-      <button type="button" id="financeReportEmailBtn" class="finance-report-action-btn">📧 שלח במייל</button>
+    <div class="post-actions">
+      <button type="button" id="financeReportDownloadBtn">⬇ הורדת PDF</button>
+      <button type="button" id="financeReportShareBtn">↗ שיתוף PDF</button>
     </div>
     <div class="msg" id="financeReportMsg"></div>
   </div>
@@ -1338,7 +1334,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '155';
+const APP_BUILD = '156';
 console.log('[קבקליק] גרסה:', APP_BUILD);
 
 const LICENSE_API_URL = 'https://script.google.com/macros/s/AKfycbwo80B9ZmKyMSwdXzQA6HP_sPFLLHETIWiI3VFj60vPazq4vE8DLpC7yxK-JtVqkZ4qyQ/exec';
@@ -1976,8 +1972,7 @@ function clearResidentSelection(){
   document.getElementById('purposeInput').value = '';
   document.getElementById('manualAmountInput').value = '';
   applyPurposeModeUI(); // resets to the months grid (vaad) or the free-text flow (business), as appropriate
-  document.getElementById('successBanner').style.display = 'none';
-  document.getElementById('postActions').style.display = 'none';
+  document.getElementById('receiptSuccessModalBg').classList.remove('show');
 
   residentSelect.value = '';
   residentSelect.dispatchEvent(new Event('change'));  // resets phone/apt/months/preview, doesn't touch the sheet
@@ -2402,9 +2397,12 @@ document.getElementById('homeSettingsBtn').addEventListener('click', ()=>documen
 document.getElementById('homeHistoryBtn').addEventListener('click', ()=>document.getElementById('historyBtn').click());
 document.getElementById('homeTourBtn').addEventListener('click', tourStart);
 document.getElementById('successNewBtn').addEventListener('click', ()=>{
-  document.getElementById('postActions').style.display = 'none';
+  document.getElementById('receiptSuccessModalBg').classList.remove('show');
   hideMsg();
   clearResidentSelection(); // clears fields and returns to step 0 for a new receipt — wizard stays open
+});
+document.getElementById('receiptSuccessCloseBtn').addEventListener('click', ()=>{
+  document.getElementById('receiptSuccessModalBg').classList.remove('show');
 });
 
 /* ═══════════════════════════════════════
@@ -4101,60 +4099,6 @@ document.getElementById('financeReportShareBtn').addEventListener('click', async
   }
 });
 
-/**
- * Sends the report PDF by email through the same Apps Script Web App used
- * for receipts (roi.shlomo@gmail.com sending on the app's behalf — no extra
- * OAuth scope, no consent screen for the customer). NOTE: the Apps Script
- * project itself needs a matching 'sendFinanceReport' action added
- * server-side (mirroring the existing 'sendReceipt' handler) before this
- * will actually deliver — it is not part of this index.html file.
- */
-async function sendFinanceReportByEmail(toEmail, pdfBlob, filename){
-  if(!LICENSE_API_URL) throw new Error('שליחת מייל טרם הוגדרה (LICENSE_API_URL ריק).');
-  const pdfBase64 = await blobToBase64(pdfBlob);
-  const res = await fetch(LICENSE_API_URL, {
-    method:'POST',
-    headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body: JSON.stringify({
-      action:'sendFinanceReport',
-      key: LICENSE_SECRET,
-      to: toEmail,
-      buildingName: CFG.buildingInfo || 'קבקליק',
-      period: financeReportPeriodLabel(),
-      filename: filename,
-      pdfBase64: pdfBase64
-    })
-  });
-  const data = await res.json();
-  if(!data.ok){ throw new Error(data.message || 'שגיאה לא ידועה בשליחת המייל.'); }
-  return data;
-}
-
-document.getElementById('financeReportEmailBtn').addEventListener('click', async ()=>{
-  const emailInput = document.getElementById('financeReportEmailInput');
-  const msgEl = document.getElementById('financeReportMsg');
-  const email = emailInput.value.trim();
-  if(!email || !email.includes('@')){
-    msgEl.className = 'msg show error'; msgEl.textContent = 'יש להזין כתובת מייל תקינה.';
-    return;
-  }
-  const btn = document.getElementById('financeReportEmailBtn');
-  const original = btn.textContent;
-  btn.disabled = true; btn.textContent = 'שולח…';
-  msgEl.className = 'msg';
-  try{
-    const blob = await buildPdfBlob(currentFinanceReportHTML());
-    await sendFinanceReportByEmail(email, blob, financeReportFilename());
-    msgEl.className = 'msg show ok';
-    msgEl.textContent = '✅ הדוח נשלח בהצלחה ל-'+email+'.';
-  }catch(e){
-    msgEl.className = 'msg show error';
-    msgEl.textContent = 'שגיאה בשליחה: '+(e.message||e)+' (ייתכן שנדרש עדכון בצד ה-Apps Script — action "sendFinanceReport" חדש)';
-  }finally{
-    btn.disabled = false; btn.textContent = original;
-  }
-});
-
 /* ═══════════════════════════════════════
    SHEETS: RECEIPT ROWS CACHE (drives the "שולם" state in the months grid)
 ═══════════════════════════════════════ */
@@ -4633,11 +4577,10 @@ async function performGenerateReceipt(){
     // sit and wait on network calls just to see a receipt that's already
     // fully ready.
     const total = snap.isOtherPurpose ? snap.manualAmt : snap.months.length*snap.fee;
-    document.getElementById('postActions').style.display='flex';
     document.getElementById('successSub').textContent = `${r.name} · ${total.toLocaleString('he-IL')} ₪`;
-    document.getElementById('successBanner').style.display = 'block';
-    // The generate action's job is done — the success banner (with its own
-    // "another receipt" / "done" choice) takes over from here.
+    document.getElementById('receiptSuccessModalBg').classList.add('show');
+    // The generate action's job is done — the popup (with its own
+    // "another receipt" / close choice) takes over from here.
     btn.style.display = 'none';
     spawnConfetti();
     showMsg('✅ הקבלה מוכנה! שומרים אותה עכשיו ב-Drive ברקע…','ok');
