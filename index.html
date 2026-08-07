@@ -1346,7 +1346,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '162';
+const APP_BUILD = '163';
 console.log('[קבקליק] גרסה:', APP_BUILD);
 
 const LICENSE_API_URL = 'https://script.google.com/macros/s/AKfycbwo80B9ZmKyMSwdXzQA6HP_sPFLLHETIWiI3VFj60vPazq4vE8DLpC7yxK-JtVqkZ4qyQ/exec';
@@ -5033,11 +5033,72 @@ document.getElementById('tourSkipBtn').addEventListener('click', tourSkip);
 
 
 /* ═══════════════════════════════════════
+   ANDROID BACK BUTTON (TWA)
+   Packaged as a Trusted Web Activity, the phone's hardware/gesture back
+   button maps to browser history — with no history entries of our own, the
+   very first back press would exit the whole app, even from deep inside a
+   modal or mid-wizard. This keeps exactly one "buffer" entry in history at
+   all times: every physical back press fires popstate, and if there's
+   something to close/undo inside the app we do that and immediately push a
+   fresh buffer entry (so the next back press is intercepted the same way).
+   Only when there's truly nothing left to undo (no modal open, on the home
+   screen) do we skip re-pushing — letting that back press fall through to
+   its normal OS behavior and actually exit/minimize the app.
+═══════════════════════════════════════ */
+function pushBackButtonBuffer(){
+  try{ history.pushState({kabklikBackBuffer:true}, ''); }catch(e){}
+}
+window.addEventListener('popstate', ()=>{
+  // Each modal type is closed through its own real close path (not just
+  // hiding it) — some of these (showAppConfirm/showAppAlert) are backed by
+  // a Promise that only resolves when a button is actually clicked; simply
+  // removing the "show" class would leave that Promise hanging forever.
+  const appDialog = document.getElementById('appDialogBg');
+  if(appDialog.classList.contains('show')){
+    const cancelBtn = document.getElementById('appDialogCancelBtn');
+    const target = cancelBtn.style.display!=='none' ? cancelBtn : document.getElementById('appDialogConfirmBtn');
+    target.click();
+    pushBackButtonBuffer();
+    return;
+  }
+  const tourOverlay = document.getElementById('tourOverlay');
+  if(tourOverlay.classList.contains('show')){
+    tourSkip();
+    pushBackButtonBuffer();
+    return;
+  }
+  const otherModal = document.querySelector(
+    '.modal-bg.show, .account-modal-overlay.show, .resident-search-modal.show, .mode-select-gate.show'
+  );
+  if(otherModal){
+    otherModal.classList.remove('show');
+    pushBackButtonBuffer();
+    return;
+  }
+  const wizardShowing = document.querySelector('.wizard-card').style.display !== 'none';
+  if(wizardShowing){
+    wizardBack(); // already handles both "step back" and "step 0 → home" internally
+    pushBackButtonBuffer();
+    return;
+  }
+  const financeShowing = document.getElementById('financeScreen').style.display !== 'none';
+  if(financeShowing){
+    showHomeScreen();
+    pushBackButtonBuffer();
+    return;
+  }
+  // Already on the home screen with nothing open — let this back press
+  // through to its normal behavior (exit/minimize the app) by NOT pushing
+  // a new buffer entry.
+});
+
+/* ═══════════════════════════════════════
    BOOT
 ═══════════════════════════════════════ */
 window.addEventListener('load',()=>{
   wizardShowStep(0);
   initGoogle();
+  pushBackButtonBuffer(); // seed the back-button buffer described above
 
   // Auto-start the guided tour once, the very first time someone opens the app.
   try{
