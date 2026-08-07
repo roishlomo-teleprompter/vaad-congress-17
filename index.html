@@ -99,13 +99,14 @@ body.home-active .home-card{height:auto;overflow:visible;padding-bottom:calc(120
 .home-refresh-btn.spinning .home-refresh-icon{animation:footer-icon-spin .8s linear infinite;}
 
 /* ── FINANCE SCREEN · הוצאות והכנסות ── */
-.finance-screen{grid-column:1 / -1;max-width:640px;margin:0 auto;width:100%;height:100%;display:flex;flex-direction:column;padding-top:18px;padding-bottom:calc(320px + env(safe-area-inset-bottom));overflow-y:auto;-webkit-overflow-scrolling:touch;text-align:right;}
+.finance-screen{grid-column:1 / -1;max-width:640px;margin:0 auto;width:100%;height:100%;display:flex;flex-direction:column;padding-top:18px;padding-bottom:calc(420px + env(safe-area-inset-bottom));overflow-y:auto;-webkit-overflow-scrolling:touch;text-align:right;}
 .finance-screen .finance-card:last-of-type{margin-bottom:30px;}
 body.home-active .finance-screen{height:auto;overflow:visible;}
 .finance-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
 .finance-screen .finance-header h2{margin:0;font-size:22px;font-weight:900;color:var(--ink);flex:1;text-align:center;display:block;}
 .finance-header-btn{flex:none;width:38px;height:38px;border-radius:50%;background:#fff;border:1.5px solid var(--card-line);color:var(--ink-soft);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.15s;}
 .finance-header-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-soft);}
+.finance-header-btn-spacer{width:38px;flex:none;}
 
 .finance-balance-bar{display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,var(--blue),var(--blue-dark));color:#fff;border-radius:14px;padding:14px 16px;margin-bottom:14px;gap:10px;box-shadow:0 10px 24px -10px rgba(37,99,235,.45);}
 .finance-balance-label{font-size:11.5px;color:#DCE8FF;}
@@ -761,9 +762,7 @@ body.mode-business .home-refresh-status{display:none;}
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
       </button>
       <h2>הוצאות והכנסות</h2>
-      <button type="button" class="finance-header-btn" id="financeFilterBtn" aria-label="סינון">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>
-      </button>
+      <span class="finance-header-btn-spacer"></span>
     </div>
 
     <div class="finance-balance-bar">
@@ -788,7 +787,7 @@ body.mode-business .home-refresh-status{display:none;}
     </div>
 
     <div class="finance-card">
-      <div class="finance-card-title"><span>הוספת תנועה חדשה</span><span class="finance-card-plus">+</span></div>
+      <div class="finance-card-title"><span>הוספת תנועה חדשה</span></div>
       <div class="finance-add-grid">
         <button type="button" class="finance-add-btn expense" id="addExpenseBtn">
           <span>הוספת הוצאה</span>
@@ -1339,7 +1338,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '154';
+const APP_BUILD = '155';
 console.log('[קבקליק] גרסה:', APP_BUILD);
 
 const LICENSE_API_URL = 'https://script.google.com/macros/s/AKfycbwo80B9ZmKyMSwdXzQA6HP_sPFLLHETIWiI3VFj60vPazq4vE8DLpC7yxK-JtVqkZ4qyQ/exec';
@@ -3798,9 +3797,11 @@ async function loadAndRenderFinanceScreen(){
   renderFinanceDonut(totals);
 }
 
-document.getElementById('financeShowAllBtn').addEventListener('click', ()=>{
+document.getElementById('financeScreen').addEventListener('click', (e)=>{
+  const btn = e.target.closest('#financeShowAllBtn');
+  if(!btn) return;
   financeShowingAll = !financeShowingAll;
-  document.getElementById('financeShowAllBtn').textContent = financeShowingAll ? 'הצג פחות' : 'הצג הכל';
+  btn.textContent = financeShowingAll ? 'הצג פחות' : 'הצג הכל';
   renderFinanceTxList(financeShowingAll ? undefined : 5);
 });
 
@@ -4785,9 +4786,9 @@ const TOUR_STEPS = [
   { target:'#signOutBtn', title:'מצב שימוש',
     text:'קבקליק תומכת בשני מצבי שימוש: <b>ועד בית</b> — עם דיירים, דירות ודמי ועד חודשיים, ו<b>עסק עצמאי</b> — עם לקוחות וקבלות על שירותים או מוצרים. למעבר בין המצבים, לוחצים כאן על אייקון החשבון ובוחרים "מעבר בין ועד לעצמאי". כל הטרמינולוגיה באפליקציה — מהטפסים ועד הקבלה עצמה — מתאימה את עצמה אוטומטית.' },
   { target:'#autoCreateBtn', title:'גיליון ב-Google Drive', inModal:true,
-    text: (isBiz)=> isBiz
-      ? 'לוחצים כאן ליצירה אוטומטית של גיליון Google Sheets ותיקיית Drive ייעודיים בתוך חשבון ה-Google שלכם. הלשונית "לקוחות" תיווצר עם העמודות: שם, טלפון, ומייל (אופציונלי).'
-      : 'לוחצים כאן ליצירה אוטומטית של גיליון Google Sheets ותיקיית Drive ייעודיים בתוך חשבון ה-Google שלכם. הלשונית "אנשי קשר" תיווצר עם העמודות: איש קשר, טלפון, דירה, מחיר, אימייל.' },
+    text:'לוחצים כאן ליצירה אוטומטית של גיליון Google Sheets ותיקיית Drive ייעודיים בתוך חשבון ה-Google שלכם — לא צריך ליצור או להגדיר כלום ידנית. <b>אם היה לכם מעקב קודם</b> (למשל גיליון ישן, טבלה ידנית וכו׳) — צריך להעתיק את המידע הרלוונטי אל תוך הגיליון החדש שנוצר, תוך שמירה על העמודות הקיימות בו.' },
+  { target:'#cfg-financeOpeningBalance', title:'יתרה קודמת', inModal:true,
+    text:'אם הייתה יתרה בקופה לפני שהתחלתם להשתמש בקבקליק (למשל ממעקב ידני קודם) — מזינים אותה כאן, פעם אחת. היא תיכנס אוטומטית לחישוב "יתרה בקופה" ולכל דוח שתפיקו, בלי צורך להוסיף אותה כתנועה נפרדת.' },
   { target:'#cfg-buildingInfo', title:(isBiz)=> isBiz?'פרטי העסק':'פרטי הבניין', inModal:true,
     text: (isBiz)=> isBiz
       ? 'מזינים כאן את שם העסק. אם הזנתם גם מספר עוסק מורשה/פטור בשדה שמופיע מתחת, הוא יופיע אוטומטית על גבי הקבלות שתפיקו — נדרש חוקית לקבלה תקנית.'
@@ -4815,6 +4816,12 @@ const TOUR_STEPS = [
     text: (isBiz)=> `רוצים שהקבלה תישלח אוטומטית גם למייל ה${isBiz?'לקוח':'דייר'}? יש לסמן כאן את התיבה. האפשרות מופיעה רק אם יש ל${isBiz?'לקוח':'דייר'} כתובת מייל שמורה בגיליון.` },
   { target:'#wizardCancelBtn', title:'הפקת קבלה', wizardStep:4,
     text:'לוחצים כאן ומאשרים כדי ליצור את קובץ ה-PDF של הקבלה. הקבלה מוצגת מיד, ונשמרת ברקע בתיקיית ה-Drive שהוגדרה ובלשונית "קבלות" בגיליון — לתיעוד מלא של כל הקבלות שהופקו.' },
+  { target:'#homeFinanceBtn', title:'הוצאות והכנסות',
+    text:'כאן פותחים את מסך "הוצאות והכנסות" — מעקב מלא אחרי כל הכסף שנכנס ויוצא, לא רק דמי הוועד/תשלומי הלקוחות. כל קבלה שמופקת נרשמת שם אוטומטית כהכנסה, ואפשר להוסיף גם הוצאות (חשמל, ניקיון, תחזוקה ועוד) בקלות.' },
+  { target:'.finance-balance-bar', title:'יתרה בקופה', showFinance:true,
+    text:'הבר הכחול מציג את היתרה המצטברת בקופה (יתרת הפתיחה + כל התנועות שנרשמו). מתחת רואים סיכום חודשי של הכנסות והוצאות, כפתורי הוספת תנועה, תנועות אחרונות, וסיכום לפי קטגוריות.' },
+  { target:'#financeReportBtn', title:'הפקת דוחות', showFinance:true,
+    text:'כפתור "הפק דוח" פותח דוח מלא ומעוצב — עם יתרה קודמת, הכנסות, הוצאות, מאזן ויתרה נוכחית. אפשר לבחור <b>כל טווח תאריכים</b> (לא רק חודש נוכחי — גם רבעון, חצי שנה או שנה שלמה) ולבחור בין עברית, רוסית או אנגלית. מהדוח ניתן להוריד PDF, לשתף (כולל WhatsApp) או לשלוח במייל.' },
   { title:'זהו, מוכנים! 🎉',
     text:'אפשר לפתוח את המדריך הזה שוב בכל רגע דרך כפתור "הדרכה" במסך הבית.' }
 ];
@@ -4872,17 +4879,18 @@ function tourShowStep(i){
   const step = TOUR_STEPS[i];
   const isBiz = CFG.usageMode==='business';
 
-  // The settings modal and the receipt wizard are opened/moved to whichever
-  // step this tour step needs, automatically, regardless of nav direction.
+  // The settings modal, the receipt wizard, and the finance screen are all
+  // opened/moved to whichever this tour step needs, automatically,
+  // regardless of nav direction.
   tourSetSettingsOpen(!!step.inModal);
   const resolvedWizardStep = typeof step.wizardStep==='function' ? step.wizardStep(isBiz) : step.wizardStep;
   if(resolvedWizardStep !== undefined){
-    document.getElementById('homeScreen').style.display = 'none';
-    document.querySelector('.wizard-card').style.display = '';
+    showWizardFromHome();
     wizardShowStep(resolvedWizardStep);
+  } else if(step.showFinance){
+    showFinanceScreen();
   } else if(!step.inModal){
-    document.getElementById('homeScreen').style.display = '';
-    document.querySelector('.wizard-card').style.display = 'none';
+    showHomeScreen();
   }
 
   document.getElementById('tourStepCounter').textContent = `שלב ${i+1} מתוך ${TOUR_STEPS.length}`;
