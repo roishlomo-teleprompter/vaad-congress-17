@@ -1,6 +1,6 @@
 {
-  "name": "מערכת קבלות ועד בית",
-  "short_name": "קבלות ועד",
+  "name": "קבקליק",
+  "short_name": "קבקליק",
   "description": "הפקת קבלות דמי ועד בית עם חיבור ל-Google Sheets ו-Google Drive",
   "start_url": "index.html",
   "scope": ".",
