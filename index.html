@@ -185,7 +185,8 @@ body.home-active .finance-screen{height:auto;overflow:visible;}
 .finance-type-opt.active-expense{border-color:var(--bad);background:#FBEAEA;color:var(--bad);}
 .home-badge{flex:none;display:inline-flex;align-items:center;gap:6px;align-self:center;background:var(--blue-soft);border:1px dashed var(--blue);border-radius:10px;padding:9px 16px;font-size:12.5px;font-weight:700;color:var(--ink-soft);margin-bottom:14px;}
 .home-badge-pin{font-size:13px;}
-.home-illustration{flex:none;border-radius:16px;overflow:hidden;margin-bottom:14px;line-height:0;}
+.home-illustration{flex:none;border-radius:16px;overflow:hidden;margin-bottom:14px;line-height:0;aspect-ratio:16/9;}
+.home-illustration .illo-photo{width:100%;height:100%;object-fit:cover;display:block;}
 .home-footer-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#fff;border-top:1px solid var(--card-line);border-radius:22px 22px 0 0;box-shadow:0 -10px 26px -14px rgba(16,24,40,.18);display:flex;align-items:flex-end;justify-content:space-around;padding:10px 6px calc(12px + env(safe-area-inset-bottom));z-index:60;}
 .footer-nav-btn{background:none;border:none;display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--slate);font-family:inherit;cursor:pointer;padding:4px 4px;flex:1;transition:.15s;}
 .footer-nav-btn.active,.footer-nav-btn:hover{color:var(--blue);}
@@ -1346,7 +1347,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '166';
+const APP_BUILD = '167';
 console.log('[קבקליק] גרסה:', APP_BUILD);
 
 const LICENSE_API_URL = 'https://script.google.com/macros/s/AKfycbwo80B9ZmKyMSwdXzQA6HP_sPFLLHETIWiI3VFj60vPazq4vE8DLpC7yxK-JtVqkZ4qyQ/exec';
