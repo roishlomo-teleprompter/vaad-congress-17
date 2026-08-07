@@ -57,7 +57,9 @@ body.home-active .app-frame{height:auto;min-height:100vh;min-height:100dvh;overf
 .pill-btn{background:#fff;border:1.5px solid var(--card-line);color:var(--ink-soft);padding:8px 15px;border-radius:999px;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:600;display:flex;align-items:center;gap:6px;transition:.15s;}
 .icon-btn{width:36px;height:36px;border-radius:50%;background:#fff;border:1.5px solid var(--card-line);color:var(--ink-soft);font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.15s;flex:none;}
 .icon-btn:hover{background:var(--app-bg);border-color:var(--blue);}
-#signOutBtn{position:absolute;top:14px;left:14px;}
+#signOutBtn{position:absolute;top:14px;left:14px;transition:left .15s;}
+#wizardHomeBtn{position:absolute;top:14px;left:14px;}
+.topbar.wizard-active #signOutBtn{left:58px;}
 .pill-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-soft);}
 .pill-btn.gold{border-color:var(--blue);color:var(--blue);background:var(--blue-soft);}
 .status-dot{width:8px;height:8px;border-radius:50%;background:var(--bad);display:inline-block;transition:.3s;}
@@ -686,6 +688,12 @@ body.mode-business .home-refresh-status{display:none;}
     </div>
   </div>
   <div class="topbar-actions">
+    <button class="icon-btn" id="wizardHomeBtn" title="חזרה לדף הבית" aria-label="חזרה לדף הבית" style="display:none;">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 11l9-8 9 8"/>
+        <path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/>
+      </svg>
+    </button>
     <button class="icon-btn" id="signOutBtn" title="התנתקות" aria-label="התנתקות">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -1334,7 +1342,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '156';
+const APP_BUILD = '157';
 console.log('[קבקליק] גרסה:', APP_BUILD);
 
 const LICENSE_API_URL = 'https://script.google.com/macros/s/AKfycbwo80B9ZmKyMSwdXzQA6HP_sPFLLHETIWiI3VFj60vPazq4vE8DLpC7yxK-JtVqkZ4qyQ/exec';
@@ -2318,6 +2326,8 @@ function showWizardFromHome(){
   document.querySelector('.wizard-card').style.display = '';
   document.body.classList.remove('home-active');
   document.getElementById('appTopbar').style.display = '';
+  document.getElementById('appTopbar').classList.add('wizard-active');
+  document.getElementById('wizardHomeBtn').style.display = '';
   setFooterNavVisible(false);
   wizardShowStep(0);
 }
@@ -2327,6 +2337,8 @@ function showHomeScreen(){
   document.getElementById('homeScreen').style.display = '';
   document.body.classList.add('home-active');
   document.getElementById('appTopbar').style.display = '';
+  document.getElementById('appTopbar').classList.remove('wizard-active');
+  document.getElementById('wizardHomeBtn').style.display = 'none';
   setFooterNavVisible(true);
   setFooterNavActive('home');
   refreshRecentResidents();
@@ -2337,6 +2349,8 @@ async function showFinanceScreen(){
   document.getElementById('financeScreen').style.display = '';
   document.body.classList.add('home-active');
   document.getElementById('appTopbar').style.display = 'none'; // finance screen has its own header (back/title/filter) — matches the design mockup filling header-to-footer
+  document.getElementById('appTopbar').classList.remove('wizard-active');
+  document.getElementById('wizardHomeBtn').style.display = 'none';
   setFooterNavVisible(true);
   setFooterNavActive('finance');
   await loadAndRenderFinanceScreen();
@@ -2595,6 +2609,22 @@ function signOut(){
 
 document.getElementById('loginGateGoogleBtn').addEventListener('click', ()=>{
   document.getElementById('authBtn').click();
+});
+/** True if the person has entered anything in the current receipt that
+ *  would be lost by leaving the wizard — used to decide whether exiting
+ *  needs a confirmation or can happen immediately. */
+function wizardHasUnsavedInput(){
+  return !!(currentResident() || selectedPay || selectedMonths.size>0 ||
+    document.getElementById('purposeInput').value.trim() ||
+    document.getElementById('manualAmountInput').value.trim());
+}
+document.getElementById('wizardHomeBtn').addEventListener('click', async ()=>{
+  if(wizardHasUnsavedInput()){
+    const ok = await showAppConfirm('לצאת מהאשף? הנתונים שהוזנו לא יישמרו.', '🏠');
+    if(!ok) return;
+  }
+  clearResidentSelection();
+  showHomeScreen();
 });
 document.getElementById('signOutBtn').addEventListener('click', ()=>{
   document.getElementById('accountMenuBg').classList.add('show');
