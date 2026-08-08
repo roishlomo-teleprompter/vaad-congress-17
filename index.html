@@ -1560,8 +1560,7 @@ async function readKabClickSettingsFromCandidate(spreadsheetId){
 }
 
 async function recoverKabClickConnectionFromDrive(email, mode){
-  const driveRecoveryEnabled = new URLSearchParams(window.location.search).get('driveRecovery') === '1';
-  if(!driveRecoveryEnabled) return false;
+
   if(!accessToken || !email || !mode) return false;
 
   const existing = loadAccountCfg(email, mode);
