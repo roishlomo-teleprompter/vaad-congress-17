@@ -101,7 +101,7 @@ body.home-active .home-card{height:auto;overflow:visible;padding-bottom:calc(120
 .home-refresh-btn.spinning .home-refresh-icon{animation:footer-icon-spin .8s linear infinite;}
 
 /* ── FINANCE SCREEN · הוצאות והכנסות ── */
-.finance-screen{grid-column:1 / -1;max-width:640px;margin:0 auto;width:100%;height:100%;display:flex;flex-direction:column;padding-top:18px;padding-bottom:calc(140px + env(safe-area-inset-bottom));overflow-y:auto;-webkit-overflow-scrolling:touch;text-align:right;overscroll-behavior-y:none;}
+.finance-screen{grid-column:1 / -1;max-width:640px;margin-inline:auto;width:100%;min-width:0;justify-self:center;height:100%;display:flex;flex-direction:column;padding-top:18px;padding-bottom:calc(140px + env(safe-area-inset-bottom));overflow-y:auto;-webkit-overflow-scrolling:touch;text-align:right;overscroll-behavior-y:none;box-sizing:border-box;}
 .finance-screen .finance-card:last-of-type{margin-bottom:30px;}
 body.home-active .finance-screen{height:auto;overflow:visible;}
 .finance-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
