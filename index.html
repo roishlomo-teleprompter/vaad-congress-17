@@ -36,13 +36,13 @@
 }
 *{box-sizing:border-box;}
 html,body{margin:0;background:#E7EAF0;color:var(--ink);font-family:'Heebo',sans-serif;height:100%;overflow:hidden;overscroll-behavior-y:none;}
-body.home-active{overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:none;overflow-anchor:none;}
+body.home-active{overflow:hidden;overscroll-behavior-y:none;overflow-anchor:none;}
 .app-frame{max-width:480px;margin:0 auto;background:var(--app-bg);height:100vh;height:100dvh;height:var(--app-vh,100dvh);box-shadow:0 0 60px rgba(16,24,40,.12);display:flex;flex-direction:column;overflow:hidden;}
-body.home-active .app-frame{height:auto;min-height:100vh;min-height:100dvh;overflow:visible;}
+body.home-active .app-frame{height:var(--app-vh,100dvh);min-height:0;overflow:hidden;}
 @media (max-width:480px){ .app-frame{ box-shadow:none; } }
 
 /* ── TOPBAR ── */
-.topbar{position:relative;flex:none;background:#fff;color:var(--ink);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1.5px solid var(--card-line);}
+.topbar{position:sticky;top:0;z-index:200;flex:none;background:#fff;color:var(--ink);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1.5px solid var(--card-line);}
 .brand{display:flex;align-items:center;gap:16px;}
 .brand-logo{width:48px;height:48px;border-radius:13px;background:linear-gradient(135deg,#3B82F6,#1D4ED8);display:flex;align-items:center;justify-content:center;font-family:'Frank Ruhl Libre',serif;font-weight:900;color:#fff;font-size:18px;overflow:hidden;flex:none;}
 .brand-logo img{width:100%;height:100%;object-fit:cover;border-radius:13px;}
@@ -81,7 +81,7 @@ body.home-active .app-frame{height:auto;min-height:100vh;min-height:100dvh;overf
 
 /* ── LAYOUT ── */
 .wrap{flex:1;min-height:0;max-width:1180px;margin:0 auto;width:100%;padding:14px 20px;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr;gap:24px;overflow:hidden;}
-body.home-active .wrap{overflow:visible;height:auto;}
+body.home-active .wrap{overflow:hidden;height:auto;min-height:0;}
 .wizard-card{grid-column:1 / -1;max-width:640px;margin:0 auto;width:100%;height:100%;display:flex;flex-direction:column;overflow:hidden;}
 .wizard-preview-label{font-size:12.5px;font-weight:700;color:var(--ink);margin:2px 0 6px;}
 @media(max-width:900px){.wrap{grid-template-columns:1fr;}}
@@ -90,9 +90,11 @@ body.home-active .wrap{overflow:visible;height:auto;}
 .card{background:#fff;border:1.5px solid var(--card-line);border-radius:18px;box-shadow:var(--card-shadow);padding:22px;}
 .wizard-head{flex:none;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
 .home-card{grid-column:1 / -1;max-width:640px;margin:0 auto;width:100%;height:100%;text-align:center;display:flex;flex-direction:column;justify-content:flex-start;padding-top:22px;padding-bottom:calc(260px + env(safe-area-inset-bottom));overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:none;}
-body.home-active .home-card{height:auto;overflow:visible;padding-bottom:calc(120px + env(safe-area-inset-bottom));}
+body.home-active .home-card{height:100%;min-height:0;overflow:hidden;padding-bottom:calc(120px + env(safe-area-inset-bottom));}
 
 /* ── UPCOMING-PAYMENTS REFRESH (moved off the old footer "home" button) ── */
+.home-residents-section{flex:1;min-height:0;overflow:hidden;}
+.home-residents-list{min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;}
 .home-refresh-status{font-size:10.5px;color:var(--slate);font-weight:600;margin-top:2px;min-height:1.3em;}
 .home-refresh-btn{flex:none;width:40px;height:40px;border-radius:50%;background:#fff;border:1.5px solid var(--card-line);color:var(--slate);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.15s;}
 .home-refresh-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-soft);}
@@ -2352,7 +2354,7 @@ async function showFinanceScreen(){
   document.querySelector('.wizard-card').style.display = 'none';
   document.getElementById('homeScreen').style.display = 'none';
   document.getElementById('financeScreen').style.display = '';
-  document.body.classList.add('home-active');
+  document.body.classList.remove('home-active');
   document.getElementById('appTopbar').style.display = 'none'; // finance screen has its own header (back/title/filter) — matches the design mockup filling header-to-footer
   document.getElementById('appTopbar').classList.remove('wizard-active');
   document.getElementById('wizardHomeBtn').style.display = 'none';
