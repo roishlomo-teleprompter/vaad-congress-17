@@ -1347,7 +1347,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '169';
+const APP_BUILD = '170';
 console.log('[קבקליק] גרסה:', APP_BUILD);
 
 const LICENSE_API_URL = 'https://script.google.com/macros/s/AKfycbwo80B9ZmKyMSwdXzQA6HP_sPFLLHETIWiI3VFj60vPazq4vE8DLpC7yxK-JtVqkZ4qyQ/exec';
@@ -1494,10 +1494,164 @@ function applyAccountAndMode(email, mode){
 /** Reloads sheet-backed data (residents/receipts) for whatever is now in
  *  CFG, or clears stale data from a previous account/mode if nothing is
  *  configured yet for this one. */
+/* ─── Cross-device Drive recovery ──────────────────────────────────────
+   localStorage is only a fast local cache. Drive/Sheets is the recoverable
+   source of truth for the KabClick connection. */
+async function stampKabClickDriveIdentity(){
+  if(!accessToken || !CFG.spreadsheetId || !CFG.folderId || !CFG.usageMode) return;
+  try{
+    gapi.client.setToken({access_token:accessToken});
+    await Promise.all([
+      gapi.client.drive.files.update({
+        fileId:CFG.spreadsheetId,
+        resource:{appProperties:{kabclick:'1', kind:'sheet', mode:CFG.usageMode}}
+      }),
+      gapi.client.drive.files.update({
+        fileId:CFG.folderId,
+        resource:{appProperties:{kabclick:'1', kind:'receipts-folder', mode:CFG.usageMode}}
+      })
+    ]);
+  }catch(e){
+    console.warn('[קבקליק] סימון קבצי Drive לזיהוי עתידי נכשל:', e);
+  }
+}
+
+async function readKabClickSettingsFromCandidate(spreadsheetId){
+  try{
+    const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId});
+    const titles = (meta.result.sheets||[]).map(s=>s.properties.title);
+    const inferredMode = titles.includes('לקוחות') ? 'business' : (titles.includes('אנשי קשר') ? 'vaad' : '');
+    if(!inferredMode) return null;
+
+    const map = {};
+    if(titles.includes(SETTINGS_SHEET)){
+      try{
+        const res = await gapi.client.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range:`'${SETTINGS_SHEET}'!A:B`
+        });
+        (res.result.values||[]).forEach(r=>{
+          const k=(r[0]||'').toString().trim();
+          if(k) map[k]=(r[1]||'').toString().trim();
+        });
+      }catch(e){}
+    }
+
+    const storedMode = map['סוג חשבון'] || '';
+    const mode = (storedMode==='vaad'||storedMode==='business') ? storedMode : inferredMode;
+
+    return {
+      spreadsheetId,
+      mode,
+      buildingInfo: map['שם/כתובת בניין'] || '',
+      folderId: map['FolderId'] || '',
+      businessNumber: map['מספר עסק'] || '',
+      logoUrl: map['קישור ללוגו'] || '',
+      defaultFee: parseFloat(map['מחיר ברירת מחדל']) || 140,
+      businessDefaultAmount: parseFloat(map['סכום ברירת מחדל לעסק']) || '',
+      businessDefaultAmountAuto: map['סכום עסק אוטומטי']==='1' || (map['סכום עסק אוטומטי']||'').toLowerCase()==='true',
+      nextReceiptNumber: parseInt(map['מספר הקבלה הבא'],10) || 1000,
+      financeOpeningBalance: parseFloat(map['יתרת פתיחה (הוצאות/הכנסות)']) || 0,
+      financeOpeningBalanceDate: map['תאריך יתרת פתיחה'] || ''
+    };
+  }catch(e){
+    return null;
+  }
+}
+
+async function recoverKabClickConnectionFromDrive(email, mode){
+  const driveRecoveryEnabled = new URLSearchParams(window.location.search).get('driveRecovery') === '1';
+  if(!driveRecoveryEnabled) return false;
+  if(!accessToken || !email || !mode) return false;
+
+  const existing = loadAccountCfg(email, mode);
+  if(existing && existing.spreadsheetId && existing.folderId) return true;
+
+  try{
+    gapi.client.setToken({access_token:accessToken});
+
+    const fields = 'files(id,name,mimeType,appProperties,trashed,modifiedTime)';
+    const strict = await gapi.client.drive.files.list({
+      q:`trashed=false and mimeType='application/vnd.google-apps.spreadsheet' and appProperties has { key='kabclick' and value='1' } and appProperties has { key='mode' and value='${mode}' }`,
+      fields,
+      orderBy:'modifiedTime desc',
+      pageSize:100
+    });
+
+    let files = strict.result.files || [];
+
+    // Legacy fallback: KabClick-created sheets from before appProperties existed.
+    if(!files.length){
+      const legacy = await gapi.client.drive.files.list({
+        q:`trashed=false and mimeType='application/vnd.google-apps.spreadsheet' and name contains 'קבקליק'`,
+        fields,
+        orderBy:'modifiedTime desc',
+        pageSize:100
+      });
+      files = legacy.result.files || [];
+    }
+
+    const matches = [];
+    for(const f of files){
+      const candidate = await readKabClickSettingsFromCandidate(f.id);
+      if(candidate && candidate.mode===mode){
+        matches.push({...candidate, driveName:f.name});
+      }
+    }
+
+    if(matches.length===0) return false;
+
+    if(matches.length>1){
+      console.warn('[קבקליק] נמצאו כמה חשבונות תואמים ב-Drive:', matches.map(m=>m.driveName));
+      showMsg('נמצאו כמה חשבונות קבקליק מאותו סוג ב-Google Drive. לא בוצע חיבור אוטומטי כדי למנוע חיבור לחשבון הלא נכון.', 'error');
+      return false;
+    }
+
+    const found = matches[0];
+    if(!found.folderId){
+      console.warn('[קבקליק] נמצא גיליון אך אין בו FolderId לשחזור:', found.driveName);
+      return false;
+    }
+
+    const folderChk = await gapi.client.drive.files.get({
+      fileId:found.folderId,
+      fields:'id,trashed'
+    });
+    if(folderChk.result.trashed) return false;
+
+    saveAccountCfg(email, mode, {
+      spreadsheetId:found.spreadsheetId,
+      folderId:found.folderId,
+      buildingInfo:found.buildingInfo,
+      businessNumber:found.businessNumber,
+      logoUrl:found.logoUrl,
+      defaultFee:found.defaultFee,
+      businessDefaultAmount:found.businessDefaultAmount,
+      businessDefaultAmountAuto:found.businessDefaultAmountAuto,
+      nextReceiptNumber:found.nextReceiptNumber,
+      financeOpeningBalance:found.financeOpeningBalance,
+      financeOpeningBalanceDate:found.financeOpeningBalanceDate
+    });
+
+    saveLastMode(email, mode);
+    applyAccountAndMode(email, mode);
+    await stampKabClickDriveIdentity();
+
+    console.log('[קבקליק] החיבור שוחזר אוטומטית מ-Google Drive:', found.driveName);
+    return true;
+  }catch(e){
+    console.warn('[קבקליק] שחזור החיבור מ-Google Drive נכשל:', e);
+    return false;
+  }
+}
 async function loadDataForCurrentAccountMode(){
+  if((!CFG.spreadsheetId || !CFG.folderId) && CFG.email && CFG.usageMode && accessToken){
+    await recoverKabClickConnectionFromDrive(CFG.email, CFG.usageMode);
+  }
   if(CFG.spreadsheetId && CFG.folderId){
     await Promise.all([loadResidents(), ensureReceiptsSheet()]);
     await Promise.all([syncSettingsFromSheet(), loadAllReceiptRows()]);
+    await pushSettingsToSheet();
     validateForm();
   } else {
     residents = [];
@@ -1803,6 +1957,21 @@ document.getElementById('autoCreateBtn').addEventListener('click', async ()=>{
       fields:'id'
     });
     const folderId = folderRes.result.id;
+
+    try{
+      await Promise.all([
+        gapi.client.drive.files.update({
+          fileId:spreadsheetId,
+          resource:{appProperties:{kabclick:'1', kind:'sheet', mode:CFG.usageMode}}
+        }),
+        gapi.client.drive.files.update({
+          fileId:folderId,
+          resource:{appProperties:{kabclick:'1', kind:'receipts-folder', mode:CFG.usageMode}}
+        })
+      ]);
+    }catch(e){
+      console.warn('[קבקליק] סימון קבצי Drive נכשל, אך היצירה עצמה הצליחה:', e);
+    }
 
     document.getElementById('cfg-spreadsheetId').value = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
     document.getElementById('cfg-folderId').value      = `https://drive.google.com/drive/folders/${folderId}`;
@@ -3400,9 +3569,16 @@ document.getElementById('remSaveBtn').addEventListener('click', saveResidentEdit
 function buildSettingsRows(){
   return [
     ['מפתח','ערך'],
+    ['KabClick', '1'],
+    ['סוג חשבון', CFG.usageMode || ''],
     ['שם/כתובת בניין', CFG.buildingInfo || ''],
-    ['קישור ללוגו',     CFG.logoUrl     || ''],
-    ['מחיר ברירת מחדל', CFG.defaultFee  || ''],
+    ['FolderId', CFG.folderId || ''],
+    ['מספר עסק', CFG.businessNumber || ''],
+    ['קישור ללוגו', CFG.logoUrl || ''],
+    ['מחיר ברירת מחדל', CFG.defaultFee || ''],
+    ['סכום ברירת מחדל לעסק', CFG.businessDefaultAmount || ''],
+    ['סכום עסק אוטומטי', CFG.businessDefaultAmountAuto ? '1' : '0'],
+    ['מספר הקבלה הבא', CFG.nextReceiptNumber || 1000],
     ['יתרת פתיחה (הוצאות/הכנסות)', CFG.financeOpeningBalance || ''],
     ['תאריך יתרת פתיחה', CFG.financeOpeningBalanceDate || '']
   ];
@@ -3440,7 +3616,7 @@ async function syncSettingsFromSheet(){
       // so the first device to connect defines the shared starting point.
       await gapi.client.sheets.spreadsheets.values.update({
         spreadsheetId:CFG.spreadsheetId,
-        range:`'${SETTINGS_SHEET}'!A1:B6`,
+        range:`'${SETTINGS_SHEET}'!A1:B13`,
         valueInputOption:'RAW',
         resource:{values: buildSettingsRows()}
       });
@@ -3456,9 +3632,15 @@ async function syncSettingsFromSheet(){
     rows.forEach(row=>{
       const key = (row[0]||'').toString().trim();
       const val = (row[1]||'').toString().trim();
-      if(/שם.*בניין|כתובת|building/i.test(key)){ if(CFG.buildingInfo!==val){ CFG.buildingInfo=val; changed=true; } }
+      if(/סוג חשבון|usage.?mode/i.test(key)){ if((val==='vaad'||val==='business') && CFG.usageMode!==val){ CFG.usageMode=val; changed=true; } }
+      else if(/שם.*בניין|כתובת|building/i.test(key)){ if(CFG.buildingInfo!==val){ CFG.buildingInfo=val; changed=true; } }
+      else if(/^FolderId$/i.test(key)){ if(val && CFG.folderId!==val){ CFG.folderId=val; changed=true; } }
+      else if(/מספר עסק|business.?number/i.test(key)){ if(CFG.businessNumber!==val){ CFG.businessNumber=val; changed=true; } }
       else if(/לוגו|logo/i.test(key)){ if(CFG.logoUrl!==val){ CFG.logoUrl=val; changed=true; } }
-      else if(/מחיר.*ברירת|ברירת.*מחדל|default.*fee/i.test(key)){ if(CFG.defaultFee!==val){ CFG.defaultFee=val; changed=true; } }
+      else if(/סכום ברירת מחדל לעסק/i.test(key)){ const n=parseFloat(val)||''; if(CFG.businessDefaultAmount!==n){ CFG.businessDefaultAmount=n; changed=true; } }
+      else if(/סכום עסק אוטומטי/i.test(key)){ const b=val==='1'||val.toLowerCase()==='true'; if(CFG.businessDefaultAmountAuto!==b){ CFG.businessDefaultAmountAuto=b; changed=true; } }
+      else if(/מספר הקבלה הבא/i.test(key)){ const n=parseInt(val,10)||1000; if(CFG.nextReceiptNumber!==n){ CFG.nextReceiptNumber=n; changed=true; } }
+      else if(/מחיר.*ברירת|ברירת.*מחדל|default.*fee/i.test(key)){ const n=parseFloat(val)||140; if(CFG.defaultFee!==n){ CFG.defaultFee=n; changed=true; } }
       else if(/יתרת פתיחה \(/i.test(key)){ const n=parseFloat(val)||0; if(CFG.financeOpeningBalance!==n){ CFG.financeOpeningBalance=n; changed=true; } }
       else if(/תאריך יתרת פתיחה/i.test(key)){ if(CFG.financeOpeningBalanceDate!==val){ CFG.financeOpeningBalanceDate=val; changed=true; } }
     });
@@ -3478,10 +3660,11 @@ async function pushSettingsToSheet(){
     await ensureSettingsSheet();
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId:CFG.spreadsheetId,
-      range:`'${SETTINGS_SHEET}'!A1:B6`,
+      range:`'${SETTINGS_SHEET}'!A1:B13`,
       valueInputOption:'RAW',
       resource:{values: buildSettingsRows()}
     });
+    await stampKabClickDriveIdentity();
   }catch(e){
     // Non-fatal — local settings are already saved; this device just couldn't
     // push them to the sheet right now (e.g. offline, or not signed in yet).
