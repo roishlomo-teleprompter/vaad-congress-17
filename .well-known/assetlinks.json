@@ -4,10 +4,11 @@
     "target": {
       "namespace": "android_app",
       "package_name": "app.kabclick.twa",
-      "sha256_cert_fingerprints": [
-        "65:E7:6F:C3:E4:B7:FD:15:9A:42:0D:64:9B:C0:B3:50:82:01:F5:F7:CC:2C:10:05:90:C9:EA:6C:C9:CF:7B:46",
-        "0D:59:02:3A:3D:BF:4B:09:00:99:AD:DD:C4:1D:58:8F:BA:96:3B:A5:1E:02:A8:6B:D6:96:E6:0D:99:51:0E:C1"
-      ]
+     "sha256_cert_fingerprints": [
+  "65:E7:6F:C3:E4:B7:FD:15:9A:42:0D:64:9B:C0:B3:50:82:01:F5:F7:CC:2C:10:05:90:C9:EA:6C:C9:CF:7B:46",
+  "0D:59:02:3A:3D:BF:4B:09:00:99:AD:DD:C4:1D:58:8F:BA:96:3B:A5:1E:02:A8:6B:D6:96:E6:0D:99:51:0E:C1",
+  "1E:13:42:18:FF:1B:26:11:21:84:2A:76:1C:49:B1:8A:64:B4:C4:B1:2B:8D:BA:FD:0B:6D:33:03:01:1F:7F:10"
+]
     }
   }
 ]
