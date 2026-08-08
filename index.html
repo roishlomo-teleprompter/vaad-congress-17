@@ -1608,9 +1608,116 @@ async function recoverKabClickConnectionFromDrive(email, mode){
     }
 
     const found = matches[0];
+
+    async function recoverFolderIdFromReceiptPdf(spreadsheetId){
+      try{
+        const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId});
+        const receiptsSheet = (meta.result.sheets||[]).find(
+          s => s.properties.title===RECEIPTS_SHEET
+        );
+        if(!receiptsSheet) return '';
+
+        const rowsRes = await gapi.client.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range:`'${RECEIPTS_SHEET}'!A2:Z`
+        });
+
+        const rows = rowsRes.result.values || [];
+        if(!rows.length) return '';
+
+        const urls = [];
+        for(const row of rows){
+          for(const cell of row){
+            const value = (cell||'').toString().trim();
+            if(
+              value.includes('drive.google.com') ||
+              value.includes('docs.google.com') ||
+              value.includes('googleusercontent.com')
+            ){
+              urls.push(value);
+            }
+          }
+        }
+
+        function extractDriveFileId(url){
+          const patterns = [
+            /\/file\/d\/([a-zA-Z0-9_-]+)/,
+            /[?&]id=([a-zA-Z0-9_-]+)/,
+            /\/d\/([a-zA-Z0-9_-]+)/
+          ];
+          for(const pattern of patterns){
+            const m = url.match(pattern);
+            if(m) return m[1];
+          }
+          return '';
+        }
+
+        const candidateParents = new Set();
+
+        for(const url of urls){
+          const fileId = extractDriveFileId(url);
+          if(!fileId) continue;
+
+          try{
+            const fileRes = await gapi.client.drive.files.get({
+              fileId,
+              fields:'id,parents,trashed,mimeType'
+            });
+
+            const file = fileRes.result;
+            if(file.trashed) continue;
+
+            for(const parentId of (file.parents||[])){
+              try{
+                const parentRes = await gapi.client.drive.files.get({
+                  fileId:parentId,
+                  fields:'id,mimeType,trashed'
+                });
+
+                if(
+                  !parentRes.result.trashed &&
+                  parentRes.result.mimeType==='application/vnd.google-apps.folder'
+                ){
+                  candidateParents.add(parentId);
+                }
+              }catch(e){}
+            }
+          }catch(e){}
+        }
+
+        if(candidateParents.size===1){
+          return [...candidateParents][0];
+        }
+
+        if(candidateParents.size>1){
+          console.warn(
+            '[קבקליק] נמצאו כמה תיקיות אב אפשריות מתוך קבלות קיימות:',
+            [...candidateParents]
+          );
+        }
+
+        return '';
+      }catch(e){
+        console.warn('[קבקליק] שחזור FolderId מתוך קבלה קיימת נכשל:', e);
+        return '';
+      }
+    }
+
     if(!found.folderId){
-      console.warn('[קבקליק] נמצא גיליון אך אין בו FolderId לשחזור:', found.driveName);
-      return false;
+      found.folderId = await recoverFolderIdFromReceiptPdf(found.spreadsheetId);
+
+      if(found.folderId){
+        console.log(
+          '[קבקליק] FolderId שוחזר מתוך קבלה קיימת:',
+          found.folderId
+        );
+      } else {
+        console.warn(
+          '[קבקליק] נמצא גיליון אך לא ניתן היה לשחזר FolderId:',
+          found.driveName
+        );
+        return false;
+      }
     }
 
     const folderChk = await gapi.client.drive.files.get({
