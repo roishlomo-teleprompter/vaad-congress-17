@@ -1642,13 +1642,156 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '174';
+const APP_BUILD = '175';
+
+/* KABCLICK OFFLINE SHELL - Build 175 */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('[קבקליק] Offline shell ready:', reg.scope))
+      .catch(err => console.warn('[קבקליק] Service Worker error:', err));
+  });
+}
 console.log('[קבקליק] גרסה:', APP_BUILD);
+
+/* KABCLICK OFFLINE STATUS - Build 175 */
+function ensureOfflineBanner(){
+  let banner = document.getElementById('offlineStatusBanner');
+
+  if(banner) return banner;
+
+  banner = document.createElement('div');
+  banner.id = 'offlineStatusBanner';
+
+  Object.assign(banner.style,{
+    position:'fixed',
+    top:'0',
+    left:'0',
+    right:'0',
+    zIndex:'9999',
+    padding:'9px 16px',
+    background:'#fff3cd',
+    color:'#664d03',
+    borderBottom:'1px solid #ffecb5',
+    textAlign:'center',
+    fontSize:'13px',
+    fontWeight:'700',
+    direction:'rtl',
+    display:'none'
+  });
+
+  banner.textContent =
+    'אין כרגע חיבור לרשת - מוצגים הנתונים מהסנכרון האחרון.';
+
+  document.body.appendChild(banner);
+
+  return banner;
+}
+
+function updateNetworkStatus(){
+  const banner = ensureOfflineBanner();
+
+  if(!navigator.onLine){
+    banner.style.display = 'block';
+    loadOfflineDataSnapshot();
+    console.log('[קבקליק] Offline mode active');
+    return;
+  }
+
+  banner.style.display = 'none';
+}
+
+window.addEventListener('offline', ()=>{
+  updateNetworkStatus();
+});
+
+window.addEventListener('online', async ()=>{
+  const banner = ensureOfflineBanner();
+
+  banner.style.display = 'block';
+  banner.style.background = '#d1e7dd';
+  banner.style.color = '#0f5132';
+  banner.style.borderBottomColor = '#badbcc';
+  banner.textContent = 'החיבור לרשת חזר - מעדכן נתונים...';
+
+  try{
+    await loadResidents();
+    await loadAllReceiptRows();
+
+    banner.textContent = 'החיבור חזר - הנתונים עודכנו בהצלחה ';
+
+    setTimeout(()=>{
+      banner.style.display = 'none';
+      banner.style.background = '#fff3cd';
+      banner.style.color = '#664d03';
+      banner.style.borderBottomColor = '#ffecb5';
+      banner.textContent =
+        'אין כרגע חיבור לרשת - מוצגים הנתונים מהסנכרון האחרון.';
+    },2500);
+
+  }catch(e){
+    console.warn('[קבקליק] Reconnect refresh failed:', e);
+    updateNetworkStatus();
+  }
+});
+
+window.addEventListener('load', ()=>{
+  updateNetworkStatus();
+});
 
 const LICENSE_API_URL = 'https://script.google.com/macros/s/AKfycbwo80B9ZmKyMSwdXzQA6HP_sPFLLHETIWiI3VFj60vPazq4vE8DLpC7yxK-JtVqkZ4qyQ/exec';
 const LICENSE_SECRET  = 'vaad17-Lk9mQ2xR8pT4vN6z';
 const LICENSE_CACHE_KEY = 'vaad_license_cache';
 const LICENSE_CACHE_TTL_MS = 6*60*60*1000; // recheck at most every 6 hours
+
+/* KABCLICK OFFLINE BOOT - Build 175 */
+function tryOfflineBoot(){
+  if(navigator.onLine) return false;
+
+  const email = loadLastEmail();
+  if(!email) return false;
+
+  // Read the saved license directly because the normal helper deliberately
+  // expires its cache after a few hours. Offline access is allowed only for
+  // a previously approved account and only for a limited period.
+  let savedLicense = null;
+  try{
+    savedLicense = JSON.parse(localStorage.getItem(LICENSE_CACHE_KEY) || 'null');
+  }catch(e){}
+
+  const OFFLINE_LOGIN_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+  if(
+    !savedLicense ||
+    savedLicense.email !== email ||
+    savedLicense.allowed !== true ||
+    !savedLicense.checkedAt ||
+    (Date.now() - savedLicense.checkedAt) > OFFLINE_LOGIN_MAX_AGE_MS
+  ){
+    return false;
+  }
+
+  console.log('[קבקליק] Starting verified offline session for:', email);
+
+  applyAccountAfterLicense(email);
+
+  const restored = loadOfflineDataSnapshot();
+
+  if(restored){
+    applyBranding();
+    applyModeTerminology();
+    showHomeScreen();
+    refreshRecentResidents();
+    validateForm();
+  }
+
+  updateNetworkStatus();
+  return restored;
+}
+
+window.addEventListener('load', ()=>{
+  tryOfflineBoot();
+});
 
 /* Accepts either a full Google Sheets/Drive URL or a bare ID and returns the ID. */
 function extractSheetId(input){
@@ -3720,6 +3863,9 @@ async function loadResidents(){
     const badge = document.getElementById('residentsLoadedBadge');
     badge.textContent = isBiz ? `נטענו ${residents.length} לקוחות` : `נטענו ${residents.length} דיירים`;
     badge.style.display = 'block';
+
+    // Keep the latest successful Google data available for offline use.
+    saveOfflineDataSnapshot();
   }catch(e){
     if(e.status===401||e.result?.error?.code===401){
       // Cached token turned out to be invalid (revoked/expired) — clear it and ask
@@ -4842,6 +4988,80 @@ document.getElementById('financeReportShareBtn').addEventListener('click', async
    SHEETS: RECEIPT ROWS CACHE (drives the "שולם" state in the months grid)
 ═══════════════════════════════════════ */
 let allReceiptRows = [];
+
+/* KABCLICK OFFLINE DATA CACHE - Build 175 */
+const OFFLINE_DATA_CACHE_VERSION = 1;
+
+function offlineDataCacheKey(){
+  const email = (CFG.email || 'unknown').trim().toLowerCase();
+  const mode = CFG.usageMode || 'vaad';
+  return `kabclick_offline_data_v${OFFLINE_DATA_CACHE_VERSION}_${email}_${mode}`;
+}
+
+function saveOfflineDataSnapshot(){
+  if(!CFG.email) return;
+
+  try{
+    const snapshot = {
+      savedAt: Date.now(),
+      spreadsheetId: CFG.spreadsheetId || '',
+      residents: Array.isArray(residents) ? residents : [],
+      receiptRows: Array.isArray(allReceiptRows) ? allReceiptRows : []
+    };
+
+    localStorage.setItem(
+      offlineDataCacheKey(),
+      JSON.stringify(snapshot)
+    );
+
+    console.log(
+      '[קבקליק] Offline snapshot saved:',
+      new Date(snapshot.savedAt).toLocaleString()
+    );
+  }catch(e){
+    console.warn('[קבקליק] Failed saving offline snapshot:', e);
+  }
+}
+
+function loadOfflineDataSnapshot(){
+  try{
+    const raw = localStorage.getItem(offlineDataCacheKey());
+    if(!raw) return false;
+
+    const snapshot = JSON.parse(raw);
+
+    if(
+      snapshot.spreadsheetId &&
+      CFG.spreadsheetId &&
+      snapshot.spreadsheetId !== CFG.spreadsheetId
+    ){
+      return false;
+    }
+
+    residents = Array.isArray(snapshot.residents)
+      ? snapshot.residents
+      : [];
+
+    allReceiptRows = Array.isArray(snapshot.receiptRows)
+      ? snapshot.receiptRows
+      : [];
+
+    console.log(
+      '[קבקליק] Offline snapshot restored:',
+      snapshot.savedAt
+        ? new Date(snapshot.savedAt).toLocaleString()
+        : 'unknown'
+    );
+
+    refreshRecentResidents();
+    syncNextReceiptNumberWithSheet();
+
+    return true;
+  }catch(e){
+    console.warn('[קבקליק] Failed loading offline snapshot:', e);
+    return false;
+  }
+}
 async function loadAllReceiptRows(){
   try{
     const layout = receiptSheetLayout();
@@ -4849,7 +5069,15 @@ async function loadAllReceiptRows(){
       spreadsheetId:CFG.spreadsheetId, range:`'${RECEIPTS_SHEET}'!A2:${layout.lastCol}`
     });
     allReceiptRows = res.result.values||[];
-  }catch(e){ allReceiptRows = []; }
+
+    // Keep the latest successful receipts data available offline.
+    saveOfflineDataSnapshot();
+  }catch(e){
+    console.warn('[קבקליק] Receipt load failed - trying offline snapshot.', e);
+
+    // Preserve the last known data when the network is unavailable.
+    loadOfflineDataSnapshot();
+  }
   refreshRecentResidents();
   syncNextReceiptNumberWithSheet();
 }
