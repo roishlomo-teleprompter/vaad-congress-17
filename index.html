@@ -1642,7 +1642,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '176';
+const APP_BUILD = '179';
 
 /* KABCLICK OFFLINE SHELL - Build 175 */
 if ('serviceWorker' in navigator) {
@@ -1688,6 +1688,48 @@ function ensureOfflineBanner(){
   return banner;
 }
 
+/* KABCLICK OFFLINE READ-ONLY GUARD - Build 177 */
+async function showOfflineReadOnlyMessage(){
+  await showAppAlert(
+    'אין כרגע חיבור לאינטרנט. האפליקציה פועלת במצב צפייה בלבד. ניתן לצפות בנתונים האחרונים שנשמרו, אך לא ניתן לבצע שינויים עד לחזרת החיבור.',
+    ''
+  );
+}
+
+function offlineWriteBlocked(){
+  return !navigator.onLine;
+}
+
+/*
+ * UI safety layer:
+ * blocks buttons that create/update/delete cloud data while offline.
+ * The underlying receipt write also has its own second safety layer.
+ */
+document.addEventListener('click', async function(e){
+  if(navigator.onLine) return;
+
+  const blocked = e.target.closest(
+    '#finSaveBtn,' +
+    '#modalSave,' +
+    '#rmmAddBtn,' +
+    '#remSaveBtn,' +
+    '.rmm-edit-btn,' +
+    '.rmm-del-btn,' +
+    '.finance-edit-btn,' +
+    '.finance-delete-btn,' +
+    '[data-fin-action="edit"],' +
+    '[data-fin-action="delete"],' +
+    '.home-resident-menu-remind'
+  );
+
+  if(!blocked) return;
+
+  e.preventDefault();
+  e.stopPropagation();
+  e.stopImmediatePropagation();
+
+  await showOfflineReadOnlyMessage();
+}, true);
 function updateNetworkStatus(){
   const banner = ensureOfflineBanner();
 
@@ -1936,6 +1978,7 @@ function applyAccountAndMode(email, mode){
    localStorage is only a fast local cache. Drive/Sheets is the recoverable
    source of truth for the KabClick connection. */
 async function stampKabClickDriveIdentity(){
+  if(!navigator.onLine) return;
   if(!accessToken || !CFG.spreadsheetId || !CFG.folderId || !CFG.usageMode) return;
   try{
     gapi.client.setToken({access_token:accessToken});
@@ -4010,6 +4053,10 @@ function selectResidentByName(name){
 }
 
 async function saveResidentEdit(){
+  if(!navigator.onLine){
+    await showOfflineReadOnlyMessage();
+    return;
+  }
   const name  = document.getElementById('rem-name').value.trim();
   const phone = document.getElementById('rem-phone').value.trim();
   const fee   = document.getElementById('rem-fee').value.trim();
@@ -4072,6 +4119,11 @@ async function saveResidentEdit(){
 }
 
 async function deleteResident(index){
+  if(!navigator.onLine){
+    await showOfflineReadOnlyMessage();
+    return;
+  }
+
   const r = residents[index];
   if(!r) return;
   const isBiz = CFG.usageMode==='business';
@@ -4202,6 +4254,7 @@ async function syncSettingsFromSheet(){
 }
 
 async function pushSettingsToSheet(){
+  if(!navigator.onLine) return;
   if(!CFG.spreadsheetId) return;
   try{
     await ensureSettingsSheet();
@@ -4467,6 +4520,9 @@ async function loadFinanceRows(){
   }
 }
 async function appendFinanceRow(entry){
+  if(!navigator.onLine){
+    throw new Error('OFFLINE_WRITE_BLOCKED');
+  }
   await ensureFinanceSheet();
   const row = [
     entry.date,
@@ -4491,6 +4547,9 @@ async function appendFinanceRow(entry){
  *  used for editing a transaction. Row numbers are captured at load time
  *  in loadFinanceRows, so this always targets the correct physical row. */
 async function updateFinanceRow(sheetRow, entry){
+  if(!navigator.onLine){
+    throw new Error('OFFLINE_WRITE_BLOCKED');
+  }
   await ensureFinanceSheet();
   const row = [
     entry.date,
@@ -4514,6 +4573,9 @@ async function updateFinanceRow(sheetRow, entry){
 /** Deletes a transaction row entirely from the sheet (not just clears its
  *  values) — mirrors deleteResident's approach for the residents sheet. */
 async function deleteFinanceRow(sheetRow){
+  if(!navigator.onLine){
+    throw new Error('OFFLINE_WRITE_BLOCKED');
+  }
   if(financeSheetGid==null){
     throw new Error('לא ניתן לזהות את הלשונית למחיקה. נסו לרענן ולנסות שוב.');
   }
@@ -5425,6 +5487,9 @@ async function buildPdfBlob(htmlString){
    DRIVE UPLOAD
 ═══════════════════════════════════════ */
 async function uploadToDrive(blob,filename){
+  if(!navigator.onLine){
+    throw new Error('OFFLINE_WRITE_BLOCKED');
+  }
   const metadata={name:filename,parents:[CFG.folderId],mimeType:'application/pdf'};
   const form=new FormData();
   form.append('metadata',new Blob([JSON.stringify(metadata)],{type:'application/json'}));
@@ -5507,9 +5572,9 @@ async function performGenerateReceipt(){
 
   // KABCLICK OFFLINE RECEIPT BLOCK - Build 176
   if(!navigator.onLine){
-    showMsg(
-      'לא ניתן להפיק קבלה ללא חיבור לאינטרנט. הקבלה לא נוצרה ולא הוקצה לה מספר. נסה שוב לאחר חזרת החיבור.',
-      'error'
+    await showAppAlert(
+      'אין כרגע חיבור לאינטרנט. במצב לא מקוון ניתן לצפות בנתונים בלבד. לא ניתן להפיק קבלה עד לחזרת החיבור.',
+      ''
     );
     return;
   }
