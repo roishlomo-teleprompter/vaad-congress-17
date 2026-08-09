@@ -806,13 +806,13 @@ body.mode-business .home-refresh-status{display:none;}
 .login-privacy-note{display:flex;align-items:center;justify-content:center;gap:6px;font-size:11.5px;font-weight:700;color:var(--ink-soft);background:var(--app-bg);border-radius:10px;padding:8px 12px;margin-top:10px;}
 .login-footnote{font-size:10px;line-height:1.5;color:var(--slate);opacity:.7;margin:10px 0 0;}
 
-/* LOGIN SCREEN - fixed viewport, no vertical scrolling */
+/* LOGIN SCREEN - fixed viewport, preserve original visual scale */
 .login-gate{
   height:100vh;
   height:100dvh;
   min-height:0;
   overflow:hidden;
-  padding:clamp(10px,2.2vh,24px) 24px clamp(10px,2vh,24px);
+  padding:8px 24px 8px;
   align-items:center;
 }
 
@@ -828,109 +828,52 @@ body.mode-business .home-refresh-status{display:none;}
 }
 
 .login-logo{
-  width:clamp(54px,8vh,70px);
-  height:clamp(54px,8vh,70px);
-  margin-bottom:clamp(4px,1vh,10px);
-}
-
-.login-title{
-  font-size:clamp(30px,4.5vh,36px);
-  line-height:1.05;
+  margin-bottom:4px;
 }
 
 .login-tagline{
-  margin:clamp(2px,.6vh,4px) 0 clamp(5px,1.1vh,10px);
+  margin-top:2px;
+  margin-bottom:5px;
 }
 
 .login-illustration{
-  margin:0 0 clamp(5px,1.3vh,14px);
-  flex:0 1 auto;
-  min-height:0;
+  margin-top:0;
+  margin-bottom:5px;
 }
 
 .illo-photo{
-  max-height:clamp(225px,37vh,340px);
   width:100%;
   object-fit:contain;
 }
 
 .login-features{
-  padding:clamp(4px,1.2vh,12px) 4px;
-  margin-bottom:clamp(5px,1.2vh,14px);
-}
-
-.login-feature{
-  gap:clamp(2px,.6vh,5px);
-}
-
-.login-feature-icon{
-  width:clamp(28px,4.2vh,34px);
-  height:clamp(28px,4.2vh,34px);
+  padding-top:4px;
+  padding-bottom:4px;
+  margin-bottom:5px;
 }
 
 .login-google-btn{
-  padding:clamp(10px,1.5vh,13px);
+  margin-top:0;
 }
 
-.login-privacy-note{
-  padding:clamp(6px,1vh,8px) 12px;
-  margin-top:clamp(5px,1vh,10px);
-}
-
-/* Extra compression only on short phones */
 @media (max-height:760px){
   .login-gate{
-    padding-top:8px;
-    padding-bottom:8px;
-  }
-
-  .login-logo{
-    width:52px;
-    height:52px;
-    margin-bottom:4px;
-  }
-
-  .login-title{
-    font-size:29px;
+    padding-top:4px;
+    padding-bottom:4px;
   }
 
   .login-tagline{
-    font-size:12px;
-    margin:2px 0 5px;
+    margin-bottom:3px;
   }
 
-  .illo-photo{
-    max-height:31vh;
+  .login-illustration{
+    margin-bottom:3px;
   }
 
   .login-features{
-    padding:4px 2px;
-    margin-bottom:5px;
-  }
-
-  .login-feature-icon{
-    width:27px;
-    height:27px;
-    font-size:13px;
-  }
-
-  .login-feature-title{
-    font-size:10px;
-  }
-
-  .login-feature-sub{
-    font-size:8px;
-  }
-
-  .login-google-btn{
-    padding:9px;
-    font-size:13px;
-  }
-
-  .login-privacy-note{
-    padding:5px 8px;
-    margin-top:5px;
-    font-size:10px;
+    padding-top:2px;
+    padding-bottom:2px;
+    margin-bottom:3px;
   }
 }
 </style>
