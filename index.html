@@ -509,8 +509,15 @@ textarea{resize:vertical;min-height:70px;}
    a class on <body> (toggled once in applyModeTerminology) rather than by
    JS setting .style.display in multiple places — a single source of truth
    that can't drift out of sync no matter which code path last touched it. */
-#homeBizManageBtn{display:none;}
-body.mode-business #homeBizManageBtn{display:block;}
+#homeBizManageBtn{
+  display:block;
+  visibility:hidden;
+  pointer-events:none;
+}
+body.mode-business #homeBizManageBtn{
+  visibility:visible;
+  pointer-events:auto;
+}
 body.mode-business #homeResidentsSectionTitle,
 body.mode-business #homeResidentsList,
 body.mode-business .home-refresh-btn,
@@ -1642,7 +1649,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '179';
+const APP_BUILD = '180';
 
 /* KABCLICK OFFLINE SHELL - Build 175 */
 if ('serviceWorker' in navigator) {
