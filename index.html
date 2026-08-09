@@ -522,6 +522,13 @@ body.mode-business #homeResidentsSectionTitle,
 body.mode-business #homeResidentsList,
 body.mode-business .home-refresh-btn,
 body.mode-business .home-refresh-status{display:none;}
+/* BUSINESS HOME - remove the vaad upcoming-payments block completely */
+body.mode-business #homeResidentsSection{
+  display:none !important;
+  min-height:0 !important;
+  margin:0 !important;
+  padding:0 !important;
+}
 
 /* ACCOUNT MENU MODAL */
 :root{ --danger:#E53E3E; --danger-soft:#FFF7F7; }
@@ -1649,7 +1656,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '180';
+const APP_BUILD = '181';
 
 /* KABCLICK OFFLINE SHELL - Build 175 */
 if ('serviceWorker' in navigator) {
