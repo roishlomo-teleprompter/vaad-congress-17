@@ -44,13 +44,22 @@ body.home-active .app-frame{height:auto;min-height:100vh;min-height:100dvh;overf
 /* ── TOPBAR ── */
 .topbar{position:relative;flex:none;background:#fff;color:var(--ink);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1.5px solid var(--card-line);}
 
-/* HOME HEADER - stays fixed while the page content scrolls */
+/* HOME HEADER - sticky only on the actual home screen */
 body.home-active .topbar{
   position:sticky;
   top:0;
-  z-index:450;
+  z-index:120;
   flex:none;
   box-shadow:0 5px 16px rgba(16,24,40,.08);
+}
+
+/* Any open modal / guide must appear above the home header */
+.modal-bg,
+.modal-overlay,
+.tour-overlay,
+.receipts-modal,
+.account-modal-overlay{
+  z-index:500;
 }
 .brand{display:flex;align-items:center;gap:16px;}
 .brand-logo{width:48px;height:48px;border-radius:13px;background:linear-gradient(135deg,#3B82F6,#1D4ED8);display:flex;align-items:center;justify-content:center;font-family:'Frank Ruhl Libre',serif;font-weight:900;color:#fff;font-size:18px;overflow:hidden;flex:none;}
@@ -1627,7 +1636,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '172';
+const APP_BUILD = '173';
 console.log('[קבקליק] גרסה:', APP_BUILD);
 
 const LICENSE_API_URL = 'https://script.google.com/macros/s/AKfycbwo80B9ZmKyMSwdXzQA6HP_sPFLLHETIWiI3VFj60vPazq4vE8DLpC7yxK-JtVqkZ4qyQ/exec';
