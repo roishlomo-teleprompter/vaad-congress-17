@@ -1642,7 +1642,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '175';
+const APP_BUILD = '176';
 
 /* KABCLICK OFFLINE SHELL - Build 175 */
 if ('serviceWorker' in navigator) {
@@ -4306,6 +4306,11 @@ async function ensureReceiptsSheet(){
 }
 
 async function appendReceiptRow(row){
+
+  // Final safety layer - receipts can never be written while offline.
+  if(!navigator.onLine){
+    throw new Error('OFFLINE_RECEIPT_BLOCKED');
+  }
   const layout = receiptSheetLayout();
   return gapi.client.sheets.spreadsheets.values.append({
     spreadsheetId:CFG.spreadsheetId,
@@ -5499,6 +5504,15 @@ async function sendPaymentReminderEmail(residentName, email, lastPaidMonthName){
 }
 
 async function performGenerateReceipt(){
+
+  // KABCLICK OFFLINE RECEIPT BLOCK - Build 176
+  if(!navigator.onLine){
+    showMsg(
+      'לא ניתן להפיק קבלה ללא חיבור לאינטרנט. הקבלה לא נוצרה ולא הוקצה לה מספר. נסה שוב לאחר חזרת החיבור.',
+      'error'
+    );
+    return;
+  }
   hideMsg();
   const r=currentResident();
   const purposeText = document.getElementById('purposeInput').value.trim();
