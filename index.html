@@ -1087,6 +1087,11 @@ body.mode-business #homeResidentsSection{
       <div class="home-greeting-sub" id="homeGreetingSub"></div>
     </div>
 
+    <div id="homeYearRow" hidden style="display:none;align-items:center;justify-content:center;gap:8px;margin:-8px auto 16px;padding:7px 12px;border:1.5px solid var(--card-line);background:#fff;border-radius:999px;width:max-content;max-width:100%;">
+      <span style="font-size:11.5px;font-weight:700;color:var(--slate);">שנת נתונים</span>
+      <select id="homeYearSelect" aria-label="בחירת שנת נתונים" style="width:auto;min-width:82px;padding:5px 9px;border:0;border-radius:999px;background:var(--blue-soft);color:var(--blue-dark);font-family:inherit;font-size:12.5px;font-weight:800;"></select>
+    </div>
+
     <div class="home-residents-section" id="homeResidentsSection">
       <div class="home-section-title-row">
         <div>
@@ -1420,7 +1425,7 @@ body.mode-business #homeResidentsSection{
     <div class="settings-section">
       <p class="settings-part-label">חלק 3 מתוך 4 · יתרת פתיחה</p>
       <h4>🏦 יתרה מוקדמת (לפני תחילת השימוש בקבקליק)</h4>
-      <p style="font-size:11.5px;color:var(--slate);margin:0 0 10px;line-height:1.6;">אם הייתה יתרה בקופה לפני שהתחלתם לתעד הוצאות/הכנסות כאן (למשל ממעקב ידני קודם) — הזינו אותה כאן. היא תיכנס אוטומטית לחישוב "יתרה בקופה" ולדוח, בלי צורך להוסיף אותה כתנועה נפרדת.</p>
+      <p style="font-size:11.5px;color:var(--slate);margin:0 0 10px;line-height:1.6;">אם הייתה יתרה בקופה לפני שהתחלתם לתעד הוצאות/הכנסות כאן — הזינו אותה כאן. בעת יצירת שנת עבודה חדשה, יתרת הסיום של השנה הקודמת עוברת אוטומטית כיתרת הפתיחה של השנה החדשה, בלי להעתיק את התנועות עצמן.</p>
       <label>סכום יתרת הפתיחה (₪)</label>
       <input type="number" id="cfg-financeOpeningBalance" placeholder="לדוגמה: 1199">
       <label>נכון לתאריך (אופציונלי)</label>
@@ -1736,7 +1741,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '187';
+const APP_BUILD = '188';
 
 /* KABCLICK SERVICE WORKER TEST - Build 182
    Temporarily unregister all service workers to isolate the Chrome/TWA toolbar issue. */
@@ -2000,6 +2005,83 @@ function saveCfg(c){ localStorage.setItem('vaad_generic_cfg', JSON.stringify(c))
 function accountCfgKey(email, mode){ return `kabklik_cfg::${email}::${mode}`; }
 function accountModeKey(email){ return `kabklik_lastmode::${email}`; }
 
+function currentCalendarYear(){
+  return new Date().getFullYear();
+}
+
+function normalizeYearWorkspaces(saved){
+  const result = {};
+  const existing = saved && saved.yearWorkspaces && typeof saved.yearWorkspaces==='object'
+    ? saved.yearWorkspaces
+    : {};
+
+  Object.keys(existing).forEach(year=>{
+    const y = parseInt(year,10);
+    const ws = existing[year];
+    if(y && ws && ws.spreadsheetId && ws.folderId){
+      result[String(y)] = {
+        spreadsheetId: ws.spreadsheetId,
+        folderId: ws.folderId
+      };
+    }
+  });
+
+  // Migration from Build 187 and earlier:
+  // the currently-connected workspace becomes the current calendar year.
+  if(
+    saved &&
+    saved.spreadsheetId &&
+    saved.folderId &&
+    !Object.values(result).some(ws =>
+      ws.spreadsheetId===saved.spreadsheetId &&
+      ws.folderId===saved.folderId
+    )
+  ){
+    const legacyYear = parseInt(saved.activeYear,10) || currentCalendarYear();
+    result[String(legacyYear)] = {
+      spreadsheetId:saved.spreadsheetId,
+      folderId:saved.folderId
+    };
+  }
+
+  return result;
+}
+
+function seriesIdFromSpreadsheetId(spreadsheetId){
+  const id=(spreadsheetId||'')
+    .toString()
+    .replace(/[^A-Za-z0-9_-]/g,'');
+
+  return id ? 'series_'+id : '';
+}
+
+function ensureLocalWorkspaceSeriesId(){
+  if(CFG.seriesId) return CFG.seriesId;
+
+  const known = Object.entries(CFG.yearWorkspaces || {})
+    .map(([year,ws])=>({
+      year:parseInt(year,10),
+      spreadsheetId:ws?.spreadsheetId || ''
+    }))
+    .filter(x=>x.year && x.spreadsheetId)
+    .sort((a,b)=>a.year-b.year);
+
+  // During migration the oldest known annual spreadsheet is the stable
+  // identity of this KabClick dataset. All later years inherit it.
+  const seed =
+    known[0]?.spreadsheetId ||
+    CFG.spreadsheetId ||
+    '';
+
+  const seriesId = seriesIdFromSpreadsheetId(seed);
+  if(!seriesId) return '';
+
+  CFG.seriesId = seriesId;
+  persistCurrentAccountCfg();
+
+  return seriesId;
+}
+
 function loadAccountCfg(email, mode){
   try{ return JSON.parse(localStorage.getItem(accountCfgKey(email, mode))||'null'); }
   catch(e){ return null; }
@@ -2016,9 +2098,28 @@ function saveLastMode(email, mode){
 /** Saves the live CFG fields into this account+mode's own bucket. */
 function persistCurrentAccountCfg(){
   if(!CFG.email || !CFG.usageMode) return;
+
+  CFG.activeYear = parseInt(CFG.activeYear,10) || currentCalendarYear();
+  CFG.yearWorkspaces =
+    CFG.yearWorkspaces && typeof CFG.yearWorkspaces==='object'
+      ? CFG.yearWorkspaces
+      : {};
+
+  if(CFG.spreadsheetId && CFG.folderId){
+    CFG.yearWorkspaces[String(CFG.activeYear)] = {
+      spreadsheetId:CFG.spreadsheetId,
+      folderId:CFG.folderId
+    };
+  }else{
+    delete CFG.yearWorkspaces[String(CFG.activeYear)];
+  }
+
   saveAccountCfg(CFG.email, CFG.usageMode, {
     spreadsheetId:  CFG.spreadsheetId  || '',
     folderId:       CFG.folderId       || '',
+    activeYear:     CFG.activeYear,
+    yearWorkspaces: CFG.yearWorkspaces,
+    seriesId:       CFG.seriesId || '',
     buildingInfo:   CFG.buildingInfo   || '',
     businessNumber: CFG.businessNumber || '',
     logoUrl:        CFG.logoUrl        || '',
@@ -2060,9 +2161,30 @@ function migrateLegacyCfgIfNeeded(email){
 function applyAccountAndMode(email, mode){
   CFG.email     = email;
   CFG.usageMode = mode;
+
   const saved = loadAccountCfg(email, mode) || {};
-  CFG.spreadsheetId  = saved.spreadsheetId  || '';
-  CFG.folderId       = saved.folderId       || '';
+  const workspaces = normalizeYearWorkspaces(saved);
+  const years = Object.keys(workspaces)
+    .map(Number)
+    .filter(Number.isFinite)
+    .sort((a,b)=>b-a);
+
+  let activeYear = parseInt(saved.activeYear,10) || currentCalendarYear();
+  if(!workspaces[String(activeYear)] && years.length){
+    activeYear = workspaces[String(currentCalendarYear())]
+      ? currentCalendarYear()
+      : years[0];
+  }
+
+  const activeWorkspace = workspaces[String(activeYear)] || {};
+
+  CFG.seriesId = (saved.seriesId || '').toString().trim();
+  CFG.pendingSeriesId = '';
+
+  CFG.activeYear = activeYear;
+  CFG.yearWorkspaces = workspaces;
+  CFG.spreadsheetId = activeWorkspace.spreadsheetId || saved.spreadsheetId || '';
+  CFG.folderId = activeWorkspace.folderId || saved.folderId || '';
   CFG.buildingInfo   = saved.buildingInfo   || '';
   CFG.businessNumber = saved.businessNumber || '';
   CFG.logoUrl        = saved.logoUrl        || '';
@@ -2074,7 +2196,9 @@ function applyAccountAndMode(email, mode){
   CFG.nextReceiptNumber = saved.nextReceiptNumber || 1000;
   CFG.financeOpeningBalance = saved.financeOpeningBalance || 0;
   CFG.financeOpeningBalanceDate = saved.financeOpeningBalanceDate || '';
+
   saveLastMode(email, mode);
+  persistCurrentAccountCfg();
   applyBranding();
   applyModeTerminology();
 }
@@ -2086,21 +2210,111 @@ function applyAccountAndMode(email, mode){
    source of truth for the KabClick connection. */
 async function stampKabClickDriveIdentity(){
   if(!navigator.onLine) return;
-  if(!accessToken || !CFG.spreadsheetId || !CFG.folderId || !CFG.usageMode) return;
+
+  if(
+    !accessToken ||
+    !CFG.spreadsheetId ||
+    !CFG.folderId ||
+    !CFG.usageMode
+  ) return;
+
+  const seriesId = ensureLocalWorkspaceSeriesId();
+  if(!seriesId) return;
+
   try{
     gapi.client.setToken({access_token:accessToken});
+
     await Promise.all([
       gapi.client.drive.files.update({
         fileId:CFG.spreadsheetId,
-        resource:{appProperties:{kabclick:'1', kind:'sheet', mode:CFG.usageMode}}
+        resource:{appProperties:{
+          kabclick:'1',
+          kind:'sheet',
+          mode:CFG.usageMode,
+          year:String(CFG.activeYear||currentCalendarYear()),
+          seriesId
+        }}
       }),
+
       gapi.client.drive.files.update({
         fileId:CFG.folderId,
-        resource:{appProperties:{kabclick:'1', kind:'receipts-folder', mode:CFG.usageMode}}
+        resource:{appProperties:{
+          kabclick:'1',
+          kind:'receipts-folder',
+          mode:CFG.usageMode,
+          year:String(CFG.activeYear||currentCalendarYear()),
+          seriesId
+        }}
       })
     ]);
   }catch(e){
-    console.warn('[קבקליק] סימון קבצי Drive לזיהוי עתידי נכשל:', e);
+    console.warn(
+      '[קבקליק] סימון קבצי Drive לזיהוי עתידי נכשל:',
+      e
+    );
+  }
+}
+
+async function stampKnownYearWorkspacesSeriesIdentity(){
+  if(
+    !navigator.onLine ||
+    !accessToken ||
+    !CFG.usageMode
+  ) return;
+
+  const seriesId = ensureLocalWorkspaceSeriesId();
+  if(!seriesId) return;
+
+  const entries = Object.entries(CFG.yearWorkspaces || {})
+    .filter(([,ws])=>
+      ws?.spreadsheetId &&
+      ws?.folderId
+    );
+
+  if(!entries.length) return;
+
+  gapi.client.setToken({access_token:accessToken});
+
+  const jobs = [];
+
+  entries.forEach(([year,ws])=>{
+    jobs.push(
+      gapi.client.drive.files.update({
+        fileId:ws.spreadsheetId,
+        resource:{appProperties:{
+          kabclick:'1',
+          kind:'sheet',
+          mode:CFG.usageMode,
+          year:String(year),
+          seriesId
+        }}
+      })
+    );
+
+    jobs.push(
+      gapi.client.drive.files.update({
+        fileId:ws.folderId,
+        resource:{appProperties:{
+          kabclick:'1',
+          kind:'receipts-folder',
+          mode:CFG.usageMode,
+          year:String(year),
+          seriesId
+        }}
+      })
+    );
+  });
+
+  const results = await Promise.allSettled(jobs);
+
+  const failed =
+    results.filter(r=>r.status==='rejected');
+
+  if(failed.length){
+    console.warn(
+      '[קבקליק] חלק מקבצי שנות העבודה לא קיבלו seriesId:',
+      failed.map(r=>r.reason)
+    );
   }
 }
 
@@ -2131,6 +2345,7 @@ async function readKabClickSettingsFromCandidate(spreadsheetId){
     return {
       spreadsheetId,
       mode,
+      year: parseInt(map['שנת עבודה'],10) || null,
       buildingInfo: map['שם/כתובת בניין'] || '',
       folderId: map['FolderId'] || '',
       businessNumber: map['מספר עסק'] || '',
@@ -2180,23 +2395,152 @@ async function recoverKabClickConnectionFromDrive(email, mode){
       files = legacy.result.files || [];
     }
 
-    const matches = [];
+    let matches = [];
     for(const f of files){
       const candidate = await readKabClickSettingsFromCandidate(f.id);
       if(candidate && candidate.mode===mode){
-        matches.push({...candidate, driveName:f.name});
+        const taggedYear = parseInt(f.appProperties?.year,10) || null;
+        const nameMatch = (f.name||'').match(/(?:^|\s|-)(20\d{2})(?:$|\s|-)/);
+        candidate.year =
+          taggedYear ||
+          candidate.year ||
+          (nameMatch ? parseInt(nameMatch[1],10) : null);
+
+        matches.push({
+          ...candidate,
+          driveName:f.name,
+          seriesId:(f.appProperties?.seriesId||'')
+            .toString()
+            .trim()
+        });
       }
     }
 
     if(matches.length===0) return false;
 
-    if(matches.length>1){
-      console.warn('[קבקליק] נמצאו כמה חשבונות תואמים ב-Drive:', matches.map(m=>m.driveName));
-      showMsg('נמצאו כמה חשבונות קבקליק מאותו סוג ב-Google Drive. לא בוצע חיבור אוטומטי כדי למנוע חיבור לחשבון הלא נכון.', 'error');
+    const savedSeriesId =
+      (existing?.seriesId || '')
+        .toString()
+        .trim();
+
+    const taggedSeriesIds = [
+      ...new Set(
+        matches
+          .map(m=>m.seriesId)
+          .filter(Boolean)
+      )
+    ];
+
+    let selectedSeriesId = savedSeriesId;
+
+    if(savedSeriesId){
+      matches =
+        matches.filter(m=>m.seriesId===savedSeriesId);
+
+      if(!matches.length){
+        console.warn(
+          '[קבקליק] seriesId שמור לא נמצא ב-Drive:',
+          savedSeriesId
+        );
+        return false;
+      }
+
+    }else if(taggedSeriesIds.length===1){
+
+      selectedSeriesId = taggedSeriesIds[0];
+
+      matches =
+        matches.filter(
+          m=>m.seriesId===selectedSeriesId
+        );
+
+    }else if(taggedSeriesIds.length>1){
+
+      console.warn(
+        '[קבקליק] נמצאו כמה סדרות קבקליק מאותו סוג:',
+        taggedSeriesIds
+      );
+
+      showMsg(
+        'נמצאו כמה סביבות קבקליק מאותו סוג ב-Google Drive. לא בוצע חיבור אוטומטי כדי למנוע ערבוב בין בניינים או עסקים שונים.',
+        'error'
+      );
+
+      return false;
+
+    }else if(matches.length>1){
+
+      // Build 187 and earlier normally contain one workspace per mode.
+      // If several untagged legacy environments exist, never guess.
+      console.warn(
+        '[קבקליק] נמצאו כמה סביבות ישנות ללא seriesId:',
+        matches.map(m=>m.driveName)
+      );
+
+      showMsg(
+        'נמצאו כמה סביבות קבקליק ישנות מאותו סוג ב-Google Drive. לא בוצע חיבור אוטומטי כדי למנוע חיבור לנתונים הלא נכונים.',
+        'error'
+      );
+
       return false;
     }
 
-    const found = matches[0];
+    // A single legacy workspace can be migrated safely.
+    if(!selectedSeriesId){
+      selectedSeriesId =
+        seriesIdFromSpreadsheetId(
+          matches[0].spreadsheetId
+        );
+    }
+
+    // Several YEARS inside one series are valid.
+    // Several sheets for the SAME year are not.
+    const grouped = {};
+
+    matches.forEach(m=>{
+      const key =
+        m.year ? String(m.year) : 'unknown';
+
+      grouped[key] = grouped[key] || [];
+      grouped[key].push(m);
+    });
+
+    const ambiguous =
+      Object.entries(grouped)
+        .find(([,list])=>list.length>1);
+
+    if(ambiguous){
+      console.warn(
+        '[קבקליק] נמצאו כמה סביבות לאותה שנה בתוך אותה סדרה:',
+        ambiguous[0],
+        ambiguous[1].map(m=>m.driveName)
+      );
+
+      showMsg(
+        'נמצאו כמה סביבות קבקליק לאותה שנה ב-Google Drive. לא בוצע חיבור אוטומטי כדי למנוע ערבוב נתונים.',
+        'error'
+      );
+
+      return false;
+    }
+
+    matches.sort(
+      (a,b)=>
+        (Number(b.year)||0) -
+        (Number(a.year)||0)
+    );
+
+    const found =
+      matches.find(
+        m=>
+          Number(m.year)===
+          currentCalendarYear()
+      ) ||
+      matches[0];
+
+    found.year =
+      found.year ||
+      currentCalendarYear();
 
     async function recoverFolderIdFromReceiptPdf(spreadsheetId){
       try{
@@ -2315,9 +2659,26 @@ async function recoverKabClickConnectionFromDrive(email, mode){
     });
     if(folderChk.result.trashed) return false;
 
+    const recoveredYears = {};
+    matches.forEach(m=>{
+      if(m.year && m.spreadsheetId && m.folderId){
+        recoveredYears[String(m.year)] = {
+          spreadsheetId:m.spreadsheetId,
+          folderId:m.folderId
+        };
+      }
+    });
+    recoveredYears[String(found.year)] = {
+      spreadsheetId:found.spreadsheetId,
+      folderId:found.folderId
+    };
+
     saveAccountCfg(email, mode, {
       spreadsheetId:found.spreadsheetId,
       folderId:found.folderId,
+      activeYear:found.year,
+      yearWorkspaces:recoveredYears,
+      seriesId:selectedSeriesId || '',
       buildingInfo:found.buildingInfo,
       businessNumber:found.businessNumber,
       logoUrl:found.logoUrl,
@@ -2326,14 +2687,16 @@ async function recoverKabClickConnectionFromDrive(email, mode){
       businessDefaultAmountAuto:found.businessDefaultAmountAuto,
       businessTaxType:found.businessTaxType || 'exempt',
       vatRate:Number.isFinite(Number(found.vatRate)) ? Number(found.vatRate) : 18,
-      nextReceiptNumber:found.nextReceiptNumber,
+      nextReceiptNumber:Math.max(...matches.map(m=>Number(m.nextReceiptNumber)||1000)),
       financeOpeningBalance:found.financeOpeningBalance,
       financeOpeningBalanceDate:found.financeOpeningBalanceDate
     });
 
     saveLastMode(email, mode);
     applyAccountAndMode(email, mode);
+
     await stampKabClickDriveIdentity();
+    await stampKnownYearWorkspacesSeriesIdentity();
 
     console.log('[קבקליק] החיבור שוחזר אוטומטית מ-Google Drive:', found.driveName);
     return true;
@@ -2342,6 +2705,742 @@ async function recoverKabClickConnectionFromDrive(email, mode){
     return false;
   }
 }
+/* ─── Annual workspaces - Build 188 ──────────────────────────────── */
+const annualWorkspacePromises = {};
+
+function registerYearWorkspace(year, spreadsheetId, folderId){
+  const y = parseInt(year,10);
+  if(!y || !spreadsheetId || !folderId) return;
+
+  CFG.yearWorkspaces =
+    CFG.yearWorkspaces && typeof CFG.yearWorkspaces==='object'
+      ? CFG.yearWorkspaces
+      : {};
+
+  CFG.yearWorkspaces[String(y)] = {spreadsheetId, folderId};
+}
+
+function renderYearSelector(){
+  const row = document.getElementById('homeYearRow');
+  const select = document.getElementById('homeYearSelect');
+  if(!row || !select) return;
+
+  const years = Object.keys(CFG.yearWorkspaces || {})
+    .map(Number)
+    .filter(Number.isFinite)
+    .sort((a,b)=>b-a);
+
+  if(!CFG.email || !CFG.usageMode || !years.length){
+    row.hidden = true;
+    row.style.display = 'none';
+    select.innerHTML = '';
+    return;
+  }
+
+  row.hidden = false;
+  row.style.display = 'flex';
+  select.innerHTML = years.map(y=>`<option value="${y}">${y}</option>`).join('');
+  select.value = String(parseInt(CFG.activeYear,10) || years[0]);
+
+  if(select.dataset.bound) return;
+  select.dataset.bound = '1';
+
+  select.addEventListener('change', async ()=>{
+    const year = parseInt(select.value,10);
+    const workspace = (CFG.yearWorkspaces || {})[String(year)];
+
+    if(!year || !workspace){
+      renderYearSelector();
+      return;
+    }
+
+    if(year===Number(CFG.activeYear)) return;
+
+    if(!navigator.onLine || !accessToken){
+      await showAppAlert('כדי לעבור בין שנות נתונים יש להתחבר ל-Google ולהיות מחוברים לאינטרנט.','⚠️');
+      renderYearSelector();
+      return;
+    }
+
+    select.disabled = true;
+    try{
+      await activateYearWorkspace(year, workspace, true);
+      showMsg(`מציג נתונים לשנת ${year}.`,'ok');
+    }catch(e){
+      console.warn('[קבקליק] מעבר בין שנים נכשל:', e);
+      await showAppAlert('לא ניתן היה לטעון את שנת '+year+'.','⚠️');
+    }finally{
+      select.disabled = false;
+      renderYearSelector();
+    }
+  });
+}
+
+async function discoverAnnualWorkspacesFromDrive(){
+  if(
+    !navigator.onLine ||
+    !accessToken ||
+    !CFG.email ||
+    !CFG.usageMode
+  ) return;
+
+  const seriesId =
+    ensureLocalWorkspaceSeriesId();
+
+  if(!seriesId) return;
+
+  try{
+    gapi.client.setToken({
+      access_token:accessToken
+    });
+
+    const res =
+      await gapi.client.drive.files.list({
+        q:`trashed=false and mimeType='application/vnd.google-apps.spreadsheet' and appProperties has { key='kabclick' and value='1' } and appProperties has { key='mode' and value='${CFG.usageMode}' } and appProperties has { key='seriesId' and value='${seriesId}' }`,
+        fields:'files(id,name,appProperties,modifiedTime)',
+        orderBy:'modifiedTime desc',
+        pageSize:100
+      });
+
+    let changed = false;
+
+    for(const f of (res.result.files||[])){
+      const candidate =
+        await readKabClickSettingsFromCandidate(
+          f.id
+        );
+
+      if(
+        !candidate ||
+        candidate.mode!==CFG.usageMode ||
+        !candidate.folderId
+      ) continue;
+
+      const taggedYear =
+        parseInt(
+          f.appProperties?.year,
+          10
+        ) || null;
+
+      const nameMatch =
+        (f.name||'').match(
+          /(?:^|\s|-)(20\d{2})(?:$|\s|-)/
+        );
+
+      const year =
+        taggedYear ||
+        candidate.year ||
+        (
+          nameMatch
+            ? parseInt(nameMatch[1],10)
+            : null
+        );
+
+      if(!year) continue;
+
+      const current =
+        (CFG.yearWorkspaces || {})[
+          String(year)
+        ];
+
+      if(
+        !current ||
+        current.spreadsheetId!==f.id ||
+        current.folderId!==candidate.folderId
+      ){
+        registerYearWorkspace(
+          year,
+          f.id,
+          candidate.folderId
+        );
+
+        changed = true;
+      }
+
+      if(
+        (Number(candidate.nextReceiptNumber)||0) >
+        (CFG.nextReceiptNumber||1000)
+      ){
+        CFG.nextReceiptNumber =
+          Number(candidate.nextReceiptNumber);
+
+        changed = true;
+      }
+    }
+
+    if(changed){
+      persistCurrentAccountCfg();
+    }
+
+    renderYearSelector();
+
+  }catch(e){
+    console.warn(
+      '[קבקליק] גילוי שנות עבודה מ-Drive נכשל:',
+      e
+    );
+  }
+}
+
+async function activateYearWorkspace(year, workspace, loadData){
+  if(!workspace || !workspace.spreadsheetId || !workspace.folderId){
+    throw new Error('YEAR_WORKSPACE_INCOMPLETE');
+  }
+
+  CFG.activeYear = parseInt(year,10);
+  CFG.spreadsheetId = workspace.spreadsheetId;
+  CFG.folderId = workspace.folderId;
+  persistCurrentAccountCfg();
+
+  residents = [];
+  allReceiptRows = [];
+  if(typeof financeRows!=='undefined') financeRows = [];
+
+  applyBranding();
+
+  if(loadData){
+    await loadDataForCurrentAccountMode();
+  }
+
+  renderYearSelector();
+}
+
+async function findYearWorkspaceOnDrive(year){
+  const y =
+    String(parseInt(year,10));
+
+  const seriesId =
+    ensureLocalWorkspaceSeriesId();
+
+  if(!seriesId){
+    throw new Error(
+      'WORKSPACE_SERIES_ID_MISSING'
+    );
+  }
+
+  gapi.client.setToken({
+    access_token:accessToken
+  });
+
+  const [sheetRes,folderRes] =
+    await Promise.all([
+
+      gapi.client.drive.files.list({
+        q:`trashed=false and mimeType='application/vnd.google-apps.spreadsheet' and appProperties has { key='kabclick' and value='1' } and appProperties has { key='mode' and value='${CFG.usageMode}' } and appProperties has { key='year' and value='${y}' } and appProperties has { key='seriesId' and value='${seriesId}' }`,
+        fields:'files(id,name,createdTime)',
+        orderBy:'createdTime asc',
+        pageSize:20
+      }),
+
+      gapi.client.drive.files.list({
+        q:`trashed=false and mimeType='application/vnd.google-apps.folder' and appProperties has { key='kabclick' and value='1' } and appProperties has { key='mode' and value='${CFG.usageMode}' } and appProperties has { key='year' and value='${y}' } and appProperties has { key='seriesId' and value='${seriesId}' }`,
+        fields:'files(id,name,createdTime)',
+        orderBy:'createdTime asc',
+        pageSize:20
+      })
+
+    ]);
+
+  const sheets =
+    sheetRes.result.files || [];
+
+  const folders =
+    folderRes.result.files || [];
+
+  // Never silently combine duplicate annual resources.
+  if(
+    sheets.length>1 ||
+    folders.length>1
+  ){
+    throw new Error(
+      'DUPLICATE_YEAR_WORKSPACE'
+    );
+  }
+
+  return {
+    spreadsheetId:sheets[0]?.id || '',
+    folderId:folders[0]?.id || ''
+  };
+}
+
+function sourceWorkspaceForYear(targetYear){
+  const years = Object.keys(CFG.yearWorkspaces || {})
+    .map(Number)
+    .filter(y=>Number.isFinite(y) && y<Number(targetYear))
+    .sort((a,b)=>b-a);
+
+  const sourceYear = years[0];
+  if(!sourceYear) return null;
+
+  return {
+    year:sourceYear,
+    ...(CFG.yearWorkspaces || {})[String(sourceYear)]
+  };
+}
+
+async function readAnnualSourceSnapshot(source){
+  if(!source || !source.spreadsheetId){
+    throw new Error('ANNUAL_SOURCE_MISSING');
+  }
+
+  const spreadsheetId = source.spreadsheetId;
+  const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId});
+  const titles = (meta.result.sheets||[]).map(s=>s.properties.title);
+  const contactsSheet = residentsSheetName();
+
+  if(!titles.includes(contactsSheet)){
+    throw new Error('לא נמצאה רשימת הדיירים/לקוחות של השנה הקודמת.');
+  }
+
+  const contactsRes = await gapi.client.sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range:`'${contactsSheet}'!A:ZZ`
+  });
+  const contacts = contactsRes.result.values || [];
+
+  const settingsMap = {};
+  if(titles.includes(SETTINGS_SHEET)){
+    const settingsRes = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range:`'${SETTINGS_SHEET}'!A:B`
+    });
+    (settingsRes.result.values||[]).forEach(row=>{
+      const key=(row[0]||'').toString().trim();
+      if(key) settingsMap[key]=(row[1]||'').toString().trim();
+    });
+  }
+
+  const opening = parseFloat(settingsMap['יתרת פתיחה (הוצאות/הכנסות)']) || 0;
+  let financeTotal = 0;
+
+  if(titles.includes(FINANCE_SHEET)){
+    const financeRes = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range:`'${FINANCE_SHEET}'!A2:E`
+    });
+
+    (financeRes.result.values||[]).forEach(row=>{
+      const type=(row[1]||'').toString().trim();
+      const amount=parseFloat(row[4]) || 0;
+      if(type==='הכנסה') financeTotal += amount;
+      else if(type==='הוצאה') financeTotal -= amount;
+    });
+  }
+
+  let highestReceipt = 0;
+  if(titles.includes(RECEIPTS_SHEET)){
+    const receiptRes = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range:`'${RECEIPTS_SHEET}'!A2:J`
+    });
+    const idx = receiptSheetLayout().receiptNumIdx;
+    (receiptRes.result.values||[]).forEach(row=>{
+      const n=parseInt(row[idx],10);
+      if(Number.isFinite(n) && n>highestReceipt) highestReceipt=n;
+    });
+  }
+
+  const settingsNext = parseInt(settingsMap['מספר הקבלה הבא'],10) || 1000;
+
+  return {
+    contacts,
+    closingBalance:opening + financeTotal,
+    nextReceiptNumber:Math.max(
+      Number(CFG.nextReceiptNumber)||1000,
+      settingsNext,
+      highestReceipt+1
+    )
+  };
+}
+
+async function prepareAnnualSpreadsheet(spreadsheetId, contacts){
+  const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId});
+  const sheets = meta.result.sheets || [];
+  let contactsMeta = sheets.find(s=>s.properties.title===residentsSheetName());
+
+  if(!contactsMeta){
+    if(sheets.length!==1){
+      throw new Error('YEAR_CONTACTS_SHEET_MISSING');
+    }
+
+    await gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      resource:{requests:[{updateSheetProperties:{
+        properties:{
+          sheetId:sheets[0].properties.sheetId,
+          title:residentsSheetName(),
+          rightToLeft:true
+        },
+        fields:'title,rightToLeft'
+      }}]}
+    });
+  }else if(contactsMeta.properties.rightToLeft!==true){
+    await gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      resource:{requests:[{updateSheetProperties:{
+        properties:{sheetId:contactsMeta.properties.sheetId,rightToLeft:true},
+        fields:'rightToLeft'
+      }}]}
+    });
+  }
+
+  const existing = await gapi.client.sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range:`'${residentsSheetName()}'!A:ZZ`
+  });
+
+  if((existing.result.values||[]).length){
+    return;
+  }
+
+  const rows = Array.isArray(contacts) && contacts.length
+    ? contacts
+    : [[...(CFG.usageMode==='business'
+      ? ['שם','טלפון','מייל']
+      : ['שם','טלפון','מחיר','מייל','דירה'])]];
+
+  await gapi.client.sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range:`'${residentsSheetName()}'!A1:ZZ${rows.length}`,
+    valueInputOption:'RAW',
+    resource:{values:rows}
+  });
+}
+
+async function yearWorkspaceIsHealthy(workspace){
+  if(!workspace?.spreadsheetId || !workspace?.folderId) return false;
+  try{
+    const [sheet,folder] = await Promise.all([
+      gapi.client.drive.files.get({fileId:workspace.spreadsheetId,fields:'id,trashed'}),
+      gapi.client.drive.files.get({fileId:workspace.folderId,fields:'id,trashed'})
+    ]);
+    return !sheet.result.trashed && !folder.result.trashed;
+  }catch(e){
+    return false;
+  }
+}
+
+async function annualWorkspaceHasActivity(){
+  try{
+    const [financeRes,receiptRes] = await Promise.all([
+      gapi.client.sheets.spreadsheets.values.get({
+        spreadsheetId:CFG.spreadsheetId,
+        range:`'${FINANCE_SHEET}'!A2:H`
+      }).catch(()=>({result:{values:[]}})),
+      gapi.client.sheets.spreadsheets.values.get({
+        spreadsheetId:CFG.spreadsheetId,
+        range:`'${RECEIPTS_SHEET}'!A2:J`
+      }).catch(()=>({result:{values:[]}}))
+    ]);
+
+    const financeHas = (financeRes.result.values||[]).some(r=>r.some(v=>(v||'').toString().trim()));
+    const receiptHas = (receiptRes.result.values||[]).some(r=>r.some(v=>(v||'').toString().trim()));
+    return financeHas || receiptHas;
+  }catch(e){
+    return true;
+  }
+}
+
+async function refreshAnnualCarryForwardIfPristine(year){
+  const source = sourceWorkspaceForYear(year);
+  if(!source || Number(source.year)>=Number(year)) return;
+
+  const hasActivity = await annualWorkspaceHasActivity();
+  if(hasActivity) return;
+
+  const snapshot = await readAnnualSourceSnapshot(source);
+
+  CFG.financeOpeningBalance = snapshot.closingBalance;
+  CFG.financeOpeningBalanceDate = `${year}-01-01`;
+  CFG.nextReceiptNumber = Math.max(
+    Number(CFG.nextReceiptNumber)||1000,
+    Number(snapshot.nextReceiptNumber)||1000
+  );
+
+  persistCurrentAccountCfg();
+  await ensureFinanceSheet();
+  await pushSettingsToSheet();
+}
+
+async function verifyAnnualWorkspaceReady(year, spreadsheetId, folderId){
+  const folder = await gapi.client.drive.files.get({
+    fileId:folderId,
+    fields:'id,trashed'
+  });
+  if(folder.result.trashed) throw new Error('YEAR_FOLDER_TRASHED');
+
+  const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId});
+  const titles = (meta.result.sheets||[]).map(s=>s.properties.title);
+
+  for(const title of [residentsSheetName(),RECEIPTS_SHEET,FINANCE_SHEET,SETTINGS_SHEET]){
+    if(!titles.includes(title)) throw new Error('YEAR_SHEET_MISSING_'+title);
+  }
+
+  const settings = await gapi.client.sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range:`'${SETTINGS_SHEET}'!A:B`
+  });
+
+  const map={};
+  (settings.result.values||[]).forEach(row=>{
+    const key=(row[0]||'').toString().trim();
+    if(key) map[key]=(row[1]||'').toString().trim();
+  });
+
+  if(parseInt(map['שנת עבודה'],10)!==Number(year)){
+    throw new Error('YEAR_SETTINGS_NOT_READY');
+  }
+  if(map['FolderId']!==folderId){
+    throw new Error('YEAR_FOLDER_ID_NOT_READY');
+  }
+}
+
+async function ensureYearWorkspaceForWrite(targetYear){
+  const year = parseInt(targetYear,10);
+  if(!year){
+    await showAppAlert('לא ניתן לזהות את שנת הפעולה.','⚠️');
+    return false;
+  }
+
+  const seriesId =
+    ensureLocalWorkspaceSeriesId();
+
+  if(!seriesId){
+    await showAppAlert(
+      'לא ניתן לזהות את סביבת העבודה המחוברת. יש לפתוח את ההגדרות ולוודא שהגיליון והתיקייה מחוברים.',
+      '⚠️'
+    );
+
+    return false;
+  }
+
+  // Migration step: stamp every year already known locally before
+  // searching Drive for the requested year.
+  await stampKnownYearWorkspacesSeriesIdentity();
+
+  if(annualWorkspacePromises[year]){
+    return annualWorkspacePromises[year];
+  }
+
+  annualWorkspacePromises[year] = (async ()=>{
+    if(!navigator.onLine || !accessToken){
+      await showAppAlert('יש להתחבר ל-Google ולהיות מחוברים לאינטרנט לפני יצירת שנת עבודה חדשה.','⚠️');
+      return false;
+    }
+
+    await discoverAnnualWorkspacesFromDrive();
+
+    let existing = (CFG.yearWorkspaces || {})[String(year)];
+    if(existing && await yearWorkspaceIsHealthy(existing)){
+      if(Number(CFG.activeYear)!==year){
+        await activateYearWorkspace(year, existing, true);
+      }
+      await refreshAnnualCarryForwardIfPristine(year);
+      return true;
+    }
+
+    // Required re-check in Drive before offering creation.
+    let driveWorkspace = await findYearWorkspaceOnDrive(year);
+    if(driveWorkspace.spreadsheetId && driveWorkspace.folderId){
+      registerYearWorkspace(year, driveWorkspace.spreadsheetId, driveWorkspace.folderId);
+      persistCurrentAccountCfg();
+      await activateYearWorkspace(year, CFG.yearWorkspaces[String(year)], true);
+      await refreshAnnualCarryForwardIfPristine(year);
+      return true;
+    }
+
+    const confirmed = await showAppConfirm(
+      `לא קיימת עדיין סביבת עבודה לשנת ${year}.\n\n` +
+      `האם ליצור גיליון ותיקיית קבלות חדשים לשנת ${year} ולהעתיק את רשימת ` +
+      `${CFG.usageMode==='business'?'הלקוחות':'הדיירים'} מהשנה הקודמת?`,
+      '📅',
+      'צור והמשך',
+      'ביטול'
+    );
+
+    if(!confirmed) return false;
+
+    // Re-check again after confirmation to avoid duplicates.
+    driveWorkspace = await findYearWorkspaceOnDrive(year);
+    if(driveWorkspace.spreadsheetId && driveWorkspace.folderId){
+      registerYearWorkspace(year, driveWorkspace.spreadsheetId, driveWorkspace.folderId);
+      persistCurrentAccountCfg();
+      await activateYearWorkspace(year, CFG.yearWorkspaces[String(year)], true);
+      await refreshAnnualCarryForwardIfPristine(year);
+      return true;
+    }
+
+    const source = sourceWorkspaceForYear(year);
+    if(!source){
+      await showAppAlert('לא נמצאה שנת עבודה קודמת שממנה ניתן להעתיק את רשימת הדיירים או הלקוחות.','⚠️');
+      return false;
+    }
+
+    let sourceSnapshot;
+    try{
+      sourceSnapshot = await readAnnualSourceSnapshot(source);
+    }catch(e){
+      console.error('[קבקליק] קריאת השנה הקודמת נכשלה:', e);
+      await showAppAlert('לא ניתן היה לקרוא באופן מלא את נתוני השנה הקודמת. לא נוצרה שנת עבודה חדשה.','⚠️');
+      return false;
+    }
+
+    const oldState = {
+      activeYear:CFG.activeYear,
+      spreadsheetId:CFG.spreadsheetId,
+      folderId:CFG.folderId,
+      financeOpeningBalance:CFG.financeOpeningBalance,
+      financeOpeningBalanceDate:CFG.financeOpeningBalanceDate,
+      nextReceiptNumber:CFG.nextReceiptNumber,
+      yearWorkspaces:JSON.parse(JSON.stringify(CFG.yearWorkspaces || {}))
+    };
+
+    let spreadsheetId = driveWorkspace.spreadsheetId || '';
+    let folderId = driveWorkspace.folderId || '';
+    let createdSpreadsheetId = '';
+    let createdFolderId = '';
+
+    try{
+      gapi.client.setToken({access_token:accessToken});
+      const titleBase =
+        CFG.buildingInfo ||
+        (CFG.usageMode==='business' ? 'עסק' : 'ועד בית');
+
+      if(!spreadsheetId){
+        const created = await gapi.client.drive.files.create({
+          resource:{
+            name:`קבקליק - ${titleBase} - ${year}`,
+            mimeType:'application/vnd.google-apps.spreadsheet',
+            appProperties:{
+              kabclick:'1',
+              kind:'sheet',
+              mode:CFG.usageMode,
+              year:String(year),
+              seriesId:CFG.seriesId
+            }
+          },
+          fields:'id'
+        });
+        spreadsheetId = created.result.id;
+        createdSpreadsheetId = spreadsheetId;
+      }
+
+      if(!folderId){
+        const created = await gapi.client.drive.files.create({
+          resource:{
+            name:`קבלות - ${titleBase} - ${year}`,
+            mimeType:'application/vnd.google-apps.folder',
+            appProperties:{
+              kabclick:'1',
+              kind:'receipts-folder',
+              mode:CFG.usageMode,
+              year:String(year),
+              seriesId:CFG.seriesId
+            }
+          },
+          fields:'id'
+        });
+        folderId = created.result.id;
+        createdFolderId = folderId;
+      }
+
+      // Converge on the oldest tagged resources if another request/device
+      // created the same year at almost the same time. A resource created
+      // by THIS attempt is moved to Trash only if another older matching
+      // resource won the race, so we do not leave duplicate annual files.
+      const converged = await findYearWorkspaceOnDrive(year);
+
+      if(
+        createdSpreadsheetId &&
+        converged.spreadsheetId &&
+        converged.spreadsheetId!==createdSpreadsheetId
+      ){
+        try{
+          await gapi.client.drive.files.update({
+            fileId:createdSpreadsheetId,
+            resource:{trashed:true}
+          });
+        }catch(_){}
+      }
+
+      if(
+        createdFolderId &&
+        converged.folderId &&
+        converged.folderId!==createdFolderId
+      ){
+        try{
+          await gapi.client.drive.files.update({
+            fileId:createdFolderId,
+            resource:{trashed:true}
+          });
+        }catch(_){}
+      }
+
+      spreadsheetId = converged.spreadsheetId || spreadsheetId;
+      folderId = converged.folderId || folderId;
+
+      if(!spreadsheetId || !folderId){
+        throw new Error('YEAR_RESOURCE_CREATION_INCOMPLETE');
+      }
+
+      await prepareAnnualSpreadsheet(spreadsheetId, sourceSnapshot.contacts);
+
+      CFG.activeYear = year;
+      CFG.spreadsheetId = spreadsheetId;
+      CFG.folderId = folderId;
+      CFG.financeOpeningBalance = sourceSnapshot.closingBalance;
+      CFG.financeOpeningBalanceDate = `${year}-01-01`;
+      CFG.nextReceiptNumber = Math.max(
+        Number(CFG.nextReceiptNumber)||1000,
+        Number(sourceSnapshot.nextReceiptNumber)||1000
+      );
+
+      await ensureReceiptsSheet();
+      await ensureFinanceSheet();
+      await pushSettingsToSheet();
+      await verifyAnnualWorkspaceReady(year, spreadsheetId, folderId);
+
+      registerYearWorkspace(year, spreadsheetId, folderId);
+      persistCurrentAccountCfg();
+      await loadDataForCurrentAccountMode();
+
+      await showAppAlert(
+        `סביבת העבודה לשנת ${year} נוצרה בהצלחה.\n\n` +
+        `הגיליון, תיקיית הקבלות ורשימת ${CFG.usageMode==='business'?'הלקוחות':'הדיירים'} מוכנים לשימוש.`,
+        '✅'
+      );
+
+      return true;
+    }catch(e){
+      console.error('[קבקליק] יצירת שנת עבודה נכשלה:', e);
+
+      CFG.activeYear = oldState.activeYear;
+      CFG.spreadsheetId = oldState.spreadsheetId;
+      CFG.folderId = oldState.folderId;
+      CFG.financeOpeningBalance = oldState.financeOpeningBalance;
+      CFG.financeOpeningBalanceDate = oldState.financeOpeningBalanceDate;
+      CFG.nextReceiptNumber = oldState.nextReceiptNumber;
+      CFG.yearWorkspaces = oldState.yearWorkspaces;
+      persistCurrentAccountCfg();
+      applyBranding();
+
+      await showAppAlert(
+        `יצירת סביבת העבודה לשנת ${year} לא הושלמה.\n` +
+        `לא הופקה קבלה ולא נשמרה תנועה.\n` +
+        `אפשר לנסות שוב - המערכת תשתמש במה שכבר נוצר ולא תיצור כפילויות.`,
+        '⚠️'
+      );
+      return false;
+    }
+  })();
+
+  try{
+    return await annualWorkspacePromises[year];
+  }finally{
+    delete annualWorkspacePromises[year];
+  }
+}
+
 async function loadDataForCurrentAccountMode(){
   if((!CFG.spreadsheetId || !CFG.folderId) && CFG.email && CFG.usageMode && accessToken){
     await recoverKabClickConnectionFromDrive(CFG.email, CFG.usageMode);
@@ -2350,6 +3449,9 @@ async function loadDataForCurrentAccountMode(){
     await Promise.all([loadResidents(), ensureReceiptsSheet()]);
     await Promise.all([syncSettingsFromSheet(), loadAllReceiptRows()]);
     await pushSettingsToSheet();
+    await stampKnownYearWorkspacesSeriesIdentity();
+    await discoverAnnualWorkspacesFromDrive();
+    renderYearSelector();
     validateForm();
   } else {
     residents = [];
@@ -2473,6 +3575,8 @@ function applyBranding(){
 
   const illoImg = document.getElementById('homeIllustrationImg');
   if(illoImg) illoImg.src = CFG.usageMode==='business' ? 'login-illustration-freelance.jpg?v=2' : 'buildings-illustration.jpg?v=2';
+
+  renderYearSelector();
 }
 /**
  * Renders the exact list of setup requirements still missing, so the
@@ -2608,14 +3712,57 @@ document.getElementById('modalSave').onclick = async ()=>{
   }
   const enteredNextNum = parseInt(document.getElementById('cfg-nextReceiptNumber').value, 10) || 1000;
   const highestUsed = getHighestUsedReceiptNumber();
-  if(enteredNextNum <= highestUsed){
-    await showAppAlert(`מספר הקבלה הבא חייב להיות גבוה מהמספר האחרון שכבר נוצל (${highestUsed}), כדי לשמור על רצף ייחודי. הוגדר אוטומטית ל-${highestUsed+1}.`, '⚠️');
-    CFG.nextReceiptNumber = highestUsed + 1;
+  const sequenceFloor = Math.max(
+    highestUsed + 1,
+    CFG.nextReceiptNumber || 1000
+  );
+  if(enteredNextNum < sequenceFloor){
+    await showAppAlert(`מספר הקבלה הבא לא יכול לרדת מתחת לרצף הקיים (${sequenceFloor}). הוגדר אוטומטית ל-${sequenceFloor}.`, '⚠️');
+    CFG.nextReceiptNumber = sequenceFloor;
   } else {
     CFG.nextReceiptNumber = enteredNextNum;
   }
-  CFG.spreadsheetId = extractSheetId(document.getElementById('cfg-spreadsheetId').value);
-  CFG.folderId      = extractFolderId(document.getElementById('cfg-folderId').value);
+  const previousSpreadsheetId =
+    CFG.spreadsheetId || '';
+
+  const previousFolderId =
+    CFG.folderId || '';
+
+  const nextSpreadsheetId =
+    extractSheetId(
+      document.getElementById(
+        'cfg-spreadsheetId'
+      ).value
+    );
+
+  const nextFolderId =
+    extractFolderId(
+      document.getElementById(
+        'cfg-folderId'
+      ).value
+    );
+
+  const connectionChanged =
+    previousSpreadsheetId!==nextSpreadsheetId ||
+    previousFolderId!==nextFolderId;
+
+  CFG.spreadsheetId =
+    nextSpreadsheetId;
+
+  CFG.folderId =
+    nextFolderId;
+
+  if(connectionChanged){
+    CFG.seriesId =
+      CFG.pendingSeriesId || '';
+
+    CFG.pendingSeriesId = '';
+
+    CFG.yearWorkspaces = {};
+    CFG.activeYear =
+      currentCalendarYear();
+  }
+
   CFG.financeOpeningBalance = parseFloat(document.getElementById('cfg-financeOpeningBalance').value) || 0;
   CFG.financeOpeningBalanceDate = document.getElementById('cfg-financeOpeningBalanceDate').value || '';
   persistCurrentAccountCfg();
@@ -2655,6 +3802,7 @@ document.getElementById('autoCreateBtn').addEventListener('click', async ()=>{
     return;
   }
   const buildingName = buildingNameInput;
+  const createYear = currentCalendarYear();
 
   const currentSheetVal = document.getElementById('cfg-spreadsheetId').value.trim();
   if(currentSheetVal){
@@ -2674,11 +3822,16 @@ document.getElementById('autoCreateBtn').addEventListener('click', async ()=>{
     //    "אנשי קשר", with the expected header row pre-filled.
     const sheetRes = await gapi.client.sheets.spreadsheets.create({
       resource:{
-        properties:{title:`קבקליק - ${buildingName}`},
+        properties:{title:`קבקליק - ${buildingName} - ${createYear}`},
         sheets:[{properties:{title:residentsSheetName(), rightToLeft:true}}]
       }
     });
     const spreadsheetId = sheetRes.result.spreadsheetId;
+    const createSeriesId =
+      seriesIdFromSpreadsheetId(
+        spreadsheetId
+      );
+
     const headerRow = CFG.usageMode==='business' ? ['שם','טלפון','מייל'] : ['שם','טלפון','מחיר','מייל','דירה'];
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId, range:`'${residentsSheetName()}'!A1:${String.fromCharCode(64+headerRow.length)}1`, valueInputOption:'RAW',
@@ -2687,7 +3840,7 @@ document.getElementById('autoCreateBtn').addEventListener('click', async ()=>{
 
     // 2) A Drive folder for the generated receipt PDFs.
     const folderRes = await gapi.client.drive.files.create({
-      resource:{name:`קבלות - ${buildingName}`, mimeType:'application/vnd.google-apps.folder'},
+      resource:{name:`קבלות - ${buildingName} - ${createYear}`, mimeType:'application/vnd.google-apps.folder'},
       fields:'id'
     });
     const folderId = folderRes.result.id;
@@ -2696,16 +3849,19 @@ document.getElementById('autoCreateBtn').addEventListener('click', async ()=>{
       await Promise.all([
         gapi.client.drive.files.update({
           fileId:spreadsheetId,
-          resource:{appProperties:{kabclick:'1', kind:'sheet', mode:CFG.usageMode}}
+          resource:{appProperties:{kabclick:'1', kind:'sheet', mode:CFG.usageMode, year:String(createYear), seriesId:createSeriesId}}
         }),
         gapi.client.drive.files.update({
           fileId:folderId,
-          resource:{appProperties:{kabclick:'1', kind:'receipts-folder', mode:CFG.usageMode}}
+          resource:{appProperties:{kabclick:'1', kind:'receipts-folder', mode:CFG.usageMode, year:String(createYear), seriesId:createSeriesId}}
         })
       ]);
     }catch(e){
       console.warn('[קבקליק] סימון קבצי Drive נכשל, אך היצירה עצמה הצליחה:', e);
     }
+
+    CFG.pendingSeriesId =
+      createSeriesId;
 
     document.getElementById('cfg-spreadsheetId').value = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
     document.getElementById('cfg-folderId').value      = `https://drive.google.com/drive/folders/${folderId}`;
@@ -3426,7 +4582,7 @@ function todayStr(){
 }
 function sortedMonths(){ return [...selectedMonths].sort((a,b)=>a-b); }
 
-function receiptHTML(forPdf=false){
+function receiptHTML(forPdf=false, opts={}){
   const r      = currentResident();
   const months = sortedMonths();
   const fee    = residentFee();
@@ -3438,6 +4594,16 @@ function receiptHTML(forPdf=false){
   const isBiz = CFG.usageMode==='business';
   const receiptNum = CFG.nextReceiptNumber || 1000;
   const now = new Date();
+
+  const serviceYear =
+    Number(opts.serviceYear) ||
+    Number(CFG.activeYear) ||
+    currentCalendarYear();
+
+  const receiptYear =
+    Number(opts.receiptYear) ||
+    now.getFullYear();
+
   const dateMain = now.toLocaleDateString('he-IL', {day:'numeric', month:'long'});
   const dateYear = now.toLocaleDateString('he-IL', {year:'numeric'});
   const receiptTitle = isBiz ? `אישור תשלום עבור ${escapeHtml2(bInfo)}` : `אישור תשלום עבור ועד בית ${escapeHtml2(bInfo)}`;
@@ -3448,7 +4614,12 @@ function receiptHTML(forPdf=false){
        </div>`
     : '';
 
-  const monthsChips = months.map(i=>`<span class="chip">${MONTH_NAMES[i]}</span>`).join('');
+  const receiptMonthLabel = i =>
+    MONTH_NAMES[i] +
+    (serviceYear!==receiptYear ? ` ${serviceYear}` : '');
+
+  const monthsChips =
+    months.map(i=>`<span class="chip">${receiptMonthLabel(i)}</span>`).join('');
   const monthsOrPurpose = isOtherPurpose
     ? `<div class="info-row">
          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg></div>
@@ -3611,7 +4782,10 @@ function signOut(){
   CFG.businessTaxType = 'exempt'; CFG.vatRate = 18;
   CFG.nextReceiptNumber = 1000;
   CFG.financeOpeningBalance = 0; CFG.financeOpeningBalanceDate = '';
+  CFG.activeYear = null; CFG.yearWorkspaces = {};
+  CFG.seriesId = ''; CFG.pendingSeriesId = '';
   residents = []; allReceiptRows = [];
+  if(typeof financeRows!=='undefined') financeRows = [];
   markDisconnected();
   showHomeScreen();
   applyBranding(); applyModeTerminology();
@@ -4441,6 +5615,7 @@ function buildSettingsRows(){
     ['מפתח','ערך'],
     ['KabClick', '1'],
     ['סוג חשבון', CFG.usageMode || ''],
+    ['שנת עבודה', CFG.activeYear || currentCalendarYear()],
     ['שם/כתובת בניין', CFG.buildingInfo || ''],
     ['FolderId', CFG.folderId || ''],
     ['מספר עסק', CFG.businessNumber || ''],
@@ -4488,7 +5663,7 @@ async function syncSettingsFromSheet(){
       // so the first device to connect defines the shared starting point.
       await gapi.client.sheets.spreadsheets.values.update({
         spreadsheetId:CFG.spreadsheetId,
-        range:`'${SETTINGS_SHEET}'!A1:B15`,
+        range:`'${SETTINGS_SHEET}'!A1:B16`,
         valueInputOption:'RAW',
         resource:{values: buildSettingsRows()}
       });
@@ -4505,6 +5680,10 @@ async function syncSettingsFromSheet(){
       const key = (row[0]||'').toString().trim();
       const val = (row[1]||'').toString().trim();
       if(/סוג חשבון|usage.?mode/i.test(key)){ if((val==='vaad'||val==='business') && CFG.usageMode!==val){ CFG.usageMode=val; changed=true; } }
+      else if(/שנת עבודה/i.test(key)){
+        const y=parseInt(val,10);
+        if(y && CFG.activeYear!==y){ CFG.activeYear=y; changed=true; }
+      }
       else if(/שם.*בניין|כתובת|building/i.test(key)){ if(CFG.buildingInfo!==val){ CFG.buildingInfo=val; changed=true; } }
       else if(/^FolderId$/i.test(key)){ if(val && CFG.folderId!==val){ CFG.folderId=val; changed=true; } }
       else if(/מספר עסק|business.?number/i.test(key)){ if(CFG.businessNumber!==val){ CFG.businessNumber=val; changed=true; } }
@@ -4513,7 +5692,13 @@ async function syncSettingsFromSheet(){
       else if(/סכום עסק אוטומטי/i.test(key)){ const b=val==='1'||val.toLowerCase()==='true'; if(CFG.businessDefaultAmountAuto!==b){ CFG.businessDefaultAmountAuto=b; changed=true; } }
       else if(/סוג עסק לצורכי מע"מ/i.test(key)){ const t=(val==='authorized')?'authorized':'exempt'; if(CFG.businessTaxType!==t){ CFG.businessTaxType=t; changed=true; } }
       else if(/שיעור מע"מ/i.test(key)){ const parsed=parseFloat(val); const n=Number.isFinite(parsed)?parsed:18; if(CFG.vatRate!==n){ CFG.vatRate=n; changed=true; } }
-      else if(/מספר הקבלה הבא/i.test(key)){ const n=parseInt(val,10)||1000; if(CFG.nextReceiptNumber!==n){ CFG.nextReceiptNumber=n; changed=true; } }
+      else if(/מספר הקבלה הבא/i.test(key)){
+        const n=parseInt(val,10)||1000;
+        if(n>(CFG.nextReceiptNumber||1000)){
+          CFG.nextReceiptNumber=n;
+          changed=true;
+        }
+      }
       else if(/מחיר.*ברירת|ברירת.*מחדל|default.*fee/i.test(key)){ const n=parseFloat(val)||140; if(CFG.defaultFee!==n){ CFG.defaultFee=n; changed=true; } }
       else if(/יתרת פתיחה \(/i.test(key)){ const n=parseFloat(val)||0; if(CFG.financeOpeningBalance!==n){ CFG.financeOpeningBalance=n; changed=true; } }
       else if(/תאריך יתרת פתיחה/i.test(key)){ if(CFG.financeOpeningBalanceDate!==val){ CFG.financeOpeningBalanceDate=val; changed=true; } }
@@ -4535,7 +5720,7 @@ async function pushSettingsToSheet(){
     await ensureSettingsSheet();
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId:CFG.spreadsheetId,
-      range:`'${SETTINGS_SHEET}'!A1:B15`,
+      range:`'${SETTINGS_SHEET}'!A1:B16`,
       valueInputOption:'RAW',
       resource:{values: buildSettingsRows()}
     });
@@ -4633,15 +5818,17 @@ async function ensureReceiptsSheet(){
   }
 }
 
-async function appendReceiptRow(row){
+async function appendReceiptRow(row, spreadsheetId){
 
   // Final safety layer - receipts can never be written while offline.
   if(!navigator.onLine){
     throw new Error('OFFLINE_RECEIPT_BLOCKED');
   }
+
   const layout = receiptSheetLayout();
+
   return gapi.client.sheets.spreadsheets.values.append({
-    spreadsheetId:CFG.spreadsheetId,
+    spreadsheetId:spreadsheetId || CFG.spreadsheetId,
     range:`'${RECEIPTS_SHEET}'!A:${layout.lastCol}`,
     valueInputOption:'RAW',
     insertDataOption:'INSERT_ROWS',
@@ -4883,12 +6070,21 @@ async function loadFinanceRows(){
     financeRows = [];
   }
 }
-async function appendFinanceRow(entry){
+async function appendFinanceRow(entry, spreadsheetId){
   if(!navigator.onLine){
     throw new Error('OFFLINE_WRITE_BLOCKED');
   }
 
-  await ensureFinanceSheet();
+  const targetSpreadsheetId =
+    spreadsheetId ||
+    CFG.spreadsheetId;
+
+  // Normal/manual writes still use the existing ensure logic.
+  // A receipt background-save can continue safely even if the user
+  // has meanwhile switched to a different historical year.
+  if(targetSpreadsheetId===CFG.spreadsheetId){
+    await ensureFinanceSheet();
+  }
 
   const row = [
     entry.date,
@@ -4902,14 +6098,16 @@ async function appendFinanceRow(entry){
   ];
 
   await gapi.client.sheets.spreadsheets.values.append({
-    spreadsheetId:CFG.spreadsheetId,
+    spreadsheetId:targetSpreadsheetId,
     range:`'${FINANCE_SHEET}'!A:H`,
     valueInputOption:'RAW',
     insertDataOption:'INSERT_ROWS',
     resource:{values:[row]}
   });
 
-  financeRows.push(entry);
+  if(targetSpreadsheetId===CFG.spreadsheetId){
+    financeRows.push(entry);
+  }
 }
 /** Overwrites an existing row in place (by its actual sheet row number) —
  *  used for editing a transaction. Row numbers are captured at load time
@@ -5275,6 +6473,23 @@ document.getElementById('finSaveBtn').addEventListener('click', async ()=>{
   const saveBtn = document.getElementById('finSaveBtn');
   saveBtn.disabled = true; saveBtn.textContent = 'שומר…';
   try{
+    if(!financeEditingRow){
+      const transactionYear =
+        parseInt((date||'').slice(0,4),10) ||
+        currentCalendarYear();
+
+      saveBtn.textContent='בודק שנת עבודה…';
+
+      const yearReady =
+        await ensureYearWorkspaceForWrite(transactionYear);
+
+      if(!yearReady){
+        return;
+      }
+
+      saveBtn.textContent='שומר…';
+    }
+
     const entry = {
       date,
       type:financeFormType,
@@ -5768,14 +6983,15 @@ function refreshRecentResidents(){
 /* ═══════════════════════════════════════
    CUSTOM DIALOG (replaces native confirm()/alert())
 ═══════════════════════════════════════ */
-function showAppConfirm(message, icon){
+function showAppConfirm(message, icon, confirmText, cancelText){
   return new Promise(resolve=>{
     const bg = document.getElementById('appDialogBg');
     document.getElementById('appDialogIcon').textContent = icon || '❓';
     document.getElementById('appDialogText').textContent = message;
     const confirmBtn = document.getElementById('appDialogConfirmBtn');
     const cancelBtn  = document.getElementById('appDialogCancelBtn');
-    confirmBtn.textContent = 'אישור';
+    confirmBtn.textContent = confirmText || 'אישור';
+    cancelBtn.textContent = cancelText || 'ביטול';
     cancelBtn.style.display = '';
     bg.classList.add('show');
     function cleanup(result){
@@ -5885,15 +7101,28 @@ document.addEventListener('click', e=>{
 function getPaidMonthsForResident(resident){
   const paid = new Set();
   if(!resident) return paid;
-  const year = new Date().getFullYear();
+  const year = Number(CFG.activeYear) || currentCalendarYear();
   allReceiptRows.forEach(row=>{
     const date=row[0], name=row[1], monthsCell=row[3];
     if((name||'').trim() !== resident.name) return;
     const d = parseHebrewDate(date);
     if(!d || d.getFullYear()!==year) return;
     (monthsCell||'').split(',').map(s=>s.trim()).forEach(mn=>{
-      const idx = MONTH_NAMES.indexOf(mn);
-      if(idx>-1) paid.add(idx);
+      const idx = MONTH_NAMES.findIndex(name =>
+        mn===name || mn.startsWith(name+' ')
+      );
+
+      const yearMatch = mn.match(/(?:^|\s)(20\d{2})$/);
+
+      // Legacy receipts did not store a service year explicitly,
+      // so for those the receipt's own year remains the service year.
+      const serviceYear = yearMatch
+        ? parseInt(yearMatch[1],10)
+        : d.getFullYear();
+
+      if(idx>-1 && serviceYear===year){
+        paid.add(idx);
+      }
     });
   });
   return paid;
@@ -5916,9 +7145,12 @@ function parseHebrewDate(s){
 document.getElementById('historyBtn').onclick=async()=>{
   if(!CFG.spreadsheetId||!CFG.folderId){ showMsg('יש להגדיר קודם קישור לגיליון ולתיקייה בהגדרות.','error'); return; }
   if(!accessToken){ showMsg('יש להתחבר עם Google לפני צפייה בהיסטוריה.','error'); return; }
-  const now=new Date();
+  const calendarNow=new Date();
+  const historyYear=Number(CFG.activeYear)||currentCalendarYear();
+  const historyDate=new Date(historyYear,calendarNow.getMonth(),1);
+
   document.getElementById('historyMonthLabel').textContent =
-    `קבלות שהופקו בחודש ${now.toLocaleDateString('he-IL',{month:'long',year:'numeric'})}`;
+    `קבלות שהופקו בחודש ${historyDate.toLocaleDateString('he-IL',{month:'long',year:'numeric'})}`;
   const listEl=document.getElementById('historyList');
   listEl.innerHTML='<div class="history-empty">טוען…</div>';
   document.getElementById('historyModalBg').classList.add('show');
@@ -5931,7 +7163,9 @@ document.getElementById('historyBtn').onclick=async()=>{
     const rows=res.result.values||[];
     const thisMonth=rows.filter(r=>{
       const d=parseHebrewDate(r[0]);
-      return d && d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
+      return d &&
+        d.getMonth()===historyDate.getMonth() &&
+        d.getFullYear()===historyDate.getFullYear();
     }).sort((a,b)=> (parseHebrewDate(b[0])||0) - (parseHebrewDate(a[0])||0));
     if(thisMonth.length===0){
       listEl.innerHTML='<div class="history-empty">אין קבלות שהופקו החודש.</div>';
@@ -5985,11 +7219,11 @@ async function buildPdfBlob(htmlString){
 /* ═══════════════════════════════════════
    DRIVE UPLOAD
 ═══════════════════════════════════════ */
-async function uploadToDrive(blob,filename){
+async function uploadToDrive(blob,filename,folderId){
   if(!navigator.onLine){
     throw new Error('OFFLINE_WRITE_BLOCKED');
   }
-  const metadata={name:filename,parents:[CFG.folderId],mimeType:'application/pdf'};
+  const metadata={name:filename,parents:[folderId||CFG.folderId],mimeType:'application/pdf'};
   const form=new FormData();
   form.append('metadata',new Blob([JSON.stringify(metadata)],{type:'application/json'}));
   form.append('file',blob);
@@ -6083,7 +7317,7 @@ async function performGenerateReceipt(){
     return;
   }
   hideMsg();
-  const r=currentResident();
+  let r=currentResident();
   const purposeText = document.getElementById('purposeInput').value.trim();
   const manualAmt = manualAmount();
   const otherPurposeNow = isOtherPurpose;
@@ -6096,7 +7330,55 @@ async function performGenerateReceipt(){
     if(!r||!selectedPay||selectedMonths.size===0){ showMsg('יש למלא את כל השדות.','error'); return; }
   }
   const btn=document.getElementById('wizardCancelBtn');
-  btn.disabled=true; btn.textContent='📄 הקבלה שלך בהכנה…';
+
+  // Build 188: resolve the receipt year before allocating a number,
+  // creating the PDF, writing Sheets or uploading to Drive.
+  btn.disabled=true;
+  btn.textContent='בודק שנת עבודה…';
+
+  const originalResident = r;
+
+  // If the user is viewing 2026 and receives the money in 2027,
+  // the receipt belongs to 2027 but the selected months still belong to 2026.
+  const serviceYear =
+    Number(CFG.activeYear) ||
+    currentCalendarYear();
+
+  const receiptYear =
+    currentCalendarYear();
+
+  const yearReady =
+    await ensureYearWorkspaceForWrite(receiptYear);
+
+  if(!yearReady){
+    btn.disabled=false;
+    btn.textContent='🧾 הפק קבלה';
+    return;
+  }
+
+  const matchingResidentIndex = residents.findIndex(x =>
+    x.name===originalResident.name &&
+    (x.phone||'')===(originalResident.phone||'') &&
+    (
+      CFG.usageMode==='business' ||
+      (x.apartment||'')===(originalResident.apartment||'')
+    )
+  );
+
+  if(matchingResidentIndex<0){
+    await showAppAlert('הדייר או הלקוח שנבחר לא נמצא ברשימת שנת העבודה החדשה. הפעולה בוטלה.','⚠️');
+    btn.disabled=false;
+    btn.textContent='🧾 הפק קבלה';
+    return;
+  }
+
+  residentSelect.value=String(matchingResidentIndex);
+  r=residents[matchingResidentIndex];
+  btn.textContent='📄 הקבלה שלך בהכנה…';
+
+  // Final numbering refresh against the selected year's shared sheet.
+  await loadAllReceiptRows();
+  await syncSettingsFromSheet();
 
   // Snapshot everything the background save step will need. PDF generation
   // itself is instant/local, but Drive+Sheets are network calls — capturing
@@ -6121,11 +7403,22 @@ async function performGenerateReceipt(){
     fee: residentFee(),
     wantsEmail: document.getElementById('emailSendCheckbox').checked && !!r.email,
     email: r.email,
-    receiptNumber: CFG.nextReceiptNumber || 1000
+    receiptNumber: CFG.nextReceiptNumber || 1000,
+
+    serviceYear,
+    receiptYear,
+    targetSpreadsheetId: CFG.spreadsheetId,
+    targetFolderId: CFG.folderId,
+    usageMode: CFG.usageMode
   };
 
   try{
-    const blob=await buildPdfBlob(); // reads CFG.nextReceiptNumber live — must build before advancing the counter below
+    const blob=await buildPdfBlob(
+      receiptHTML(true,{
+        serviceYear:snap.serviceYear,
+        receiptYear:snap.receiptYear
+      })
+    );
     const fileDateStr = new Date().toLocaleDateString('he-IL'); // DD.MM.YYYY — filename-safe
     const filename = `${r.name} - ${CFG.buildingInfo || (CFG.usageMode==='business'?'עסק':'ועד בית')} - ${fileDateStr}.pdf`;
     lastPdfBlob=blob; lastFileName=filename;
@@ -6167,18 +7460,31 @@ async function performGenerateReceipt(){
 async function finalizeReceiptInBackground(snap, blob, filename, attempt){
   attempt = attempt || 0;
   try{
-    const driveFile = await uploadToDrive(blob, filename);
+    const driveFile = await uploadToDrive(blob, filename, snap.targetFolderId);
     const r = snap.resident;
     const total = snap.totalAmount;
     const monthsCell = snap.isOtherPurpose
       ? ('מטרה אחרת: '+snap.purposeText)
-      : snap.months.map(i=>MONTH_NAMES[i]).join(', ');
+      : snap.months.map(i=>
+          MONTH_NAMES[i] +
+          (
+            Number(snap.serviceYear)!==Number(snap.receiptYear)
+              ? ` ${snap.serviceYear}`
+              : ''
+          )
+        ).join(', ');
 
-    const rowValues = CFG.usageMode==='business'
+    const rowValues = snap.usageMode==='business'
       ? [todayStr(),r.name,r.phone||'',monthsCell,total,snap.payMethod,snap.receiptNumber,filename,driveFile.webViewLink||'']
       : [todayStr(),r.name,r.phone||'',monthsCell,snap.isOtherPurpose?0:snap.months.length,total,snap.payMethod,snap.receiptNumber,filename,driveFile.webViewLink||''];
-    await appendReceiptRow(rowValues);
-    allReceiptRows.push(rowValues);
+    await appendReceiptRow(
+      rowValues,
+      snap.targetSpreadsheetId
+    );
+
+    if(CFG.spreadsheetId===snap.targetSpreadsheetId){
+      allReceiptRows.push(rowValues);
+    }
     // Only repaint the months grid if the person is still looking at this
     // same resident — otherwise this would overwrite whatever they've
     // already moved on to selecting for someone else.
@@ -6189,7 +7495,7 @@ async function finalizeReceiptInBackground(snap, blob, filename, attempt){
 
     let financeLogFailed = false;
     try{
-      const isBiz = CFG.usageMode==='business';
+      const isBiz = snap.usageMode==='business';
       const financeTitle = isBiz ? 'לקוח' : 'תשלום ועד';
       const financeCategory = r.name; // per spec: category = the resident/client's own name
       const financeNote = snap.isOtherPurpose ? snap.purposeText : monthsCell;
@@ -6201,7 +7507,7 @@ async function finalizeReceiptInBackground(snap, blob, filename, attempt){
         amount: total,
         paymethod: snap.payMethod,
         note: financeNote
-      });
+      }, snap.targetSpreadsheetId);
     }catch(financeErr){
       // Non-fatal — the receipt itself is already saved and logged; a
       // finance-tracking hiccup shouldn't ever block or alarm the person
