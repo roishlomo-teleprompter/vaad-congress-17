@@ -768,6 +768,26 @@ body.mode-business #homeResidentsSection{
 }.modal-bg.show{display:flex;}
 .modal{background:#fff;border-radius:16px;padding:28px;width:520px;max-width:94vw;max-height:calc(100vh - 110px);overflow-y:auto;box-shadow:var(--shadow);margin:auto;}
 .modal h3{font-family:'Frank Ruhl Libre',serif;margin:0 0 4px;font-size:20px;}
+
+/* SETTINGS SCREEN - Build 183
+   Larger working area, similar to the Finance screen.
+   Applies to both vaad and business modes only. */
+.settings-main-modal{
+  width:min(960px,calc(100vw - 32px));
+  max-width:none;
+  max-height:calc(100vh - 32px);
+  padding:30px 34px;
+}
+
+@media(max-width:600px){
+  .settings-main-modal{
+    width:calc(100vw - 20px);
+    max-height:calc(100vh - 20px);
+    padding:22px 18px;
+    border-radius:18px;
+  }
+}
+
 .modal .modal-desc{font-size:12.5px;color:var(--slate);margin:0 0 20px;line-height:1.6;}
 .settings-section{border-top:1.5px solid var(--card-line);margin-top:20px;padding-top:16px;}
 .settings-section h4{font-size:13px;font-weight:700;color:var(--ink-soft);margin:0 0 12px;text-transform:uppercase;letter-spacing:.5px;}
@@ -1279,7 +1299,7 @@ body.mode-business #homeResidentsSection{
 
 <!-- SETTINGS MODAL -->
 <div class="modal-bg" id="modalBg">
-  <div class="modal">
+  <div class="modal settings-main-modal">
     <h3>⚙ הגדרות האפליקציה</h3>
     <p class="modal-desc">פרטי העסק/הבניין, חיבור לגיליון, ותמחור. נשמר במכשיר זה.</p>
 
@@ -1489,7 +1509,7 @@ body.mode-business #homeResidentsSection{
     <button type="button" id="rmmAddBtn" class="rmm-add-btn">+ הוספה</button>
   </div>
   <div class="rsm-search-wrap">
-    <input type="text" id="rmmSearchInput" placeholder="חיפוש לפי שם או טלפון..." autocomplete="off">
+    <input type="text" id="rmmSearchInput" placeholder="חיפוש לפי שם, טלפון ודירה..." autocomplete="off">
   </div>
   <div class="rsm-list" id="rmmList"></div>
 </div>
@@ -1656,7 +1676,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '182';
+const APP_BUILD = '183';
 
 /* KABCLICK SERVICE WORKER TEST - Build 182
    Temporarily unregister all service workers to isolate the Chrome/TWA toolbar issue. */
@@ -3980,19 +4000,32 @@ function colLetter(idx){
 function renderResidentsManageList(filter){
   const list = document.getElementById('rmmList');
   const q = (filter||'').trim().toLowerCase();
+  const isBiz = CFG.usageMode==='business';
+
   const items = residents
     .map((r,i)=>({r,i}))
-    .filter(o=> !q || o.r.name.toLowerCase().includes(q) || (o.r.phone||'').toLowerCase().includes(q));
+    .filter(o=>
+      !q ||
+      (o.r.name||'').toLowerCase().includes(q) ||
+      (o.r.phone||'').toLowerCase().includes(q) ||
+      (!isBiz && (o.r.apartment||'').toString().toLowerCase().includes(q))
+    );
+
   if(!items.length){
-    list.innerHTML = '<div class="history-empty">'+(residents.length? 'לא נמצאו תוצאות.' : 'אין עדיין רשומות ברשימה — אפשר להוסיף אחת עם כפתור "הוספה".')+'</div>';
+    list.innerHTML = '<div class="history-empty">'+(residents.length? 'לא נמצאו תוצאות.' : 'אין עדיין רשומות ברשימה - אפשר להוסיף אחת עם כפתור "הוספה".')+'</div>';
     return;
   }
-  const isBiz = CFG.usageMode==='business';
+
   list.innerHTML = items.map(({r,i})=>{
     const subParts = [];
     if(r.phone) subParts.push(r.phone);
-    if(isBiz){ if(r.email) subParts.push(r.email); }
-    else { if(r.apartment) subParts.push('דירה '+r.apartment); if(r.fee) subParts.push(r.fee+' ₪/חודש'); }
+    if(isBiz){
+      if(r.email) subParts.push(r.email);
+    } else {
+      if(r.apartment) subParts.push('דירה '+r.apartment);
+      if(r.fee) subParts.push(r.fee+' ₪/חודש');
+    }
+
     return `<div class="rmm-row">
       <div class="rmm-row-main">
         <div class="rmm-row-name">${escapeHtml2(r.name)}</div>
@@ -4008,7 +4041,11 @@ function renderResidentsManageList(filter){
 
 async function openResidentsManageModal(openAddDirectly){
   document.getElementById('rmmTitle').textContent = residentsManageTitle();
-  document.getElementById('rmmSearchInput').value = '';
+  const rmmSearch = document.getElementById('rmmSearchInput');
+  rmmSearch.value = '';
+  rmmSearch.placeholder = CFG.usageMode==='business'
+    ? 'חיפוש לפי שם או טלפון...'
+    : 'חיפוש לפי שם, טלפון ודירה...';
   document.getElementById('residentsManageModal').classList.add('show');
   const list = document.getElementById('rmmList');
   list.innerHTML = '<div class="home-residents-loading">⏳ טוען נתונים…</div>';
