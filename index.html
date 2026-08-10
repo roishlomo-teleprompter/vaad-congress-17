@@ -1708,7 +1708,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '184';
+const APP_BUILD = '185';
 
 /* KABCLICK SERVICE WORKER TEST - Build 182
    Temporarily unregister all service workers to isolate the Chrome/TWA toolbar issue. */
@@ -4136,8 +4136,12 @@ async function loadResidents(){
       // Cached token turned out to be invalid (revoked/expired) — clear it and ask
       // the person to reconnect, rather than showing a confusing raw error.
       clearTokenCache();
-      markDisconnected();
-      showMsg('החיבור לגוגל פג — יש ללחוץ שוב על "התחברות עם Google".','error');
+      accessToken = null;
+      try{ gapi.client.setToken(null); }catch(_){}
+      document.getElementById('authDot').classList.remove('on');
+      document.getElementById('authLabel').textContent='התחברות עם Google';
+      hideMsg();
+      console.warn('[קבקליק] חיבור Google פג במהלך רענון רקע.');
       return;
     }
     const code = e.status || e.result?.error?.code;
@@ -5741,6 +5745,11 @@ async function uploadToDrive(blob,filename){
     method:'POST', headers:{Authorization:'Bearer '+accessToken}, body:form
   });
   if(!res.ok){
+    if(res.status===401){
+      const err = new Error('Google authentication expired');
+      err.authExpired = true;
+      throw err;
+    }
     if(res.status===404){
       // The folder itself is gone (deleted from Drive) — retrying won't
       // ever help, so this gets flagged distinctly rather than treated as a
@@ -5963,6 +5972,25 @@ async function finalizeReceiptInBackground(snap, blob, filename, attempt){
     }
   }catch(e){
     console.warn('[קבקליק] שמירת קבלה ברקע נכשלה:', e);
+    const googleAuthExpired =
+      e.authExpired ||
+      e.status===401 ||
+      e.result?.error?.code===401;
+
+    if(googleAuthExpired){
+      clearTokenCache();
+      accessToken = null;
+      try{ gapi.client.setToken(null); }catch(_){}
+      document.getElementById('authDot').classList.remove('on');
+      document.getElementById('authLabel').textContent='התחברות עם Google';
+
+      showMsg(
+        ' הקבלה הופקה, אך השמירה ב-Google Drive / Sheets לא הושלמה. יש להתחבר מחדש ל-Google.',
+        'error'
+      );
+      return;
+    }
+
     if(e.folderMissing){
       // Retrying is pointless — the folder is gone, not just unreachable.
       // Invalidate the dead pointer so the setup checklist correctly shows
@@ -6035,11 +6063,11 @@ const TOUR_STEPS = [
     text:'לוחצים כאן ליצירה אוטומטית של גיליון Google Sheets ותיקיית Drive ייעודיים בתוך חשבון ה-Google שלכם — לא צריך ליצור או להגדיר כלום ידנית. <b>אם היה לכם מעקב קודם</b> (למשל גיליון ישן, טבלה ידנית וכו׳) — צריך להעתיק את המידע הרלוונטי אל תוך הגיליון החדש שנוצר, תוך שמירה על העמודות הקיימות בו.' },
   { target:'#cfg-financeOpeningBalance', title:'יתרה קודמת', inModal:true,
     text:'אם הייתה יתרה בקופה לפני שהתחלתם להשתמש בקבקליק (למשל ממעקב ידני קודם) — מזינים אותה כאן, פעם אחת. היא תיכנס אוטומטית לחישוב "יתרה בקופה" ולכל דוח שתפיקו, בלי צורך להוסיף אותה כתנועה נפרדת.' },
-  { target:'#cfg-buildingInfo', title:(isBiz)=> isBiz?'פרטי העסק':'פרטי הבניין', inModal:true,
+  { target:(isBiz)=> isBiz ? '#businessVatSettings' : '#cfg-buildingInfo',
+    title:(isBiz)=> isBiz?'סוג העסק ומע"מ':'פרטי הבניין', inModal:true,
     text: (isBiz)=> isBiz
-      ? 'מזינים כאן את שם העסק. אם הזנתם גם מספר עוסק מורשה/פטור בשדה שמופיע מתחת, הוא יופיע אוטומטית על גבי הקבלות שתפיקו — נדרש חוקית לקבלה תקנית.'
-      : 'מזינים כאן את שם/כתובת הבניין. זה מה שיופיע בכותרת ובקבלות עצמן.' },
-  { target:'#modalSave', title:'שמירה', inModal:true,
+      ? 'במצב <b>עסק עצמאי</b> מגדירים כאן אם העסק הוא <b>עוסק פטור</b> או <b>עוסק מורשה</b>. עוסק פטור מפיק קבלות ללא מע"מ. עוסק מורשה מגדיר את שיעור המע"מ שישמש לקבלות החדשות. כאן מגדירים גם את שם העסק ומספר העסק שיופיעו בקבלה.'
+      : 'מזינים כאן את שם/כתובת הבניין. זה מה שיופיע בכותרת ובקבלות עצמן.' },  { target:'#modalSave', title:'שמירה', inModal:true,
     text:'לא לשכוח ללחוץ כאן לשמירת ההגדרות בסיום.' },
   { target:(isBiz)=> isBiz ? '#homeBizManageBtn' : '#wizardManageResidentsBtn',
     title:(isBiz)=> isBiz?'ניהול והוספת לקוח חדש':'ניהול והוספת דיירים',
@@ -6054,11 +6082,11 @@ const TOUR_STEPS = [
       : 'כאן רואים אילו דיירים צריכים לשלם בקרוב — המערכת מחשבת את זה אוטומטית לפי הקבלות שכבר הופקו. לוחצים על "הפק קבלה" ליד השם כדי להתחיל ישר עם אותו דייר.' },
   { target:'#residentPicker', title:(isBiz)=> isBiz?'בחירת לקוח':'בחירת דייר', wizardStep:0,
     text: (isBiz)=> `כאן בוחרים את ה${isBiz?'לקוח':'דייר'} שעבורו מפיקים את הקבלה. אם ${isBiz?'הלקוח':'הדייר'} עדיין לא ברשימה — פשוט מקלידים את השם החדש, ולוחצים על "➕ הוספה" שמופיעה בתוצאות החיפוש כדי להוסיף ${isBiz?'אותו':'אותו'} ולהמשיך איתו מיד, בלי לצאת מתהליך הקבלה.` },
-  { target:'#otherPurposeToggle', title:(isBiz)=> isBiz?'מטרת התשלום':'חודשים או מטרה אחרת', wizardStep:1,
+  { target:(isBiz)=> isBiz ? '#manualAmountInput' : '#otherPurposeToggle',
+    title:(isBiz)=> isBiz?'מטרה, סכום ומע"מ':'חודשים או מטרה אחרת', wizardStep:1,
     text: (isBiz)=> isBiz
-      ? 'מציינים כאן את מטרת התשלום בטקסט חופשי — לדוגמה: "שיעורים פרטיים", "עיצוב לוגו", "ייעוץ" — ומזינים את הסכום לתשלום.'
-      : 'מסמנים את חודשי התשלום ברשת — חודשים ירוקים כבר שולמו בעבר ולא ניתנים לבחירה. לתשלום חד-פעמי שאינו דמי ועד/שירות חודשי רגיל (למשל שיפוץ, או כל מוצר/שירות אחר), מסמנים כאן "תשלום למטרה אחרת" ומזינים סכום וטקסט חופשי במקום.' },
-  { target:'#emailCheckRow', title:'שליחה אוטומטית במייל', wizardStep:2,
+      ? 'מזינים את מטרת התשלום ואת הסכום. אם העסק מוגדר <b>עוסק מורשה</b>, אפשר לבחור בין <b>הסכום כולל מע"מ</b> לבין <b>להוסיף מע"מ לסכום</b>. בעוסק פטור אפשרויות המע"מ אינן מוצגות.'
+      : 'מסמנים את חודשי התשלום. לתשלום חד-פעמי שאינו דמי ועד, מסמנים "תשלום למטרה אחרת" ומזינים סכום וטקסט חופשי.' },  { target:'#emailCheckRow', title:'שליחה אוטומטית במייל', wizardStep:2,
     text: (isBiz)=> `רוצים שהקבלה תישלח אוטומטית גם למייל ה${isBiz?'לקוח':'דייר'}? יש לסמן כאן את התיבה. האפשרות מופיעה רק אם יש ל${isBiz?'לקוח':'דייר'} כתובת מייל שמורה בגיליון.` },
   { target:'#wizardCancelBtn', title:'הפקת קבלה', wizardStep:4,
     text:'לוחצים כאן ומאשרים כדי ליצור את קובץ ה-PDF של הקבלה. הקבלה מוצגת מיד, ונשמרת ברקע בתיקיית ה-Drive שהוגדרה ובלשונית "קבלות" בגיליון — לתיעוד מלא של כל הקבלות שהופקו.' },
