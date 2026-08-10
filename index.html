@@ -201,6 +201,27 @@ body.home-active .finance-screen{height:auto;overflow:visible;}
 .finance-type-opt{flex:1;padding:10px;border-radius:10px;text-align:center;font-size:13.5px;font-weight:700;cursor:pointer;border:1.5px solid var(--card-line);color:var(--ink-soft);transition:.15s;user-select:none;}
 .finance-type-opt.active-income{border-color:var(--good);background:var(--good-soft);color:var(--good);}
 .finance-type-opt.active-expense{border-color:var(--bad);background:#FBEAEA;color:var(--bad);}
+
+.finance-form-type-toggle.finance-edit-locked .finance-type-opt{
+  pointer-events:none!important;
+  cursor:not-allowed!important;
+  background:var(--app-bg)!important;
+  border-color:var(--card-line)!important;
+  color:var(--slate)!important;
+  opacity:.72;
+}
+
+#financeFormModalBg .finance-edit-locked-field{
+  background:var(--app-bg)!important;
+  color:var(--slate)!important;
+  border-color:var(--card-line)!important;
+  cursor:not-allowed!important;
+  opacity:.72;
+}
+
+#financeFormModalBg textarea.finance-edit-locked-field{
+  resize:none;
+}
 .home-badge{flex:none;display:inline-flex;align-items:center;gap:6px;align-self:center;background:var(--blue-soft);border:1px dashed var(--blue);border-radius:10px;padding:9px 16px;font-size:12.5px;font-weight:700;color:var(--ink-soft);margin-bottom:14px;}
 .home-badge-pin{font-size:13px;}
 .home-illustration{flex:none;border-radius:16px;overflow:hidden;margin-bottom:14px;line-height:0;aspect-ratio:16/9;}
@@ -1575,7 +1596,7 @@ body.mode-business #homeResidentsSection{
 <div class="modal-bg" id="financeFormModalBg" style="z-index:660;">
   <div class="modal">
     <h3 id="financeFormTitle">הוספת תנועה</h3>
-    <div class="finance-form-type-toggle">
+    <div class="finance-form-type-toggle" id="financeFormTypeToggle">
       <div class="finance-type-opt" id="financeTypeExpenseOpt" data-type="expense">↓ הוצאה</div>
       <div class="finance-type-opt" id="financeTypeIncomeOpt" data-type="income">↑ הכנסה</div>
     </div>
@@ -1600,8 +1621,15 @@ body.mode-business #homeResidentsSection{
       <option value="מזומן">מזומן</option>
       <option value="כרטיס אשראי">כרטיס אשראי</option>
     </select>
-    <label>הערה (אופציונלי)</label>
-    <textarea id="fin-note" placeholder="הערה חופשית..."></textarea>
+    <label id="finSourceNoteLabel">הערת מקור / פרטי תנועה</label>
+    <textarea id="fin-note" placeholder="פרטי מקור..."></textarea>
+
+    <label>הערות ידניות (אופציונלי)</label>
+    <textarea id="fin-manual-note" placeholder="אפשר לרשום כאן הערה אישית..."></textarea>
+
+    <p style="font-size:11px;color:var(--slate);margin:5px 0 0;line-height:1.5;">
+      ההערה נשמרת בנפרד בעמודת "הערות ידניות" בגיליון.
+    </p>
     <div class="modal-actions">
       <button class="cancel" id="finCancelBtn">ביטול</button>
       <button class="save" id="finSaveBtn">שמירה</button>
@@ -1708,7 +1736,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '185';
+const APP_BUILD = '186';
 
 /* KABCLICK SERVICE WORKER TEST - Build 182
    Temporarily unregister all service workers to isolate the Chrome/TWA toolbar issue. */
@@ -4628,7 +4656,7 @@ async function appendReceiptRow(row){
    doesn't disturb the existing receipts logic at all.
 ═══════════════════════════════════════ */
 const FINANCE_SHEET  = 'הוצאות והכנסות';
-const FINANCE_HEADER = ['תאריך','סוג','כותרת','קטגוריה','סכום','אמצעי תשלום','הערה'];
+const FINANCE_HEADER = ['תאריך','סוג','כותרת','קטגוריה','סכום','אמצעי תשלום','הערה','הערות ידניות'];
 const FINANCE_CATEGORIES = {
   income:  ['דמי ועד','תשלום מיוחד','הכנסה מלקוח','החזר','הכנסה אחרת'],
   expense: ['חשמל','מים','ניקיון','תחזוקה','מעלית','גינון','ביטוח','תיקונים','הוצאה אחרת']
@@ -4657,13 +4685,21 @@ async function ensureFinanceSheet(){
     sheetId = addRes.result.replies[0].addSheet.properties.sheetId;
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId:CFG.spreadsheetId,
-      range:`'${FINANCE_SHEET}'!A1:G1`,
+      range:`'${FINANCE_SHEET}'!A1:H1`,
       valueInputOption:'RAW',
       resource:{values:[FINANCE_HEADER]}
     });
   } else {
     sheetId = sheet.properties.sheetId;
   }
+
+  // Build 186 - keep a dedicated manual-notes column on old and new sheets.
+  await gapi.client.sheets.spreadsheets.values.update({
+    spreadsheetId:CFG.spreadsheetId,
+    range:`'${FINANCE_SHEET}'!H1`,
+    valueInputOption:'RAW',
+    resource:{values:[['הערות ידניות']]}
+  });
 
   // Conditional formatting (not one-time per-row coloring) so every row —
   // past and future, including ones added directly in the sheet — is
@@ -4683,14 +4719,14 @@ async function ensureFinanceSheet(){
         spreadsheetId:CFG.spreadsheetId,
         resource:{requests:[
           {addConditionalFormatRule:{index:0, rule:{
-            ranges:[{sheetId, startRowIndex:1, startColumnIndex:0, endColumnIndex:7}],
+            ranges:[{sheetId, startRowIndex:1, startColumnIndex:0, endColumnIndex:8}],
             booleanRule:{
               condition:{type:'CUSTOM_FORMULA', values:[{userEnteredValue:'=$B2="הוצאה"'}]},
               format:{backgroundColor:{red:0.984, green:0.914, blue:0.914}}
             }
           }}},
           {addConditionalFormatRule:{index:0, rule:{
-            ranges:[{sheetId, startRowIndex:1, startColumnIndex:0, endColumnIndex:7}],
+            ranges:[{sheetId, startRowIndex:1, startColumnIndex:0, endColumnIndex:8}],
             booleanRule:{
               condition:{type:'CUSTOM_FORMULA', values:[{userEnteredValue:'=$B2="הכנסה"'}]},
               format:{backgroundColor:{red:0.906, green:0.969, blue:0.945}}
@@ -4739,7 +4775,7 @@ async function loadFinanceRows(){
       financeSheetGid = sheetMeta ? sheetMeta.properties.sheetId : null;
     }catch(e){ financeSheetGid = null; } // non-fatal — delete-row just won't be available
     const res = await gapi.client.sheets.spreadsheets.values.get({
-      spreadsheetId:CFG.spreadsheetId, range:`'${FINANCE_SHEET}'!A2:G`
+      spreadsheetId:CFG.spreadsheetId, range:`'${FINANCE_SHEET}'!A2:H`
     });
     const raw = res.result.values || [];
     // Row numbers (1-indexed, matching the actual sheet) are captured BEFORE
@@ -4758,6 +4794,7 @@ async function loadFinanceRows(){
           amount: parseFloat(r[4])||0,
           paymethod: (r[5]||'').toString(),
           note: (r[6]||'').toString(),
+          manualNote: (r[7]||'').toString(),
           sheetRow: o.sheetRow
         };
       });
@@ -4770,7 +4807,9 @@ async function appendFinanceRow(entry){
   if(!navigator.onLine){
     throw new Error('OFFLINE_WRITE_BLOCKED');
   }
+
   await ensureFinanceSheet();
+
   const row = [
     entry.date,
     entry.type==='income' ? 'הכנסה' : 'הוצאה',
@@ -4778,18 +4817,20 @@ async function appendFinanceRow(entry){
     entry.category,
     entry.amount,
     entry.paymethod||'',
-    entry.note||''
+    entry.note||'',
+    entry.manualNote||''
   ];
+
   await gapi.client.sheets.spreadsheets.values.append({
     spreadsheetId:CFG.spreadsheetId,
-    range:`'${FINANCE_SHEET}'!A:G`,
+    range:`'${FINANCE_SHEET}'!A:H`,
     valueInputOption:'RAW',
     insertDataOption:'INSERT_ROWS',
     resource:{values:[row]}
   });
+
   financeRows.push(entry);
 }
-
 /** Overwrites an existing row in place (by its actual sheet row number) —
  *  used for editing a transaction. Row numbers are captured at load time
  *  in loadFinanceRows, so this always targets the correct physical row. */
@@ -4797,26 +4838,43 @@ async function updateFinanceRow(sheetRow, entry){
   if(!navigator.onLine){
     throw new Error('OFFLINE_WRITE_BLOCKED');
   }
-  await ensureFinanceSheet();
-  const row = [
-    entry.date,
-    entry.type==='income' ? 'הכנסה' : 'הוצאה',
-    entry.title,
-    entry.category,
-    entry.amount,
-    entry.paymethod||'',
-    entry.note||''
-  ];
-  await gapi.client.sheets.spreadsheets.values.update({
-    spreadsheetId:CFG.spreadsheetId,
-    range:`'${FINANCE_SHEET}'!A${sheetRow}:G${sheetRow}`,
-    valueInputOption:'RAW',
-    resource:{values:[row]}
-  });
-  const idx = financeRows.findIndex(r=>r.sheetRow===sheetRow);
-  if(idx>-1) financeRows[idx] = {...entry, sheetRow};
-}
 
+  await ensureFinanceSheet();
+
+  await gapi.client.sheets.spreadsheets.values.batchUpdate({
+    spreadsheetId:CFG.spreadsheetId,
+    resource:{
+      valueInputOption:'RAW',
+      data:[
+        {
+          range:`'${FINANCE_SHEET}'!D${sheetRow}`,
+          values:[[entry.category]]
+        },
+        {
+          range:`'${FINANCE_SHEET}'!F${sheetRow}`,
+          values:[[entry.paymethod||'']]
+        },
+        {
+          range:`'${FINANCE_SHEET}'!H${sheetRow}`,
+          values:[[entry.manualNote||'']]
+        }
+      ]
+    }
+  });
+
+  const idx = financeRows.findIndex(
+    r=>r.sheetRow===sheetRow
+  );
+
+  if(idx>-1){
+    financeRows[idx] = {
+      ...financeRows[idx],
+      category:entry.category,
+      paymethod:entry.paymethod||'',
+      manualNote:entry.manualNote||''
+    };
+  }
+}
 /** Deletes a transaction row entirely from the sheet (not just clears its
  *  values) — mirrors deleteResident's approach for the residents sheet. */
 async function deleteFinanceRow(sheetRow){
@@ -4974,36 +5032,140 @@ function setFinanceFormType(type){
   document.getElementById('financeTypeIncomeOpt').classList.toggle('active-income', type==='income');
   populateFinanceCategories(type);
 }
-document.getElementById('financeTypeExpenseOpt').addEventListener('click', ()=>setFinanceFormType('expense'));
-document.getElementById('financeTypeIncomeOpt').addEventListener('click', ()=>setFinanceFormType('income'));
+document.getElementById('financeTypeExpenseOpt').addEventListener('click', ()=>{
+  if(financeEditingRow===null){
+    setFinanceFormType('expense');
+  }
+});
+
+document.getElementById('financeTypeIncomeOpt').addEventListener('click', ()=>{
+  if(financeEditingRow===null){
+    setFinanceFormType('income');
+  }
+});
 
 function openFinanceForm(type, existingEntry){
-  document.getElementById('financeFormTitle').textContent = existingEntry
-    ? 'עריכת תנועה'
-    : (type==='income' ? 'הוספת הכנסה' : 'הוספת הוצאה');
-  setFinanceFormType(type);
-  financeEditingRow = existingEntry ? existingEntry.sheetRow : null;
-  document.getElementById('fin-amount').value = existingEntry ? existingEntry.amount : '';
-  document.getElementById('fin-date').value = existingEntry ? existingEntry.date : new Date().toISOString().slice(0,10);
-  document.getElementById('fin-title').value = existingEntry ? existingEntry.title : '';
-  document.getElementById('fin-paymethod').value = existingEntry ? (existingEntry.paymethod||'') : '';
-  document.getElementById('fin-note').value = existingEntry ? (existingEntry.note||'') : '';
+  const isEditing = !!existingEntry;
 
-  const catSel = document.getElementById('fin-category');
-  const cats = FINANCE_CATEGORIES[type] || [];
-  if(existingEntry && existingEntry.category && !cats.includes(existingEntry.category)){
-    // Category doesn't match a standard option (e.g. a resident's name from
-    // an auto-logged receipt) — fall back to the "other" option and put the
-    // real value in the free-text field, so nothing is silently lost.
-    catSel.value = cats[cats.length-1];
-    document.getElementById('fin-category-other').value = existingEntry.category;
+  document.getElementById('financeFormTitle').textContent =
+    isEditing
+      ? 'עריכת תנועה'
+      : (type==='income' ? 'הוספת הכנסה' : 'הוספת הוצאה');
+
+  financeEditingRow =
+    isEditing ? existingEntry.sheetRow : null;
+
+  setFinanceFormType(type);
+
+  const amountEl =
+    document.getElementById('fin-amount');
+
+  const dateEl =
+    document.getElementById('fin-date');
+
+  const titleEl =
+    document.getElementById('fin-title');
+
+  const sourceNoteEl =
+    document.getElementById('fin-note');
+
+  const manualNoteEl =
+    document.getElementById('fin-manual-note');
+
+  amountEl.value =
+    isEditing ? existingEntry.amount : '';
+
+  dateEl.value =
+    isEditing
+      ? existingEntry.date
+      : new Date().toISOString().slice(0,10);
+
+  titleEl.value =
+    isEditing ? existingEntry.title : '';
+
+  document.getElementById('fin-paymethod').value =
+    isEditing
+      ? (existingEntry.paymethod||'')
+      : '';
+
+  sourceNoteEl.value =
+    isEditing
+      ? (existingEntry.note||'')
+      : '';
+
+  manualNoteEl.value =
+    isEditing
+      ? (existingEntry.manualNote||'')
+      : '';
+
+  const lockedIds = [
+    'fin-amount',
+    'fin-date',
+    'fin-title',
+    'fin-note'
+  ];
+
+  lockedIds.forEach(id=>{
+    const el = document.getElementById(id);
+
+    el.disabled = isEditing;
+
+    el.classList.toggle(
+      'finance-edit-locked-field',
+      isEditing
+    );
+  });
+
+  document.getElementById(
+    'financeFormTypeToggle'
+  ).classList.toggle(
+    'finance-edit-locked',
+    isEditing
+  );
+
+  document.getElementById(
+    'finSourceNoteLabel'
+  ).textContent =
+    isEditing
+      ? 'הערת מקור / פרטי קבלה - לא ניתן לשינוי'
+      : 'הערת מקור / פרטי תנועה (אופציונלי)';
+
+  const catSel =
+    document.getElementById('fin-category');
+
+  const cats =
+    FINANCE_CATEGORIES[type] || [];
+
+  if(
+    isEditing &&
+    existingEntry.category &&
+    !cats.includes(existingEntry.category)
+  ){
+    catSel.value =
+      cats[cats.length-1];
+
+    document.getElementById(
+      'fin-category-other'
+    ).value =
+      existingEntry.category;
+
   } else {
-    catSel.value = existingEntry ? existingEntry.category : cats[0];
-    document.getElementById('fin-category-other').value = '';
+
+    catSel.value =
+      isEditing
+        ? existingEntry.category
+        : cats[0];
+
+    document.getElementById(
+      'fin-category-other'
+    ).value = '';
   }
+
   toggleFinanceCategoryOther();
 
-  document.getElementById('financeFormModalBg').classList.add('show');
+  document.getElementById(
+    'financeFormModalBg'
+  ).classList.add('show');
 }
 function closeFinanceForm(){
   document.getElementById('financeFormModalBg').classList.remove('show');
@@ -5022,6 +5184,7 @@ document.getElementById('finSaveBtn').addEventListener('click', async ()=>{
   const category = /אחר/.test(catSel) ? (catOther || catSel) : catSel;
   const paymethod = document.getElementById('fin-paymethod').value;
   const note = document.getElementById('fin-note').value.trim();
+  const manualNote = document.getElementById('fin-manual-note').value.trim();
 
   if(!amount || amount<=0){ await showAppAlert('יש להזין סכום תקין.','⚠️'); return; }
   if(!date){ await showAppAlert('יש לבחור תאריך.','⚠️'); return; }
@@ -5032,7 +5195,16 @@ document.getElementById('finSaveBtn').addEventListener('click', async ()=>{
   const saveBtn = document.getElementById('finSaveBtn');
   saveBtn.disabled = true; saveBtn.textContent = 'שומר…';
   try{
-    const entry = {date, type:financeFormType, title, category, amount, paymethod, note};
+    const entry = {
+      date,
+      type:financeFormType,
+      title,
+      category,
+      amount,
+      paymethod,
+      note,
+      manualNote
+    };
     if(financeEditingRow){
       await updateFinanceRow(financeEditingRow, entry);
     } else {
