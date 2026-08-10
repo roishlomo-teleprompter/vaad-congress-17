@@ -1656,14 +1656,23 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '181';
+const APP_BUILD = '182';
 
-/* KABCLICK OFFLINE SHELL - Build 175 */
+/* KABCLICK SERVICE WORKER TEST - Build 182
+   Temporarily unregister all service workers to isolate the Chrome/TWA toolbar issue. */
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js')
-      .then(reg => console.log('[קבקליק] Offline shell ready:', reg.scope))
-      .catch(err => console.warn('[קבקליק] Service Worker error:', err));
+  window.addEventListener('load', async () => {
+    try {
+      const regs = await navigator.serviceWorker.getRegistrations();
+
+      for (const reg of regs) {
+        await reg.unregister();
+      }
+
+      console.log('[קבקליק] Service Worker temporarily disabled for TWA test');
+    } catch (err) {
+      console.warn('[קבקליק] Service Worker cleanup failed:', err);
+    }
   });
 }
 console.log('[קבקליק] גרסה:', APP_BUILD);
