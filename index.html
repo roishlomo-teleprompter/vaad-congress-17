@@ -1219,6 +1219,14 @@ body.mode-business #homeResidentsSection{
         <div class="row">
           <label class="field-label">סכום (₪)</label>
           <input type="number" id="manualAmountInput" placeholder="הזן סכום בש״ח" min="0">
+<div id="businessVatReceiptOptions" style="display:none;margin-top:14px;">
+  <label style="display:block;margin-bottom:7px;">חישוב מע"מ</label>
+  <select id="receiptVatMode">
+    <option value="included">הסכום כולל מע"מ</option>
+    <option value="add">להוסיף מע"מ לסכום</option>
+  </select>
+  <div id="receiptVatPreview" style="font-size:12px;margin-top:7px;color:var(--slate);"></div>
+</div>
         </div>
       </div>
     </div>
@@ -1700,7 +1708,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '183';
+const APP_BUILD = '184';
 
 /* KABCLICK SERVICE WORKER TEST - Build 182
    Temporarily unregister all service workers to isolate the Chrome/TWA toolbar issue. */
@@ -2747,7 +2755,17 @@ document.getElementById('otherPurposeCheck').addEventListener('change', e=>{
   refreshTotal(); refreshPreview();
 });
 document.getElementById('purposeInput').addEventListener('input', refreshPreview);
-document.getElementById('manualAmountInput').addEventListener('input', ()=>{ refreshTotal(); refreshPreview(); });
+document.getElementById('manualAmountInput').addEventListener('input', ()=>{
+  updateBusinessVatUI();
+  refreshTotal();
+  refreshPreview();
+});
+
+document.getElementById('receiptVatMode').addEventListener('change', ()=>{
+  updateBusinessVatUI();
+  refreshTotal();
+  refreshPreview();
+});
 
 /**
  * Business/independent accounts don't have "months of vaad dues" — every
@@ -2851,6 +2869,9 @@ function clearResidentSelection(){
   document.querySelectorAll('.pay-opt').forEach(o=>o.classList.remove('active'));
   document.getElementById('purposeInput').value = '';
   document.getElementById('manualAmountInput').value = '';
+
+  const receiptVatModeEl = document.getElementById('receiptVatMode');
+  if(receiptVatModeEl) receiptVatModeEl.value = 'included';
   applyPurposeModeUI(); // resets to the months grid (vaad) or the free-text flow (business), as appropriate
   document.getElementById('receiptSuccessModalBg').classList.remove('show');
 
@@ -3063,10 +3084,87 @@ function manualAmount(){
   const v=parseFloat((document.getElementById('manualAmountInput').value||'').replace(',','.'));
   return isNaN(v)||v<0?0:v;
 }
+function businessVatEnabled(){
+  return CFG.usageMode === 'business' && CFG.businessTaxType === 'authorized';
+}
+
+function calculateBusinessVat(){
+  const amount = manualAmount();
+  const rate = Number.isFinite(Number(CFG.vatRate)) ? Number(CFG.vatRate) : 18;
+
+  if(!businessVatEnabled()){
+    return {
+      enabled: false,
+      mode: 'none',
+      rate: 0,
+      net: amount,
+      vat: 0,
+      total: amount
+    };
+  }
+
+  const mode = document.getElementById('receiptVatMode').value || 'included';
+
+  if(mode === 'add'){
+    const vat = amount * rate / 100;
+
+    return {
+      enabled: true,
+      mode: mode,
+      rate: rate,
+      net: amount,
+      vat: vat,
+      total: amount + vat
+    };
+  }
+
+  const net = rate > 0
+    ? amount / (1 + rate / 100)
+    : amount;
+
+  return {
+    enabled: true,
+    mode: mode,
+    rate: rate,
+    net: net,
+    vat: amount - net,
+    total: amount
+  };
+}
+
+function updateBusinessVatUI(){
+  const box = document.getElementById('businessVatReceiptOptions');
+  const preview = document.getElementById('receiptVatPreview');
+
+  if(!box || !preview) return;
+
+  if(!businessVatEnabled()){
+    box.style.display = 'none';
+    preview.textContent = '';
+    return;
+  }
+
+  box.style.display = 'block';
+
+  const c = calculateBusinessVat();
+
+  if(c.total <= 0){
+    preview.textContent = '';
+    return;
+  }
+
+  preview.textContent =
+    'לפני מע"מ: ' + c.net.toFixed(2) + '  | ' +
+    'מע"מ ' + c.rate + '%: ' + c.vat.toFixed(2) + '  | ' +
+    'סה"כ: ' + c.total.toFixed(2) + ' ';
+}
 function refreshTotal(){
   let total=0, lbl='סכום לתשלום';
   if(isOtherPurpose){
-    total=manualAmount(); lbl='סכום לתשלום';
+    total = businessVatEnabled()
+      ? calculateBusinessVat().total
+      : manualAmount();
+    lbl='סכום לתשלום';
   } else {
     const fee=residentFee();
     total=selectedMonths.size*fee;
@@ -3074,6 +3172,7 @@ function refreshTotal(){
   }
   document.getElementById('totalAmt').textContent=total.toLocaleString('he-IL')+' ₪';
   document.getElementById('totalLbl').textContent=lbl;
+  updateBusinessVatUI();
   validateForm();
 }
 function currentResident(){ return residents[residentSelect.value]; }
@@ -3303,7 +3402,10 @@ function receiptHTML(forPdf=false){
   const r      = currentResident();
   const months = sortedMonths();
   const fee    = residentFee();
-  const total  = isOtherPurpose ? manualAmount() : months.length*fee;
+  const vatCalc = businessVatEnabled() ? calculateBusinessVat() : null;
+  const total = isOtherPurpose
+    ? (vatCalc ? vatCalc.total : manualAmount())
+    : months.length*fee;
   const bInfo = CFG.buildingInfo || 'ועד בית';
   const isBiz = CFG.usageMode==='business';
   const receiptNum = CFG.nextReceiptNumber || 1000;
@@ -3325,6 +3427,13 @@ function receiptHTML(forPdf=false){
          <div class="info"><div class="label">מטרת התשלום</div><div class="value">${document.getElementById('purposeInput').value||'—'}</div></div>
        </div>`
     : `<div class="months"><div><div class="label">חודשים משולמים</div></div><div class="chips">${monthsChips||'—'}</div></div>`;
+
+  const vatBreakdown = (vatCalc && vatCalc.enabled)
+    ? `<div style="margin-top:12px;padding:12px 14px;background:#F8FAFC;border-radius:12px;font-size:14px;line-height:1.8;">
+         <div>סכום לפני מע"מ: <strong> ${vatCalc.net.toFixed(2)}</strong></div>
+         <div>מע"מ (${vatCalc.rate}%): <strong> ${vatCalc.vat.toFixed(2)}</strong></div>
+       </div>`
+    : '';
 
   const minH = forPdf ? 'min-height:1123px;' : '';
 
@@ -3359,6 +3468,7 @@ function receiptHTML(forPdf=false){
       </div>
       ${monthsOrPurpose}
     </section>
+    ${vatBreakdown}
     <section class="total">
       <div class="label">סכום לתשלום</div>
       <div class="total-right-group">
@@ -5716,6 +5826,7 @@ async function performGenerateReceipt(){
   const purposeText = document.getElementById('purposeInput').value.trim();
   const manualAmt = manualAmount();
   const otherPurposeNow = isOtherPurpose;
+  const vatNow = businessVatEnabled() ? calculateBusinessVat() : null;
   if(otherPurposeNow){
     if(!r||!selectedPay||!purposeText||manualAmt<=0){
       showMsg('יש למלא את כל השדות.','error'); return;
@@ -5737,6 +5848,14 @@ async function performGenerateReceipt(){
     isOtherPurpose: otherPurposeNow,
     purposeText,
     manualAmt,
+    vatEnabled: !!(vatNow && vatNow.enabled),
+    vatMode: vatNow ? vatNow.mode : 'none',
+    vatRate: vatNow ? vatNow.rate : 0,
+    vatNet: vatNow ? vatNow.net : manualAmt,
+    vatAmount: vatNow ? vatNow.vat : 0,
+    totalAmount: otherPurposeNow
+      ? (vatNow ? vatNow.total : manualAmt)
+      : sortedMonths().length * residentFee(),
     months: sortedMonths(),
     fee: residentFee(),
     wantsEmail: document.getElementById('emailSendCheckbox').checked && !!r.email,
@@ -5760,7 +5879,7 @@ async function performGenerateReceipt(){
     // it in the sheet happen afterward, in the background, so nobody has to
     // sit and wait on network calls just to see a receipt that's already
     // fully ready.
-    const total = snap.isOtherPurpose ? snap.manualAmt : snap.months.length*snap.fee;
+    const total = snap.totalAmount;
     document.getElementById('successSub').textContent = `${r.name} · ${total.toLocaleString('he-IL')} ₪`;
     document.getElementById('receiptSuccessModalBg').classList.add('show');
     // The generate action's job is done — the popup (with its own
@@ -5789,7 +5908,7 @@ async function finalizeReceiptInBackground(snap, blob, filename, attempt){
   try{
     const driveFile = await uploadToDrive(blob, filename);
     const r = snap.resident;
-    const total = snap.isOtherPurpose ? snap.manualAmt : snap.months.length*snap.fee;
+    const total = snap.totalAmount;
     const monthsCell = snap.isOtherPurpose
       ? ('מטרה אחרת: '+snap.purposeText)
       : snap.months.map(i=>MONTH_NAMES[i]).join(', ');
