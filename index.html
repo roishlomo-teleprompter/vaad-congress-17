@@ -1736,7 +1736,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '186';
+const APP_BUILD = '187';
 
 /* KABCLICK SERVICE WORKER TEST - Build 182
    Temporarily unregister all service workers to isolate the Chrome/TWA toolbar issue. */
@@ -4710,42 +4710,122 @@ async function ensureFinanceSheet(){
   // "any conditional formatting at all" — a sheet with unrelated formatting
   // already on it (e.g. from manual edits) must not cause ours to be
   // silently skipped.
-  const alreadyHasFormatting = !!(sheet && sheet.conditionalFormats && sheet.conditionalFormats.some(cf =>
-    cf.booleanRule?.condition?.values?.[0]?.userEnteredValue === '=$B2="הוצאה"'
-  ));
-  if(!alreadyHasFormatting){
+  const existingFinanceFormats =
+    (sheet && sheet.conditionalFormats)
+      ? sheet.conditionalFormats
+      : [];
+
+  const hasFinanceRule = (formula) =>
+    existingFinanceFormats.some(cf =>
+      cf.booleanRule?.condition?.values?.[0]?.userEnteredValue === formula
+    );
+
+  const financeRuleCoversH = (formula) =>
+    existingFinanceFormats.some(cf =>
+      cf.booleanRule?.condition?.values?.[0]?.userEnteredValue === formula &&
+      (cf.ranges||[]).some(r =>
+        (r.startColumnIndex ?? 0) <= 7 &&
+        (r.endColumnIndex ?? 0) >= 8
+      )
+    );
+
+  const hasBaseFinanceFormatting =
+    hasFinanceRule('=$B2="הוצאה"') &&
+    hasFinanceRule('=$B2="הכנסה"');
+
+  const manualNotesAlreadyColored =
+    financeRuleCoversH('=$B2="הוצאה"') &&
+    financeRuleCoversH('=$B2="הכנסה"');
+
+  if(!hasBaseFinanceFormatting || !manualNotesAlreadyColored){
     try{
+
+      // Existing sheets already have coloring on A:G.
+      // In that case add the exact same rules only to H.
+      // New sheets receive the rules across A:H.
+      const startColumnIndex =
+        hasBaseFinanceFormatting ? 7 : 0;
+
       await gapi.client.sheets.spreadsheets.batchUpdate({
         spreadsheetId:CFG.spreadsheetId,
         resource:{requests:[
-          {addConditionalFormatRule:{index:0, rule:{
-            ranges:[{sheetId, startRowIndex:1, startColumnIndex:0, endColumnIndex:8}],
-            booleanRule:{
-              condition:{type:'CUSTOM_FORMULA', values:[{userEnteredValue:'=$B2="הוצאה"'}]},
-              format:{backgroundColor:{red:0.984, green:0.914, blue:0.914}}
+
+          {
+            addConditionalFormatRule:{
+              index:0,
+              rule:{
+                ranges:[{
+                  sheetId,
+                  startRowIndex:1,
+                  startColumnIndex,
+                  endColumnIndex:8
+                }],
+                booleanRule:{
+                  condition:{
+                    type:'CUSTOM_FORMULA',
+                    values:[{
+                      userEnteredValue:'=$B2="הוצאה"'
+                    }]
+                  },
+                  format:{
+                    backgroundColor:{
+                      red:0.984,
+                      green:0.914,
+                      blue:0.914
+                    }
+                  }
+                }
+              }
             }
-          }}},
-          {addConditionalFormatRule:{index:0, rule:{
-            ranges:[{sheetId, startRowIndex:1, startColumnIndex:0, endColumnIndex:8}],
-            booleanRule:{
-              condition:{type:'CUSTOM_FORMULA', values:[{userEnteredValue:'=$B2="הכנסה"'}]},
-              format:{backgroundColor:{red:0.906, green:0.969, blue:0.945}}
+          },
+
+          {
+            addConditionalFormatRule:{
+              index:0,
+              rule:{
+                ranges:[{
+                  sheetId,
+                  startRowIndex:1,
+                  startColumnIndex,
+                  endColumnIndex:8
+                }],
+                booleanRule:{
+                  condition:{
+                    type:'CUSTOM_FORMULA',
+                    values:[{
+                      userEnteredValue:'=$B2="הכנסה"'
+                    }]
+                  },
+                  format:{
+                    backgroundColor:{
+                      red:0.906,
+                      green:0.969,
+                      blue:0.945
+                    }
+                  }
+                }
+              }
             }
-          }}}
+          }
+
         ]}
       });
+
     }catch(e){
-      // Non-fatal — the sheet still works perfectly without the coloring,
-      // this is a cosmetic nice-to-have. Captured (not just console.warn'd)
-      // so it can be shown directly on the finance screen — no DevTools
-      // needed to see what went wrong.
-      financeColoringError = e.result?.error?.message || e.message || String(e);
-      console.warn('[קבקליק] הגדרת צביעה אוטומטית בגיליון הוצאות/הכנסות נכשלה:', e);
+
+      financeColoringError =
+        e.result?.error?.message ||
+        e.message ||
+        String(e);
+
+      console.warn(
+        '[קבקליק] הגדרת צביעה אוטומטית בגיליון הוצאות/הכנסות נכשלה:',
+        e
+      );
     }
   }
-
   // Visible in the sheet itself (not just inside the app) — off to the
-  // side in columns I/J so it never collides with the A:G data table.
+  // side in columns I/J so it never collides with the A:H data table.
   try{
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId:CFG.spreadsheetId,
