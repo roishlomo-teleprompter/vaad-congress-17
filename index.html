@@ -1332,6 +1332,30 @@ body.mode-business #homeResidentsSection{
           <span>למלא אוטומטית בכל קבלה חדשה</span>
         </label>
         <p style="font-size:11.5px;color:var(--slate);margin:6px 0 0;line-height:1.5;">כשמסומן, הסכום ימולא מראש בשלב "מטרה" בכל קבלה חדשה — עדיין אפשר לשנות אותו ידנית לפני ההפקה.</p>
+        <div id="businessVatSettings" style="margin-top:18px;padding-top:16px;border-top:1px solid var(--card-line);">
+          <label>סוג העסק</label>
+
+          <select id="cfg-businessTaxType">
+            <option value="exempt">עוסק פטור</option>
+            <option value="authorized">עוסק מורשה</option>
+          </select>
+
+          <div id="businessVatRateRow" style="margin-top:12px;display:none;">
+            <label>שיעור מע"מ (%)</label>
+
+            <input
+              type="number"
+              id="cfg-vatRate"
+              min="0"
+              max="100"
+              step="0.01"
+              value="18">
+
+            <p style="font-size:11.5px;color:var(--slate);margin:6px 0 0;line-height:1.5;">
+              שיעור המע"מ שישמש לקבלות חדשות. שינוי השיעור לא ישנה קבלות שכבר הופקו.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1965,6 +1989,8 @@ function persistCurrentAccountCfg(){
     defaultFee:     CFG.defaultFee     || 140,
     businessDefaultAmount:     CFG.businessDefaultAmount     || '',
     businessDefaultAmountAuto: CFG.businessDefaultAmountAuto || false,
+    businessTaxType: CFG.businessTaxType || 'exempt',
+    vatRate: Number.isFinite(Number(CFG.vatRate)) ? Number(CFG.vatRate) : 18,
     nextReceiptNumber: CFG.nextReceiptNumber || 1000,
     financeOpeningBalance: CFG.financeOpeningBalance || 0,
     financeOpeningBalanceDate: CFG.financeOpeningBalanceDate || ''
@@ -2007,6 +2033,8 @@ function applyAccountAndMode(email, mode){
   CFG.defaultFee     = saved.defaultFee     || 140;
   CFG.businessDefaultAmount     = saved.businessDefaultAmount     || '';
   CFG.businessDefaultAmountAuto = saved.businessDefaultAmountAuto || false;
+  CFG.businessTaxType = saved.businessTaxType || 'exempt';
+  CFG.vatRate = Number.isFinite(Number(saved.vatRate)) ? Number(saved.vatRate) : 18;
   CFG.nextReceiptNumber = saved.nextReceiptNumber || 1000;
   CFG.financeOpeningBalance = saved.financeOpeningBalance || 0;
   CFG.financeOpeningBalanceDate = saved.financeOpeningBalanceDate || '';
@@ -2074,6 +2102,8 @@ async function readKabClickSettingsFromCandidate(spreadsheetId){
       defaultFee: parseFloat(map['מחיר ברירת מחדל']) || 140,
       businessDefaultAmount: parseFloat(map['סכום ברירת מחדל לעסק']) || '',
       businessDefaultAmountAuto: map['סכום עסק אוטומטי']==='1' || (map['סכום עסק אוטומטי']||'').toLowerCase()==='true',
+      businessTaxType: map['סוג עסק לצורכי מע"מ'] || 'exempt',
+      vatRate: Number.isFinite(parseFloat(map['שיעור מע"מ'])) ? parseFloat(map['שיעור מע"מ']) : 18,
       nextReceiptNumber: parseInt(map['מספר הקבלה הבא'],10) || 1000,
       financeOpeningBalance: parseFloat(map['יתרת פתיחה (הוצאות/הכנסות)']) || 0,
       financeOpeningBalanceDate: map['תאריך יתרת פתיחה'] || ''
@@ -2258,6 +2288,8 @@ async function recoverKabClickConnectionFromDrive(email, mode){
       defaultFee:found.defaultFee,
       businessDefaultAmount:found.businessDefaultAmount,
       businessDefaultAmountAuto:found.businessDefaultAmountAuto,
+      businessTaxType:found.businessTaxType || 'exempt',
+      vatRate:Number.isFinite(Number(found.vatRate)) ? Number(found.vatRate) : 18,
       nextReceiptNumber:found.nextReceiptNumber,
       financeOpeningBalance:found.financeOpeningBalance,
       financeOpeningBalanceDate:found.financeOpeningBalanceDate
@@ -2449,12 +2481,33 @@ function applyModeUI(mode){
   if(rmmBtn) rmmBtn.textContent = isBiz ? '📋 פתיחת ניהול והוספת לקוחות' : '📋 פתיחת ניהול והוספת דיירים';
 }
 
+document.getElementById('cfg-businessTaxType').addEventListener('change', ()=>{
+  const taxType = document.getElementById('cfg-businessTaxType').value;
+
+  document.getElementById('businessVatRateRow').style.display =
+    taxType === 'authorized'
+      ? 'block'
+      : 'none';
+});
+
 document.getElementById('settingsBtn').onclick = ()=>{
   document.getElementById('cfg-buildingInfo').value = CFG.buildingInfo||'';
   document.getElementById('cfg-defaultFee').value   = CFG.defaultFee||'';
   document.getElementById('cfg-businessNumber').value = CFG.businessNumber||'';
   document.getElementById('cfg-businessDefaultAmount').value = CFG.businessDefaultAmount||'';
   document.getElementById('cfg-businessDefaultAmountAuto').checked = !!CFG.businessDefaultAmountAuto;
+
+  const businessTaxTypeEl = document.getElementById('cfg-businessTaxType');
+  const vatRateEl = document.getElementById('cfg-vatRate');
+  const vatRateRow = document.getElementById('businessVatRateRow');
+
+  businessTaxTypeEl.value = CFG.businessTaxType || 'exempt';
+  vatRateEl.value = Number.isFinite(Number(CFG.vatRate)) ? Number(CFG.vatRate) : 18;
+
+  vatRateRow.style.display =
+    businessTaxTypeEl.value === 'authorized'
+      ? 'block'
+      : 'none';
   document.getElementById('cfg-nextReceiptNumber').value = CFG.nextReceiptNumber||1000;
   document.getElementById('cfg-spreadsheetId').value= CFG.spreadsheetId||'';
   document.getElementById('cfg-folderId').value     = CFG.folderId||'';
@@ -2502,6 +2555,21 @@ document.getElementById('modalSave').onclick = async ()=>{
   CFG.defaultFee    = parseFloat(document.getElementById('cfg-defaultFee').value)||140;
   CFG.businessDefaultAmount     = parseFloat(document.getElementById('cfg-businessDefaultAmount').value) || '';
   CFG.businessDefaultAmountAuto = document.getElementById('cfg-businessDefaultAmountAuto').checked;
+
+  if(CFG.usageMode === 'business'){
+    CFG.businessTaxType =
+      document.getElementById('cfg-businessTaxType').value || 'exempt';
+
+    const enteredVatRate =
+      parseFloat(document.getElementById('cfg-vatRate').value);
+
+    CFG.vatRate =
+      Number.isFinite(enteredVatRate) &&
+      enteredVatRate >= 0 &&
+      enteredVatRate <= 100
+        ? enteredVatRate
+        : 18;
+  }
   const enteredNextNum = parseInt(document.getElementById('cfg-nextReceiptNumber').value, 10) || 1000;
   const highestUsed = getHighestUsedReceiptNumber();
   if(enteredNextNum <= highestUsed){
@@ -3402,6 +3470,7 @@ function signOut(){
   CFG.spreadsheetId = ''; CFG.folderId = ''; CFG.buildingInfo = '';
   CFG.businessNumber = ''; CFG.logoUrl = ''; CFG.defaultFee = 140;
   CFG.businessDefaultAmount = ''; CFG.businessDefaultAmountAuto = false;
+  CFG.businessTaxType = 'exempt'; CFG.vatRate = 18;
   CFG.nextReceiptNumber = 1000;
   CFG.financeOpeningBalance = 0; CFG.financeOpeningBalanceDate = '';
   residents = []; allReceiptRows = [];
@@ -4237,6 +4306,8 @@ function buildSettingsRows(){
     ['מחיר ברירת מחדל', CFG.defaultFee || ''],
     ['סכום ברירת מחדל לעסק', CFG.businessDefaultAmount || ''],
     ['סכום עסק אוטומטי', CFG.businessDefaultAmountAuto ? '1' : '0'],
+    ['סוג עסק לצורכי מע"מ', CFG.businessTaxType || 'exempt'],
+    ['שיעור מע"מ', Number.isFinite(Number(CFG.vatRate)) ? Number(CFG.vatRate) : 18],
     ['מספר הקבלה הבא', CFG.nextReceiptNumber || 1000],
     ['יתרת פתיחה (הוצאות/הכנסות)', CFG.financeOpeningBalance || ''],
     ['תאריך יתרת פתיחה', CFG.financeOpeningBalanceDate || '']
@@ -4275,7 +4346,7 @@ async function syncSettingsFromSheet(){
       // so the first device to connect defines the shared starting point.
       await gapi.client.sheets.spreadsheets.values.update({
         spreadsheetId:CFG.spreadsheetId,
-        range:`'${SETTINGS_SHEET}'!A1:B13`,
+        range:`'${SETTINGS_SHEET}'!A1:B15`,
         valueInputOption:'RAW',
         resource:{values: buildSettingsRows()}
       });
@@ -4298,6 +4369,8 @@ async function syncSettingsFromSheet(){
       else if(/לוגו|logo/i.test(key)){ if(CFG.logoUrl!==val){ CFG.logoUrl=val; changed=true; } }
       else if(/סכום ברירת מחדל לעסק/i.test(key)){ const n=parseFloat(val)||''; if(CFG.businessDefaultAmount!==n){ CFG.businessDefaultAmount=n; changed=true; } }
       else if(/סכום עסק אוטומטי/i.test(key)){ const b=val==='1'||val.toLowerCase()==='true'; if(CFG.businessDefaultAmountAuto!==b){ CFG.businessDefaultAmountAuto=b; changed=true; } }
+      else if(/סוג עסק לצורכי מע"מ/i.test(key)){ const t=(val==='authorized')?'authorized':'exempt'; if(CFG.businessTaxType!==t){ CFG.businessTaxType=t; changed=true; } }
+      else if(/שיעור מע"מ/i.test(key)){ const parsed=parseFloat(val); const n=Number.isFinite(parsed)?parsed:18; if(CFG.vatRate!==n){ CFG.vatRate=n; changed=true; } }
       else if(/מספר הקבלה הבא/i.test(key)){ const n=parseInt(val,10)||1000; if(CFG.nextReceiptNumber!==n){ CFG.nextReceiptNumber=n; changed=true; } }
       else if(/מחיר.*ברירת|ברירת.*מחדל|default.*fee/i.test(key)){ const n=parseFloat(val)||140; if(CFG.defaultFee!==n){ CFG.defaultFee=n; changed=true; } }
       else if(/יתרת פתיחה \(/i.test(key)){ const n=parseFloat(val)||0; if(CFG.financeOpeningBalance!==n){ CFG.financeOpeningBalance=n; changed=true; } }
@@ -4320,7 +4393,7 @@ async function pushSettingsToSheet(){
     await ensureSettingsSheet();
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId:CFG.spreadsheetId,
-      range:`'${SETTINGS_SHEET}'!A1:B13`,
+      range:`'${SETTINGS_SHEET}'!A1:B15`,
       valueInputOption:'RAW',
       resource:{values: buildSettingsRows()}
     });
