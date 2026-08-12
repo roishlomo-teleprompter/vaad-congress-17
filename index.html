@@ -1747,7 +1747,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '191';
+const APP_BUILD = '192';
 
 /* KABCLICK SERVICE WORKER TEST - Build 182
    Temporarily unregister all service workers to isolate the Chrome/TWA toolbar issue. */
@@ -4783,7 +4783,33 @@ function hideMsg(){ document.getElementById('msgBox').className='msg'; }
    GOOGLE INIT / AUTH
 ═══════════════════════════════════════ */
 const TOKEN_CACHE_KEY = 'vaad_generic_token';
-let silentAttempted = false;
+let googleInitPromise = null;
+let authInProgress = false;
+
+function setAuthButtonsDisabled(disabled){
+  const authBtn = document.getElementById('authBtn');
+  const loginBtn = document.getElementById('loginGateGoogleBtn');
+  if(authBtn) authBtn.disabled = disabled;
+  if(loginBtn) loginBtn.disabled = disabled;
+}
+
+function waitForGoogleLibraries(timeoutMs=15000){
+  const startedAt = Date.now();
+  return new Promise((resolve,reject)=>{
+    const check = ()=>{
+      if(typeof gapi!=='undefined' && typeof google!=='undefined' && google.accounts?.oauth2){
+        resolve();
+        return;
+      }
+      if(Date.now()-startedAt >= timeoutMs){
+        reject(new Error('שירותי Google לא נטענו'));
+        return;
+      }
+      setTimeout(check,100);
+    };
+    check();
+  });
+}
 
 function saveTokenCache(token, expiresInSec){
   const expiresAt = Date.now() + ((expiresInSec||3500)*1000) - 60000; // 1-min safety buffer
@@ -4849,9 +4875,7 @@ function signOut(){
   refreshRecentResidents();
 }
 
-document.getElementById('loginGateGoogleBtn').addEventListener('click', ()=>{
-  document.getElementById('authBtn').click();
-});
+document.getElementById('loginGateGoogleBtn').addEventListener('click', requestGoogleAccess);
 /** True if the person has entered anything in the current receipt that
  *  would be lost by leaving the wizard — used to decide whether exiting
  *  needs a confirmation or can happen immediately. */
@@ -5131,9 +5155,16 @@ document.getElementById('regSubmitBtn').addEventListener('click', async ()=>{
 });
 
 function initGoogle(){
-  if(typeof gapi==='undefined'){ setTimeout(initGoogle,300); return; }
-  gapi.load('client',async()=>{
+  if(googleInitPromise) return googleInitPromise;
+  googleInitPromise=(async()=>{
     try{
+      await waitForGoogleLibraries();
+      await new Promise((resolve,reject)=>{
+        gapi.load('client',{
+          callback:resolve,
+          onerror:()=>reject(new Error('טעינת Google API נכשלה'))
+        });
+      });
       await gapi.client.init({
         apiKey:APP_API_KEY,
         discoveryDocs:[
@@ -5142,6 +5173,28 @@ function initGoogle(){
         ]
       });
       gapiReady=true;
+      if(!gapi.client.sheets || !gapi.client.drive?.files){
+        throw new Error('שירותי Sheets או Drive לא הושלמו');
+      }
+      tokenClient=google.accounts.oauth2.initTokenClient({
+        client_id:APP_CLIENT_ID,
+        scope:SCOPES,
+        callback:async(resp)=>{
+          authInProgress=false;
+          setAuthButtonsDisabled(false);
+          if(resp.error){
+            showMsg('ההתחברות נכשלה: '+resp.error,'error');
+            return;
+          }
+          accessToken=resp.access_token;
+          gapi.client.setToken({access_token:accessToken});
+          saveTokenCache(accessToken, resp.expires_in);
+          markConnected();
+          if(!(await enforceLicense(accessToken, {trustCache:false}))) return;
+          await loadDataForCurrentAccountMode();
+          validateForm();
+        }
+      });
       // If a still-valid token is cached from a previous visit, reuse it immediately —
       // no popup, no network round trip, no re-login needed.
       const cached = loadTokenCache();
@@ -5154,46 +5207,29 @@ function initGoogle(){
           validateForm();
         }
       }
-    }catch(e){ showMsg('שגיאה באתחול Google API: '+(e.message||e),'error'); }
-  });
-  if(typeof google!=='undefined'&&google.accounts){
-    tokenClient=google.accounts.oauth2.initTokenClient({
-      client_id:APP_CLIENT_ID,
-      scope:SCOPES,
-      callback:async(resp)=>{
-        const wasSilent = silentAttempted;
-        silentAttempted = false;
-        if(resp.error){
-          // A failed *silent* attempt is expected sometimes (e.g. no active Google
-          // session yet) — stay quiet and just wait for the user to click the button.
-          if(!wasSilent) showMsg('ההתחברות נכשלה: '+resp.error,'error');
-          return;
-        }
-        accessToken=resp.access_token;
-        gapi.client.setToken({access_token:accessToken});
-        saveTokenCache(accessToken, resp.expires_in);
-        markConnected();
-        if(!(await enforceLicense(accessToken, {trustCache:wasSilent}))) return;
-        await loadDataForCurrentAccountMode();
-        validateForm();
-      }
-    });
-    // Try a silent, invisible re-auth in the background if we don't already have a
-    // valid cached token. This uses the browser's existing Google session — as long
-    // as the person approved this app before and hasn't revoked access, it refreshes
-    // the token with no popup and no click required.
-    if(!loadTokenCache()){
-      silentAttempted = true;
-      tokenClient.requestAccessToken({prompt:'none'});
+      return true;
+    }catch(e){
+      googleInitPromise=null;
+      console.warn('[קבקליק] Google initialization failed:',e);
+      return false;
     }
-  }
+  })();
+  return googleInitPromise;
 }
 
-document.getElementById('authBtn').onclick=()=>{
-  if(!tokenClient){ initGoogle(); setTimeout(()=>tokenClient&&tokenClient.requestAccessToken(),600); return; }
-  silentAttempted = false;
+function requestGoogleAccess(){
+  if(authInProgress) return;
+  if(!gapiReady || !tokenClient || !gapi.client.sheets || !gapi.client.drive?.files){
+    initGoogle().catch(()=>{});
+    showMsg('החיבור ל-Google עדיין לא מוכן. נסה שוב בעוד רגע.','error');
+    return;
+  }
+  authInProgress=true;
+  setAuthButtonsDisabled(true);
   tokenClient.requestAccessToken();
-};
+}
+
+document.getElementById('authBtn').onclick=requestGoogleAccess;
 
 /* ═══════════════════════════════════════
    SHEETS: LOAD RESIDENTS
