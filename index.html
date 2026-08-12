@@ -238,12 +238,9 @@ body.home-active .finance-screen{height:auto;overflow:visible;}
 .footer-fab-icon{font-size:29px;font-weight:900;line-height:1;}
 .footer-fab-label{font-size:11px;font-weight:800;line-height:1.15;margin-top:2px;}
 .home-residents-section{flex:none;margin-bottom:16px;text-align:right;min-height:64px;overflow-anchor:none;}
-.locked-field-row{display:flex;gap:8px;align-items:center;}
-.locked-field-row input{flex:1;}
-.locked-field-row input[readonly]{background:var(--app-bg);color:var(--slate);cursor:not-allowed;}
-.open-link-btn{flex:none;width:38px;height:38px;border-radius:10px;border:1.5px solid var(--card-line);background:#fff;cursor:pointer;font-size:15px;transition:.15s;}
-.open-link-btn:hover:not(:disabled){background:var(--blue-soft);border-color:var(--blue);}
-.open-link-btn:disabled{opacity:.4;cursor:not-allowed;}
+.workspace-open-btn{width:100%;min-height:44px;border:1.5px solid var(--blue);border-radius:12px;background:var(--blue-soft);color:var(--blue-dark);font-family:inherit;font-size:14px;font-weight:800;cursor:pointer;transition:.15s;}
+.workspace-open-btn:hover:not(:disabled){background:var(--blue);color:#fff;}
+.workspace-open-btn:disabled{border-color:var(--card-line);background:var(--app-bg);color:var(--slate);cursor:not-allowed;opacity:.72;}
 .locked-field-edit-btn{flex:none;width:38px;height:38px;border-radius:10px;border:1.5px solid var(--card-line);background:#fff;cursor:pointer;font-size:14px;transition:.15s;}
 .locked-field-edit-btn:hover{background:var(--blue-soft);border-color:var(--blue);}
 .mode-select-gate{position:fixed;top:0;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#fff;z-index:510;display:none;align-items:center;justify-content:center;padding:24px;overflow-y:auto;}
@@ -810,11 +807,25 @@ body.mode-business #homeResidentsSection{
 }
 
 .modal .modal-desc{font-size:12.5px;color:var(--slate);margin:0 0 20px;line-height:1.6;}
+.settings-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;background:#F4F7FB;border:1px solid var(--card-line);border-radius:13px;padding:5px;margin:18px 0 8px;position:sticky;top:-30px;z-index:4;}
+.settings-tab{min-width:0;border:0;border-radius:9px;background:transparent;color:var(--slate);padding:11px 8px;font-family:inherit;font-size:12.5px;font-weight:800;cursor:pointer;transition:background .18s,color .18s,box-shadow .18s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.settings-tab:hover{color:var(--blue);background:#fff;}
+.settings-tab.active{background:var(--blue);color:#fff;box-shadow:0 5px 14px -7px rgba(37,99,235,.7);}
+.settings-tab:focus-visible{outline:3px solid rgba(37,99,235,.22);outline-offset:2px;}
+.settings-panel{display:none;}
+.settings-panel.active{display:block;animation:settingsPanelIn .18s ease-out;}
+@keyframes settingsPanelIn{from{opacity:.35;transform:translateY(3px)}to{opacity:1;transform:none}}
 .settings-section{border-top:1.5px solid var(--card-line);margin-top:20px;padding-top:16px;}
+.settings-panel>.settings-section:first-child{border-top:0;margin-top:8px;padding-top:8px;}
 .settings-section h4{font-size:13px;font-weight:700;color:var(--ink-soft);margin:0 0 12px;text-transform:uppercase;letter-spacing:.5px;}
 .settings-part-label{font-size:11px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin:0 0 8px;}
+@media(max-width:600px){
+  .settings-tabs{top:-22px;margin-left:-4px;margin-right:-4px;}
+  .settings-tab{font-size:11.5px;padding:10px 4px;}
+}
 .modal label{font-size:12.5px;color:var(--slate);display:block;margin-bottom:4px;margin-top:12px;}
 .modal label:first-child{margin-top:0;}
+.settings-main-modal label:not(.email-check-row){font-weight:700;color:var(--ink);}
 .modal input[type=text],.modal input[type=number],.modal input[type=url],.modal textarea{background:#fff;}
 .hint-link{color:var(--blue);text-decoration:none;font-weight:600;}
 .modal-actions{display:flex;gap:10px;margin-top:22px;}
@@ -1337,9 +1348,14 @@ body.mode-business #homeResidentsSection{
     <h3>⚙ הגדרות האפליקציה</h3>
     <p class="modal-desc">פרטי העסק/הבניין, חיבור לגיליון, ותמחור. נשמר במכשיר זה.</p>
 
-    <!-- PART 1 · IDENTITY & PRICING -->
+    <div class="settings-tabs" role="tablist" aria-label="קטגוריות הגדרות">
+      <button type="button" class="settings-tab active" id="settingsTabProfile" role="tab" aria-selected="true" aria-controls="settingsPanelProfile" data-settings-tab="profile">פרטים וקבלות</button>
+      <button type="button" class="settings-tab" id="settingsTabData" role="tab" aria-selected="false" aria-controls="settingsPanelData" data-settings-tab="data">חיבור נתונים ואנשי קשר</button>
+      <button type="button" class="settings-tab" id="settingsTabFinance" role="tab" aria-selected="false" aria-controls="settingsPanelFinance" data-settings-tab="finance">כספים ושליחה</button>
+    </div>
+
+    <div class="settings-panel active" id="settingsPanelProfile" role="tabpanel" aria-labelledby="settingsTabProfile" data-settings-panel="profile">
     <div class="settings-section">
-      <p class="settings-part-label">חלק 1 מתוך 3 · פרטי הזיהוי</p>
       <h4 id="orgInfoHeading">🏢 פרטי הבניין</h4>
       <label id="orgInfoLabel">שם/כתובת הבניין</label>
       <input type="text" id="cfg-buildingInfo" placeholder="לדוגמה: קונגרס 17, פתח תקווה">
@@ -1392,10 +1408,10 @@ body.mode-business #homeResidentsSection{
         </div>
       </div>
     </div>
+    </div>
 
-    <!-- PART 2 · DATA CONNECTION -->
+    <div class="settings-panel" id="settingsPanelData" role="tabpanel" aria-labelledby="settingsTabData" data-settings-panel="data" hidden>
     <div class="settings-section">
-      <p class="settings-part-label">חלק 2 מתוך 3 · חיבור לנתונים</p>
       <h4>🔗 חיבור לגיליון ולתיקייה שלך</h4>
       <p style="font-size:11.5px;color:var(--slate);margin:0 0 10px;line-height:1.6;">קבקליק יוצרת עבורכם אוטומטית גיליון Google Sheets ותיקיית Drive ייעודיים — כדי לשמור על הרשאת גישה מצומצמת ובטוחה יותר, לא ניתן לחבר גיליון/תיקייה קיימים באמצעות הדבקת קישור.</p>
 
@@ -1403,15 +1419,11 @@ body.mode-business #homeResidentsSection{
       <p id="autoCreateStatus" style="font-size:12.5px;margin:-8px 0 14px;text-align:center;min-height:1em;"></p>
 
       <label>גיליון Google Sheets מחובר</label>
-      <div class="locked-field-row">
-        <input type="text" id="cfg-spreadsheetId" class="ltr-input" placeholder="עדיין לא נוצר — לחצו למעלה על יצירה אוטומטית" readonly>
-        <button type="button" class="open-link-btn" id="openSheetBtn" title="פתיחת הגיליון" aria-label="פתיחת הגיליון בטאב חדש">🔗</button>
-      </div>
+      <button type="button" class="workspace-open-btn" id="openSheetBtn" aria-label="הצגת הגיליון של שנת העבודה הפעילה">📊 הצגת הגיליון</button>
+      <input type="hidden" id="cfg-spreadsheetId">
       <label>תיקיית Drive מחוברת</label>
-      <div class="locked-field-row">
-        <input type="text" id="cfg-folderId" class="ltr-input" placeholder="עדיין לא נוצרה — לחצו למעלה על יצירה אוטומטית" readonly>
-        <button type="button" class="open-link-btn" id="openFolderBtn" title="פתיחת התיקייה" aria-label="פתיחת התיקייה בטאב חדש">🔗</button>
-      </div>
+      <button type="button" class="workspace-open-btn" id="openFolderBtn" aria-label="הצגת תיקיית הקבלות של שנת העבודה הפעילה">📁 הצגת תיקיית הקבלות</button>
+      <input type="hidden" id="cfg-folderId">
       <button type="button" id="resetConnectionBtn" class="small-btn" style="width:100%;margin-top:10px;">🔄 ניתוק וחיבור מחדש (יצירת גיליון/תיקייה חדשים)</button>
 
       <div style="margin-top:18px;padding-top:16px;border-top:1.5px dashed var(--card-line);">
@@ -1420,10 +1432,10 @@ body.mode-business #homeResidentsSection{
         <button type="button" id="rmmSettingsOpenBtn" class="generate-btn" style="margin:0;">📋 פתיחת ניהול רשימת דיירים</button>
       </div>
     </div>
+    </div>
 
-    <!-- PART 3 · FINANCE OPENING BALANCE -->
+    <div class="settings-panel" id="settingsPanelFinance" role="tabpanel" aria-labelledby="settingsTabFinance" data-settings-panel="finance" hidden>
     <div class="settings-section">
-      <p class="settings-part-label">חלק 3 מתוך 4 · יתרת פתיחה</p>
       <h4>🏦 יתרה מוקדמת (לפני תחילת השימוש בקבקליק)</h4>
       <p style="font-size:11.5px;color:var(--slate);margin:0 0 10px;line-height:1.6;">אם הייתה יתרה בקופה לפני שהתחלתם לתעד הוצאות/הכנסות כאן — הזינו אותה כאן. בעת יצירת שנת עבודה חדשה, יתרת הסיום של השנה הקודמת עוברת אוטומטית כיתרת הפתיחה של השנה החדשה, בלי להעתיק את התנועות עצמן.</p>
       <label>סכום יתרת הפתיחה (₪)</label>
@@ -1432,11 +1444,11 @@ body.mode-business #homeResidentsSection{
       <input type="date" id="cfg-financeOpeningBalanceDate" class="ltr-input">
     </div>
 
-    <!-- PART 4 · SENDING -->
     <div class="settings-section">
-      <p class="settings-part-label">חלק 4 מתוך 4 · שליחת קבלות</p>
       <h4>📧 שליחת קבלות במייל</h4>
+      <p style="font-size:11.5px;color:var(--slate);margin:0 0 4px;line-height:1.6;">חשבון Gmail מחובר: <strong id="settingsConnectedEmail">לא מחובר</strong></p>
       <p style="font-size:11.5px;color:var(--slate);margin:0;line-height:1.6;">"שלח קבלה גם למייל" בטופס שולח מחשבון ה-Gmail המחובר כרגע.</p>
+    </div>
     </div>
 
     <div class="modal-actions">
@@ -1741,7 +1753,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '188';
+const APP_BUILD = '190';
 
 /* KABCLICK SERVICE WORKER TEST - Build 182
    Temporarily unregister all service workers to isolate the Chrome/TWA toolbar issue. */
@@ -2897,6 +2909,7 @@ async function activateYearWorkspace(year, workspace, loadData){
   if(typeof financeRows!=='undefined') financeRows = [];
 
   applyBranding();
+  refreshWorkspaceOpenButtons();
 
   if(loadData){
     await loadDataForCurrentAccountMode();
@@ -3630,6 +3643,59 @@ document.getElementById('cfg-businessTaxType').addEventListener('change', ()=>{
       : 'none';
 });
 
+function activateSettingsTab(tabName, focusTab=false){
+  const tabs=[...document.querySelectorAll('[data-settings-tab]')];
+  const panels=[...document.querySelectorAll('[data-settings-panel]')];
+  tabs.forEach(tab=>{
+    const active=tab.dataset.settingsTab===tabName;
+    tab.classList.toggle('active',active);
+    tab.setAttribute('aria-selected',String(active));
+    tab.tabIndex=active ? 0 : -1;
+    if(active && focusTab) tab.focus();
+  });
+  panels.forEach(panel=>{
+    const active=panel.dataset.settingsPanel===tabName;
+    panel.classList.toggle('active',active);
+    panel.hidden=!active;
+  });
+  const modal=document.querySelector('.settings-main-modal');
+  if(modal) modal.scrollTop=0;
+}
+
+document.querySelectorAll('[data-settings-tab]').forEach((tab,index,tabs)=>{
+  tab.addEventListener('click',()=>activateSettingsTab(tab.dataset.settingsTab));
+  tab.addEventListener('keydown',event=>{
+    if(!['ArrowRight','ArrowLeft','Home','End'].includes(event.key)) return;
+    event.preventDefault();
+    let nextIndex=index;
+    if(event.key==='Home') nextIndex=0;
+    else if(event.key==='End') nextIndex=tabs.length-1;
+    else if(event.key==='ArrowLeft') nextIndex=(index+1)%tabs.length;
+    else if(event.key==='ArrowRight') nextIndex=(index-1+tabs.length)%tabs.length;
+    activateSettingsTab(tabs[nextIndex].dataset.settingsTab,true);
+  });
+});
+
+function activeYearWorkspaceForLinks(){
+  const year = parseInt(CFG.activeYear,10) || currentCalendarYear();
+  const workspace = (CFG.yearWorkspaces || {})[String(year)] || {};
+  return {
+    year,
+    spreadsheetId: workspace.spreadsheetId || CFG.spreadsheetId || '',
+    folderId: workspace.folderId || CFG.folderId || ''
+  };
+}
+
+function refreshWorkspaceOpenButtons(){
+  const workspace = activeYearWorkspaceForLinks();
+  const sheetBtn = document.getElementById('openSheetBtn');
+  const folderBtn = document.getElementById('openFolderBtn');
+  sheetBtn.disabled = !workspace.spreadsheetId;
+  folderBtn.disabled = !workspace.folderId;
+  sheetBtn.setAttribute('aria-label', `הצגת הגיליון של שנת ${workspace.year}`);
+  folderBtn.setAttribute('aria-label', `הצגת תיקיית הקבלות של שנת ${workspace.year}`);
+}
+
 document.getElementById('settingsBtn').onclick = ()=>{
   document.getElementById('cfg-buildingInfo').value = CFG.buildingInfo||'';
   document.getElementById('cfg-defaultFee').value   = CFG.defaultFee||'';
@@ -3653,24 +3719,27 @@ document.getElementById('settingsBtn').onclick = ()=>{
   document.getElementById('cfg-folderId').value     = CFG.folderId||'';
   document.getElementById('cfg-spreadsheetId').readOnly = true;
   document.getElementById('cfg-folderId').readOnly = true;
-  document.getElementById('openSheetBtn').disabled  = !CFG.spreadsheetId;
-  document.getElementById('openFolderBtn').disabled = !CFG.folderId;
+  refreshWorkspaceOpenButtons();
   document.getElementById('cfg-financeOpeningBalance').value = CFG.financeOpeningBalance || '';
   document.getElementById('cfg-financeOpeningBalanceDate').value = CFG.financeOpeningBalanceDate || '';
   applyModeUI(CFG.usageMode||'vaad');
   const verEl = document.getElementById('appVersionMarker');
   if(verEl){
-    verEl.textContent = `גרסה 4  Build ${APP_BUILD} | ${CFG.email||'לא מחובר'}`;
+    verEl.textContent = `גרסה 4  Build ${APP_BUILD}`;
   }
+  document.getElementById('settingsConnectedEmail').textContent = CFG.email || 'לא מחובר';
+  activateSettingsTab('profile');
   document.getElementById('modalBg').classList.add('show');
 };
 document.getElementById('openSheetBtn').addEventListener('click', ()=>{
-  if(!CFG.spreadsheetId) return;
-  window.open(`https://docs.google.com/spreadsheets/d/${CFG.spreadsheetId}/edit`, '_blank');
+  const workspace = activeYearWorkspaceForLinks();
+  if(!workspace.spreadsheetId) return;
+  window.open(`https://docs.google.com/spreadsheets/d/${workspace.spreadsheetId}/edit`, '_blank', 'noopener');
 });
 document.getElementById('openFolderBtn').addEventListener('click', ()=>{
-  if(!CFG.folderId) return;
-  window.open(`https://drive.google.com/drive/folders/${CFG.folderId}`, '_blank');
+  const workspace = activeYearWorkspaceForLinks();
+  if(!workspace.folderId) return;
+  window.open(`https://drive.google.com/drive/folders/${workspace.folderId}`, '_blank', 'noopener');
 });
 document.getElementById('resetConnectionBtn').addEventListener('click', async ()=>{
   const ok = await showAppConfirm('לנתק את הגיליון/התיקייה המחוברים כעת? הנתונים עצמם יישארו קיימים ב-Drive שלכם (לא נמחקים), אך האפליקציה תפסיק לקרוא/לכתוב אליהם עד שתיצרו חיבור חדש.', '🔄');
@@ -3807,7 +3876,7 @@ document.getElementById('autoCreateBtn').addEventListener('click', async ()=>{
   const currentSheetVal = document.getElementById('cfg-spreadsheetId').value.trim();
   if(currentSheetVal){
     statusEl.style.color = 'var(--bad)';
-    statusEl.textContent = 'כבר קיים גיליון מקושר. ניתן ליצור גיליון חדש רק לאחר מחיקת/הסרת הקישור הקיים — לחצו על ✏️ ליד שדה הגיליון, מחקו את תוכנו, ונסו שוב.';
+    statusEl.textContent = 'כבר קיים גיליון מקושר. כדי ליצור סביבת עבודה חדשה יש להשתמש בכפתור "ניתוק וחיבור מחדש".';
     return;
   }
 
@@ -3867,7 +3936,7 @@ document.getElementById('autoCreateBtn').addEventListener('click', async ()=>{
     document.getElementById('cfg-folderId').value      = `https://drive.google.com/drive/folders/${folderId}`;
 
     statusEl.style.color = 'var(--good)';
-    statusEl.textContent = '✅ נוצרו בהצלחה! הקישורים מולאו למטה — לא לשכוח ללחוץ "שמירת הגדרות". פותח את הגיליון להזנת הדיירים…';
+    statusEl.textContent = '✅ הגיליון והתיקייה נוצרו בהצלחה. לאחר שמירת ההגדרות אפשר לפתוח אותם מהכפתורים למטה. פותח את הגיליון להזנת הדיירים…';
     btn.textContent = '✅ נוצר בהצלחה';
 
     window.open(`https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`, '_blank');
