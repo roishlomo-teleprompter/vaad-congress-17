@@ -1747,7 +1747,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '193';
+const APP_BUILD = '194';
 
 /* KABCLICK SERVICE WORKER TEST - Build 182
    Temporarily unregister all service workers to isolate the Chrome/TWA toolbar issue. */
@@ -7710,15 +7710,28 @@ const TOUR_STEPS = [
     text:'כאן פותחים את ההגדרות כדי לחבר את הגיליון והתיקייה שלכם, ולהתאים את האפליקציה לצרכים שלכם.' },
   { target:'#signOutBtn', title:'מצב שימוש',
     text:'קבקליק תומכת בשני מצבי שימוש: <b>ועד בית</b> — עם דיירים, דירות ודמי ועד חודשיים, ו<b>עסק עצמאי</b> — עם לקוחות וקבלות על שירותים או מוצרים. למעבר בין המצבים, לוחצים כאן על אייקון החשבון ובוחרים "מעבר בין ועד לעצמאי". כל הטרמינולוגיה באפליקציה — מהטפסים ועד הקבלה עצמה — מתאימה את עצמה אוטומטית.' },
-  { target:'#autoCreateBtn', title:'גיליון ב-Google Drive', inModal:true,
-    text:'לוחצים כאן ליצירה אוטומטית של גיליון Google Sheets ותיקיית Drive ייעודיים בתוך חשבון ה-Google שלכם — לא צריך ליצור או להגדיר כלום ידנית. <b>אם היה לכם מעקב קודם</b> (למשל גיליון ישן, טבלה ידנית וכו׳) — צריך להעתיק את המידע הרלוונטי אל תוך הגיליון החדש שנוצר, תוך שמירה על העמודות הקיימות בו.' },
-  { target:'#cfg-financeOpeningBalance', title:'יתרה קודמת', inModal:true,
-    text:'אם הייתה יתרה בקופה לפני שהתחלתם להשתמש בקבקליק (למשל ממעקב ידני קודם) — מזינים אותה כאן, פעם אחת. היא תיכנס אוטומטית לחישוב "יתרה בקופה" ולכל דוח שתפיקו, בלי צורך להוסיף אותה כתנועה נפרדת.' },
+  { target:'#settingsTabProfile', title:(isBiz)=> isBiz?'פרטי העסק':'פרטי ועד הבית', inModal:true, settingsTab:'profile',
+    text:(isBiz)=> isBiz
+      ? 'בלשונית <b>פרטים</b> מגדירים את שם העסק, מספר העוסק, סוג העסק, סכום ברירת מחדל ומספר הקבלה הבא. ההסברים הבאים מותאמים למצב עסק עצמאי.'
+      : 'בלשונית <b>פרטים</b> מגדירים את שם או כתובת הבניין, דמי הוועד החודשיים ומספר הקבלה הבא. ההסברים הבאים מותאמים למצב ועד בית.' },
   { target:(isBiz)=> isBiz ? '#businessVatSettings' : '#cfg-buildingInfo',
-    title:(isBiz)=> isBiz?'סוג העסק ומע"מ':'פרטי הבניין', inModal:true,
+    title:(isBiz)=> isBiz?'עוסק פטור, עוסק מורשה ומע"מ':'פרטי הבניין ודמי הוועד', inModal:true, settingsTab:'profile',
     text: (isBiz)=> isBiz
-      ? 'במצב <b>עסק עצמאי</b> מגדירים כאן אם העסק הוא <b>עוסק פטור</b> או <b>עוסק מורשה</b>. עוסק פטור מפיק קבלות ללא מע"מ. עוסק מורשה מגדיר את שיעור המע"מ שישמש לקבלות החדשות. כאן מגדירים גם את שם העסק ומספר העסק שיופיעו בקבלה.'
-      : 'מזינים כאן את שם/כתובת הבניין. זה מה שיופיע בכותרת ובקבלות עצמן.' },  { target:'#modalSave', title:'שמירה', inModal:true,
+      ? 'מגדירים את שם העסק ומספר העוסק שיופיעו בקבלה. <b>עוסק פטור</b> מפיק קבלות ללא מע"מ. <b>עוסק מורשה</b> מגדיר את שיעור המע"מ שישמש בקבלות חדשות. מספר הקבלה הבא הוא נקודת ההתחלה של הרצף, ולא ניתן להקטין אותו לאחר שהופקו קבלות.'
+      : 'מזינים את שם או כתובת הבניין שיופיעו בקבלות ואת סכום דמי הוועד החודשיים. מספר הקבלה הבא הוא נקודת ההתחלה של הרצף, ולא ניתן להקטין אותו לאחר שהופקו קבלות.' },
+  { target:'#settingsTabData', title:'חיבור נתונים', inModal:true, settingsTab:'data',
+    text:(isBiz)=> isBiz
+      ? 'בלשונית <b>חיבור נתונים</b> יוצרים ומנהלים את גיליון הלקוחות ואת תיקיית קובצי הקבלות בחשבון Google שלכם. לכל מצב שימוש ולכל שנת עבודה נשמרת סביבת נתונים נפרדת.'
+      : 'בלשונית <b>חיבור נתונים</b> יוצרים ומנהלים את גיליון אנשי הקשר ואת תיקיית קובצי הקבלות בחשבון Google שלכם. לכל מצב שימוש ולכל שנת עבודה נשמרת סביבת נתונים נפרדת.' },
+  { target:'#autoCreateBtn', title:'יצירת גיליון ותיקייה', inModal:true, settingsTab:'data',
+    text:(isBiz)=> isBiz
+      ? 'לוחצים כאן כדי ליצור אוטומטית גיליון Google Sheets עם לשונית לקוחות ותיקיית Drive לקובצי הקבלות של שנת העבודה. לאחר היצירה אפשר לפתוח אותם מהכפתורים "הצגת הגיליון" ו"הצגת תיקיית הקבלות".'
+      : 'לוחצים כאן כדי ליצור אוטומטית גיליון Google Sheets עם לשונית אנשי קשר ותיקיית Drive לקובצי הקבלות של שנת העבודה. לאחר היצירה אפשר לפתוח אותם מהכפתורים "הצגת הגיליון" ו"הצגת תיקיית הקבלות".' },
+  { target:'#settingsTabFinance', title:'כספים', inModal:true, settingsTab:'finance',
+    text:'בלשונית <b>כספים</b> מגדירים יתרת פתיחה ורואים איזה חשבון Gmail מחובר לשליחת קבלות. יתרת הסיום של שנת עבודה עוברת אוטומטית כיתרת הפתיחה של השנה הבאה.' },
+  { target:'#cfg-financeOpeningBalance', title:'יתרה קודמת', inModal:true, settingsTab:'finance',
+    text:'אם הייתה יתרה בקופה לפני תחילת השימוש בקבקליק, מזינים אותה כאן פעם אחת ובוחרים את התאריך שאליו היא נכונה. היתרה תיכלל אוטומטית בחישוב היתרה בקופה ובדוחות, בלי להוסיף תנועה נפרדת.' },
+  { target:'#modalSave', title:'שמירה', inModal:true, settingsTab:'finance',
     text:'לא לשכוח ללחוץ כאן לשמירת ההגדרות בסיום.' },
   { target:(isBiz)=> isBiz ? '#homeBizManageBtn' : '#wizardManageResidentsBtn',
     title:(isBiz)=> isBiz?'ניהול והוספת לקוח חדש':'ניהול והוספת דיירים',
@@ -7808,6 +7821,9 @@ function tourShowStep(i){
   // opened/moved to whichever this tour step needs, automatically,
   // regardless of nav direction.
   tourSetSettingsOpen(!!step.inModal);
+  if(step.inModal){
+    activateSettingsTab(step.settingsTab || 'profile');
+  }
   const resolvedWizardStep = typeof step.wizardStep==='function' ? step.wizardStep(isBiz) : step.wizardStep;
   if(resolvedWizardStep !== undefined){
     showWizardFromHome();
