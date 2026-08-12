@@ -12,6 +12,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
+<link rel="preload" as="image" href="login-hero.webp?v=3" type="image/webp" fetchpriority="high">
 <meta name="theme-color" content="#1a1a1a">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -980,7 +981,7 @@ body.mode-business #homeResidentsSection{
     </div>
 
     <div class="login-illustration">
-      <img class="illo-photo" src="login-hero.png?v=2" alt="קבקליק - וועדי בתים ועצמאים">
+      <img class="illo-photo" src="login-hero.webp?v=3" width="900" height="794" fetchpriority="high" decoding="async" alt="קבקליק - וועדי בתים ועצמאים">
     </div>
 
     <div class="login-features">
@@ -1747,7 +1748,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '195';
+const APP_BUILD = '196';
 
 /* KABCLICK SERVICE WORKER - Build 195
    Keep the local app shell available so the installed PWA/TWA can start offline. */

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kabclick-shell-195';
+const CACHE_NAME = 'kabclick-shell-196';
 
 const APP_SHELL = [
   './',
@@ -15,7 +15,7 @@ const APP_SHELL = [
   './account-logout.png',
   './account-profile.png',
   './buildings-illustration.jpg',
-  './login-hero.png',
+  './login-hero.webp',
   './login-illustration-freelance.jpg'
 ];
 
