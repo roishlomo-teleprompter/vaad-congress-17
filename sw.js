@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kabclick-shell-181';
+const CACHE_NAME = 'kabclick-shell-195';
 
 const APP_SHELL = [
   './',
@@ -6,7 +6,17 @@ const APP_SHELL = [
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
-  './icon-mark-512.png'
+  './icon-mark-192.png',
+  './icon-mark-512.png',
+  './apple-touch-icon.png',
+  './favicon-32.png',
+  './account-building.png',
+  './account-business.png',
+  './account-logout.png',
+  './account-profile.png',
+  './buildings-illustration.jpg',
+  './login-hero.png',
+  './login-illustration-freelance.jpg'
 ];
 
 self.addEventListener('install', event => {
@@ -36,6 +46,21 @@ self.addEventListener('fetch', event => {
 
   if (url.origin !== self.location.origin) return;
 
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          if (response && response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put('./index.html', copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match('./index.html'))
+    );
+    return;
+  }
+
   event.respondWith(
     fetch(event.request)
       .then(response => {
@@ -46,7 +71,7 @@ self.addEventListener('fetch', event => {
         return response;
       })
       .catch(() =>
-        caches.match(event.request)
+        caches.match(event.request, { ignoreSearch: true })
           .then(cached => cached || caches.match('./index.html'))
       )
   );
