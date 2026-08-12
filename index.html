@@ -1350,7 +1350,7 @@ body.mode-business #homeResidentsSection{
 
     <div class="settings-tabs" role="tablist" aria-label="קטגוריות הגדרות">
       <button type="button" class="settings-tab active" id="settingsTabProfile" role="tab" aria-selected="true" aria-controls="settingsPanelProfile" data-settings-tab="profile">פרטים וקבלות</button>
-      <button type="button" class="settings-tab" id="settingsTabData" role="tab" aria-selected="false" aria-controls="settingsPanelData" data-settings-tab="data">חיבור נתונים ואנשי קשר</button>
+      <button type="button" class="settings-tab" id="settingsTabData" role="tab" aria-selected="false" aria-controls="settingsPanelData" data-settings-tab="data">חיבור נתונים</button>
       <button type="button" class="settings-tab" id="settingsTabFinance" role="tab" aria-selected="false" aria-controls="settingsPanelFinance" data-settings-tab="finance">כספים ושליחה</button>
     </div>
 
@@ -1425,12 +1425,6 @@ body.mode-business #homeResidentsSection{
       <button type="button" class="workspace-open-btn" id="openFolderBtn" aria-label="הצגת תיקיית הקבלות של שנת העבודה הפעילה">📁 הצגת תיקיית הקבלות</button>
       <input type="hidden" id="cfg-folderId">
       <button type="button" id="resetConnectionBtn" class="small-btn" style="width:100%;margin-top:10px;">🔄 ניתוק וחיבור מחדש (יצירת גיליון/תיקייה חדשים)</button>
-
-      <div style="margin-top:18px;padding-top:16px;border-top:1.5px dashed var(--card-line);">
-        <h4 id="rmmSettingsHeading" style="margin-bottom:6px;">📋 ניהול רשימת דיירים</h4>
-        <p style="font-size:11.5px;color:var(--slate);margin:0 0 12px;line-height:1.6;" id="rmmSettingsDesc">הוספה, עריכה ומחיקה של דיירים ישירות מתוך הגיליון.</p>
-        <button type="button" id="rmmSettingsOpenBtn" class="generate-btn" style="margin:0;">📋 פתיחת ניהול רשימת דיירים</button>
-      </div>
     </div>
     </div>
 
@@ -1753,7 +1747,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '190';
+const APP_BUILD = '191';
 
 /* KABCLICK SERVICE WORKER TEST - Build 182
    Temporarily unregister all service workers to isolate the Chrome/TWA toolbar issue. */
@@ -3626,12 +3620,6 @@ function applyModeUI(mode){
   document.getElementById('businessNumberRow').style.display = isBiz ? 'block' : 'none';
   document.getElementById('pricingSection').style.display    = isBiz ? 'none' : 'block';
   document.getElementById('businessAmountSection').style.display = isBiz ? 'block' : 'none';
-  document.getElementById('rmmSettingsHeading').textContent = isBiz ? '📋 ניהול והוספת לקוחות' : '📋 ניהול והוספת דיירים';
-  document.getElementById('rmmSettingsDesc').textContent = isBiz
-    ? 'הוספה, עריכה ומחיקה של לקוחות ישירות מתוך הגיליון.'
-    : 'הוספה, עריכה ומחיקה של דיירים ישירות מתוך הגיליון.';
-  const rmmBtn = document.getElementById('rmmSettingsOpenBtn');
-  if(rmmBtn) rmmBtn.textContent = isBiz ? '📋 פתיחת ניהול והוספת לקוחות' : '📋 פתיחת ניהול והוספת דיירים';
 }
 
 document.getElementById('cfg-businessTaxType').addEventListener('change', ()=>{
@@ -5659,7 +5647,7 @@ async function deleteResident(index){
 
 document.getElementById('wizardManageResidentsBtn').addEventListener('click', ()=>openResidentsManageFromAnywhere());
 document.getElementById('homeBizManageBtn').addEventListener('click', ()=>openResidentsManageFromAnywhere(true));
-document.getElementById('rmmSettingsOpenBtn').addEventListener('click', ()=>openResidentsManageFromAnywhere());
+
 document.getElementById('rmmCloseBtn').addEventListener('click', closeResidentsManageModal);
 document.getElementById('rmmAddBtn').addEventListener('click', ()=>openResidentEditModal(-1));
 document.getElementById('rmmSearchInput').addEventListener('input', (e)=>renderResidentsManageList(e.target.value));
