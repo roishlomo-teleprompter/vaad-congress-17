@@ -1748,9 +1748,9 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '196';
+const APP_BUILD = '197';
 
-/* KABCLICK SERVICE WORKER - Build 195
+/* KABCLICK SERVICE WORKER - Build 197
    Keep the local app shell available so the installed PWA/TWA can start offline. */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -1893,7 +1893,7 @@ window.addEventListener('load', ()=>{
   updateNetworkStatus();
 });
 
-const LICENSE_API_URL = 'https://script.google.com/macros/s/AKfycbwo80B9ZmKyMSwdXzQA6HP_sPFLLHETIWiI3VFj60vPazq4vE8DLpC7yxK-JtVqkZ4qyQ/exec';
+const LICENSE_API_URL = 'https://script.google.com/macros/s/AKfycbyjqgw1UmG2PT0SRl2M3DLK4uDN2UBuUZLTzese1jUVqyinYTR7AJ3XnMCSi2CnhtN2/exec';
 const LICENSE_SECRET  = 'vaad17-Lk9mQ2xR8pT4vN6z';
 const LICENSE_CACHE_KEY = 'vaad_license_cache';
 const LICENSE_CACHE_TTL_MS = 6*60*60*1000; // recheck at most every 6 hours
