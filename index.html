@@ -1748,9 +1748,9 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '197';
+const APP_BUILD = '198';
 
-/* KABCLICK SERVICE WORKER - Build 197
+/* KABCLICK SERVICE WORKER - Build 198
    Keep the local app shell available so the installed PWA/TWA can start offline. */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -5550,7 +5550,13 @@ function openResidentEditModal(index, prefillName){
   document.getElementById('remFeeRow').style.display = isBiz?'none':'block';
   document.getElementById('remAptRow').style.display = isBiz?'none':'block';
   const r = rmmEditingIndex>-1 ? residents[rmmEditingIndex] : {name:prefillName||'',phone:'',fee:'',email:'',apartment:''};
-  document.getElementById('rem-name').value  = r.name||'';
+  const nameInput = document.getElementById('rem-name');
+  nameInput.value = r.name||'';
+  nameInput.readOnly = rmmEditingIndex > -1;
+  nameInput.setAttribute('aria-readonly', rmmEditingIndex > -1 ? 'true' : 'false');
+  nameInput.style.background = rmmEditingIndex > -1 ? '#F1F5F9' : '';
+  nameInput.style.color = rmmEditingIndex > -1 ? '#64748B' : '';
+  nameInput.style.cursor = rmmEditingIndex > -1 ? 'not-allowed' : '';
   document.getElementById('rem-phone').value = r.phone||'';
   document.getElementById('rem-fee').value   = r.fee||'';
   document.getElementById('rem-apt').value   = r.apartment||'';
@@ -5593,7 +5599,10 @@ async function saveResidentEdit(){
     await showOfflineReadOnlyMessage();
     return;
   }
-  const name  = document.getElementById('rem-name').value.trim();
+  const nameInput = document.getElementById('rem-name');
+  const name = rmmEditingIndex > -1
+    ? (residents[rmmEditingIndex]?.name || '')
+    : nameInput.value.trim();
   const phone = document.getElementById('rem-phone').value.trim();
   const fee   = document.getElementById('rem-fee').value.trim();
   const apt   = document.getElementById('rem-apt').value.trim();
@@ -5623,7 +5632,7 @@ async function saveResidentEdit(){
       });
     } else {
       const r = residents[rmmEditingIndex];
-      const updates = [{field:residentsCols.name, val:name}];
+      const updates = [];
       if(residentsCols.phone>-1)     updates.push({field:residentsCols.phone, val:phone});
       if(residentsCols.fee>-1)       updates.push({field:residentsCols.fee,   val:fee});
       if(residentsCols.email>-1)     updates.push({field:residentsCols.email, val:email});
@@ -6695,7 +6704,6 @@ function financeReportHTML(from, to, lang){
   const net = income - expense;
   const opening = CFG.financeOpeningBalance || 0;
   const currentBalance = financeAllTimeBalance();
-  const incomeBreak  = financeCategoryBreakdownRows(rows,'income');
   const expenseBreak = financeCategoryBreakdownRows(rows,'expense');
   const bInfo = CFG.buildingInfo || (CFG.usageMode==='business' ? 'קבקליק' : 'קבקליק');
   const sortedRows = [...rows].sort((a,b)=> (b.date||'').localeCompare(a.date||''));
@@ -6739,11 +6747,6 @@ function financeReportHTML(from, to, lang){
     ${openingNote}
 
     <section class="details" style="margin-top:18px;">
-      <div style="font-weight:800;font-size:14px;margin-bottom:8px;">${t.incomeByCategory}</div>
-      <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:16px;">
-        <thead><tr style="border-bottom:1.5px solid #E3E9F0;"><th style="text-align:${align};padding:6px 0;">${t.category}</th><th style="text-align:${align};">${t.amount}</th><th style="text-align:${align};">${t.percent}</th></tr></thead>
-        <tbody>${breakdownRowsHtml(incomeBreak)}</tbody>
-      </table>
       <div style="font-weight:800;font-size:14px;margin-bottom:8px;">${t.expenseByCategory}</div>
       <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:16px;">
         <thead><tr style="border-bottom:1.5px solid #E3E9F0;"><th style="text-align:${align};padding:6px 0;">${t.category}</th><th style="text-align:${align};">${t.amount}</th><th style="text-align:${align};">${t.percent}</th></tr></thead>
