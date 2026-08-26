@@ -73,6 +73,9 @@ body.home-active .app-frame{height:auto;min-height:100vh;min-height:100dvh;overf
 .ios-standalone .mode-select-gate{
   padding-top:calc(24px + env(safe-area-inset-top, 0px));
 }
+.ios-standalone .finance-screen{
+  padding-top:calc(18px + env(safe-area-inset-top, 0px));
+}
 
 /* HOME HEADER - sticky only on the actual home screen */
 body.home-active .topbar{
@@ -1777,7 +1780,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '200';
+const APP_BUILD = '201';
 
 /* KABCLICK SERVICE WORKER - Build 198
    Keep the local app shell available so the installed PWA/TWA can start offline. */
