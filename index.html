@@ -24,6 +24,18 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://apis.google.com/js/api.js"></script>
+<script>
+/* Keep iOS safe-area spacing isolated to the installed Home Screen app.
+   Safari tabs, Android/TWA and desktop retain their existing layout. */
+(function(){
+  const isIOS =
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if(isIOS && window.navigator.standalone === true){
+    document.documentElement.classList.add('ios-standalone');
+  }
+})();
+</script>
 <style>
 :root{
   --ink:#101828; --ink-soft:#3a3a3a;
@@ -44,6 +56,23 @@ body.home-active .app-frame{height:auto;min-height:100vh;min-height:100dvh;overf
 
 /* ── TOPBAR ── */
 .topbar{position:relative;flex:none;background:#fff;color:var(--ink);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1.5px solid var(--card-line);}
+
+/* iPhone/iPad Home Screen PWA only: keep interactive content below the
+   camera/Dynamic Island while leaving Safari, Android/TWA and desktop unchanged. */
+.ios-standalone .topbar{
+  padding-top:calc(14px + env(safe-area-inset-top, 0px));
+}
+.ios-standalone #signOutBtn,
+.ios-standalone #wizardHomeBtn{
+  top:calc(14px + env(safe-area-inset-top, 0px));
+}
+.ios-standalone .rsm-header{
+  padding-top:calc(14px + env(safe-area-inset-top, 0px));
+}
+.ios-standalone .login-gate,
+.ios-standalone .mode-select-gate{
+  padding-top:calc(24px + env(safe-area-inset-top, 0px));
+}
 
 /* HOME HEADER - sticky only on the actual home screen */
 body.home-active .topbar{
@@ -1748,7 +1777,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '198';
+const APP_BUILD = '200';
 
 /* KABCLICK SERVICE WORKER - Build 198
    Keep the local app shell available so the installed PWA/TWA can start offline. */
