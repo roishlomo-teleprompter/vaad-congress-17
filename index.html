@@ -1780,7 +1780,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '201';
+const APP_BUILD = '202';
 
 /* KABCLICK SERVICE WORKER - Build 198
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -3853,12 +3853,33 @@ document.getElementById('modalSave').onclick = async ()=>{
   CFG.financeOpeningBalance = parseFloat(document.getElementById('cfg-financeOpeningBalance').value) || 0;
   CFG.financeOpeningBalanceDate = document.getElementById('cfg-financeOpeningBalanceDate').value || '';
   persistCurrentAccountCfg();
-  document.getElementById('modalBg').classList.remove('show');
   applyBranding(); applyModeTerminology();
   refreshPreview();
-  initGoogle();
-  pushSettingsToSheet();
-  await loadDataForCurrentAccountMode();
+
+  const saveBtn = document.getElementById('modalSave');
+  const saveLabel = saveBtn.textContent;
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'שומר...';
+
+  try{
+    // Complete Google initialization first, then write in a strict sequence.
+    // This prevents loadData from reading the previous sheet value back while
+    // the new opening balance is still being written.
+    await initGoogle();
+    await pushSettingsToSheet(true);
+    await ensureFinanceSheet({strictOpeningBalance:true});
+    await loadDataForCurrentAccountMode();
+    document.getElementById('modalBg').classList.remove('show');
+  }catch(e){
+    console.error('[קבקליק] שמירת ההגדרות לגיליון נכשלה:', e);
+    await showAppAlert(
+      'ההגדרות נשמרו במכשיר, אך העדכון ב-Google Sheets נכשל. בדקו את החיבור לגוגל ונסו לשמור שוב.',
+      '⚠️'
+    );
+  }finally{
+    saveBtn.disabled = false;
+    saveBtn.textContent = saveLabel;
+  }
 };
 
 /**
@@ -5845,7 +5866,7 @@ async function syncSettingsFromSheet(){
   }
 }
 
-async function pushSettingsToSheet(){
+async function pushSettingsToSheet(throwOnError=false){
   if(!navigator.onLine) return;
   if(!CFG.spreadsheetId) return;
   try{
@@ -5858,9 +5879,11 @@ async function pushSettingsToSheet(){
     });
     await stampKabClickDriveIdentity();
   }catch(e){
-    // Non-fatal — local settings are already saved; this device just couldn't
-    // push them to the sheet right now (e.g. offline, or not signed in yet).
+    // Most background callers can keep working with the local copy. The
+    // explicit Settings save path requests strict mode so it can notify the
+    // user instead of silently leaving Google Sheets with an older value.
     console.warn('שגיאה בשמירת ההגדרות לגיליון:', e);
+    if(throwOnError) throw e;
   }
 }
 
@@ -5987,7 +6010,7 @@ const FINANCE_CATEGORY_ICONS = {
 };
 function financeCategoryIcon(cat){ return FINANCE_CATEGORY_ICONS[cat] || '📄'; }
 
-async function ensureFinanceSheet(){
+async function ensureFinanceSheet({strictOpeningBalance=false}={}){
   financeColoringError = null;
   const meta = await gapi.client.sheets.spreadsheets.get({
     spreadsheetId:CFG.spreadsheetId,
@@ -6156,9 +6179,10 @@ async function ensureFinanceSheet(){
       ]}
     });
   }catch(e){
-    // Non-fatal — the opening balance still works correctly inside the app
-    // either way; this is just for visibility when opening the raw sheet.
+    // Background finance loads remain tolerant, but an explicit Settings save
+    // must report a failed I/J update instead of appearing to succeed.
     console.warn('[קבקליק] כתיבת יתרת הפתיחה הגלויה לגיליון נכשלה:', e);
+    if(strictOpeningBalance) throw e;
   }
 }
 
