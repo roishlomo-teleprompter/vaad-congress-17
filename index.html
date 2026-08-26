@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 91979)
-Total output lines: 7987
-
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -93,17 +90,6 @@ body.home-active .topbar{
   .topbar-actions{ width:100%; flex-wrap:wrap; gap:8px; }
   .building-badge{ flex:1 1 100%; text-align:center; order:-1; }
   .pill-btn{ flex:1 1 auto; justify-content:center; white-space:nowrap; font-size:12px; padding:8px 10px; }
-}
-
-/* iOS standalone PWA: keep the header below the status bar / Dynamic Island. */
-@supports (padding-top: env(safe-area-inset-top)) {
-  .topbar{
-    padding-top:calc(14px + env(safe-area-inset-top, 0px));
-  }
-  #signOutBtn,
-  #wizardHomeBtn{
-    top:calc(14px + env(safe-area-inset-top, 0px));
-  }
 }
 
 /* ── SETUP BANNER ── */
@@ -1671,7 +1657,4141 @@ body.mode-business #homeResidentsSection{
   </div>
   <div class="finance-report-body">
     <div class="finance-report-controls">
-      <div class=…41979 tokens truncated…; } }
+      <div class="finance-report-controls-row">
+        <div class="finance-report-field">
+          <label>מתאריך</label>
+          <input type="date" id="financeReportFrom" class="ltr-input">
+        </div>
+        <div class="finance-report-field">
+          <label>עד תאריך</label>
+          <input type="date" id="financeReportTo" class="ltr-input">
+        </div>
+      </div>
+      <div class="finance-report-controls-row">
+        <div class="finance-report-field">
+          <label>שפת הדוח</label>
+          <select id="financeReportLang">
+            <option value="he">עברית</option>
+            <option value="ru">Русский</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+        <button type="button" id="financeReportRefreshBtn" class="finance-report-action-btn finance-report-refresh-btn">🔄 עדכון תצוגה</button>
+      </div>
+    </div>
+    <div class="receipt-preview-wrap" id="financeReportPaper"></div>
+    <div class="post-actions">
+      <button type="button" id="financeReportDownloadBtn">⬇ הורדת PDF</button>
+      <button type="button" id="financeReportShareBtn">↗ שיתוף PDF</button>
+    </div>
+    <div class="msg" id="financeReportMsg"></div>
+  </div>
+</div>
+
+<!-- CUSTOM APP DIALOG (replaces native confirm()/alert() which show the site's URL) -->
+<div class="app-dialog-bg" id="appDialogBg">
+  <div class="app-dialog">
+    <div class="app-dialog-icon" id="appDialogIcon">❓</div>
+    <div class="app-dialog-text" id="appDialogText"></div>
+    <div class="app-dialog-actions">
+      <button type="button" id="appDialogConfirmBtn">אישור</button>
+      <button type="button" id="appDialogCancelBtn">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<div class="tour-overlay" id="tourOverlay">
+  <div class="tour-spotlight" id="tourSpotlight"></div>
+  <div class="tour-tooltip" id="tourTooltip">
+    <div class="tour-step-counter" id="tourStepCounter"></div>
+    <h4 id="tourTitle"></h4>
+    <p id="tourText"></p>
+    <div class="tour-tooltip-actions">
+      <button type="button" id="tourSkipBtn" class="tour-btn-ghost">דילוג</button>
+      <div style="flex:1"></div>
+      <button type="button" id="tourPrevBtn" class="tour-btn-ghost">הקודם</button>
+      <button type="button" id="tourNextBtn" class="tour-btn-primary">הבא</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* Real viewport height fallback — some mobile browsers still don't fully
+   respect 100dvh; this measures the actual visible height directly and
+   exposes it as --app-vh, which the CSS above prefers when available. */
+function setAppViewportHeight(){
+  document.documentElement.style.setProperty('--app-vh', window.innerHeight + 'px');
+}
+setAppViewportHeight();
+window.addEventListener('resize', setAppViewportHeight);
+window.addEventListener('resize', ()=>{
+  if(typeof wizardIndex!=='undefined' && wizardIndex===WIZARD_STEP_COUNT-1) refreshPreview();
+});
+window.addEventListener('orientationchange', setAppViewportHeight);
+
+/* ═══════════════════════════════════════
+   SHARED APP CREDENTIALS (fixed — not per-customer)
+   These identify the *app* to Google, not any person's data. Every customer
+   authenticates with their own Google account; OAuth (drive.file scope) only
+   ever grants access to files that customer opens inside this app.
+═══════════════════════════════════════ */
+const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.googleusercontent.com';
+const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
+
+/* ═══════════════════════════════════════
+   LICENSE CHECK (controlled by Roi, not Google)
+   Points at a private Apps Script Web App that reads a licenses sheet only
+   Roi can see. See license-check-apps-script.gs for the server-side code.
+═══════════════════════════════════════ */
+// Bump this string on every deploy — shown at the bottom of Settings and
+// logged to the console at boot, so it's easy to check whether a given
+// device (especially an installed PWA shortcut, which can cache the page
+// shell more stubbornly than a regular browser tab) is actually running the
+// latest version or a stale cached copy.
+const APP_BUILD = '198';
+
+/* KABCLICK SERVICE WORKER - Build 198
+   Keep the local app shell available so the installed PWA/TWA can start offline. */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js', { updateViaCache:'none' })
+      .then(reg => {
+        console.log('[קבקליק] Service Worker active:', reg.scope);
+        reg.update().catch(() => {});
+      })
+      .catch(err => {
+        console.warn('[קבקליק] Service Worker registration failed:', err);
+      });
+  });
+}
+console.log('[קבקליק] גרסה:', APP_BUILD);
+
+/* KABCLICK OFFLINE STATUS - Build 175 */
+function ensureOfflineBanner(){
+  let banner = document.getElementById('offlineStatusBanner');
+
+  if(banner) return banner;
+
+  banner = document.createElement('div');
+  banner.id = 'offlineStatusBanner';
+
+  Object.assign(banner.style,{
+    position:'fixed',
+    top:'0',
+    left:'0',
+    right:'0',
+    zIndex:'9999',
+    padding:'9px 16px',
+    background:'#fff3cd',
+    color:'#664d03',
+    borderBottom:'1px solid #ffecb5',
+    textAlign:'center',
+    fontSize:'13px',
+    fontWeight:'700',
+    direction:'rtl',
+    display:'none'
+  });
+
+  banner.textContent =
+    'אין כרגע חיבור לרשת - מוצגים הנתונים מהסנכרון האחרון.';
+
+  document.body.appendChild(banner);
+
+  return banner;
+}
+
+/* KABCLICK OFFLINE READ-ONLY GUARD - Build 177 */
+async function showOfflineReadOnlyMessage(){
+  await showAppAlert(
+    'אין כרגע חיבור לאינטרנט. האפליקציה פועלת במצב צפייה בלבד. ניתן לצפות בנתונים האחרונים שנשמרו, אך לא ניתן לבצע שינויים עד לחזרת החיבור.',
+    ''
+  );
+}
+
+function offlineWriteBlocked(){
+  return !navigator.onLine;
+}
+
+/*
+ * UI safety layer:
+ * blocks buttons that create/update/delete cloud data while offline.
+ * The underlying receipt write also has its own second safety layer.
+ */
+document.addEventListener('click', async function(e){
+  if(navigator.onLine) return;
+
+  const blocked = e.target.closest(
+    '#finSaveBtn,' +
+    '#modalSave,' +
+    '#rmmAddBtn,' +
+    '#remSaveBtn,' +
+    '.rmm-edit-btn,' +
+    '.rmm-del-btn,' +
+    '.finance-edit-btn,' +
+    '.finance-delete-btn,' +
+    '[data-fin-action="edit"],' +
+    '[data-fin-action="delete"],' +
+    '.home-resident-menu-remind'
+  );
+
+  if(!blocked) return;
+
+  e.preventDefault();
+  e.stopPropagation();
+  e.stopImmediatePropagation();
+
+  await showOfflineReadOnlyMessage();
+}, true);
+function updateNetworkStatus(){
+  const banner = ensureOfflineBanner();
+
+  if(!navigator.onLine){
+    banner.style.display = 'block';
+    loadOfflineDataSnapshot();
+    console.log('[קבקליק] Offline mode active');
+    return;
+  }
+
+  banner.style.display = 'none';
+}
+
+window.addEventListener('offline', ()=>{
+  updateNetworkStatus();
+});
+
+window.addEventListener('online', async ()=>{
+  const banner = ensureOfflineBanner();
+
+  banner.style.display = 'block';
+  banner.style.background = '#d1e7dd';
+  banner.style.color = '#0f5132';
+  banner.style.borderBottomColor = '#badbcc';
+  banner.textContent = 'החיבור לרשת חזר - מעדכן נתונים...';
+
+  try{
+    await loadResidents();
+    await loadAllReceiptRows();
+
+    banner.textContent = 'החיבור חזר - הנתונים עודכנו בהצלחה ';
+
+    setTimeout(()=>{
+      banner.style.display = 'none';
+      banner.style.background = '#fff3cd';
+      banner.style.color = '#664d03';
+      banner.style.borderBottomColor = '#ffecb5';
+      banner.textContent =
+        'אין כרגע חיבור לרשת - מוצגים הנתונים מהסנכרון האחרון.';
+    },2500);
+
+  }catch(e){
+    console.warn('[קבקליק] Reconnect refresh failed:', e);
+    updateNetworkStatus();
+  }
+});
+
+window.addEventListener('load', ()=>{
+  updateNetworkStatus();
+});
+
+const LICENSE_API_URL = 'https://script.google.com/macros/s/AKfycbyjqgw1UmG2PT0SRl2M3DLK4uDN2UBuUZLTzese1jUVqyinYTR7AJ3XnMCSi2CnhtN2/exec';
+const LICENSE_SECRET  = 'vaad17-Lk9mQ2xR8pT4vN6z';
+const LICENSE_CACHE_KEY = 'vaad_license_cache';
+const LICENSE_CACHE_TTL_MS = 6*60*60*1000; // recheck at most every 6 hours
+
+/* KABCLICK OFFLINE BOOT - Build 175 */
+function tryOfflineBoot(){
+  if(navigator.onLine) return false;
+
+  const email = loadLastEmail();
+  if(!email) return false;
+
+  // Read the saved license directly because the normal helper deliberately
+  // expires its cache after a few hours. Offline access is allowed only for
+  // a previously approved account and only for a limited period.
+  let savedLicense = null;
+  try{
+    savedLicense = JSON.parse(localStorage.getItem(LICENSE_CACHE_KEY) || 'null');
+  }catch(e){}
+
+  const OFFLINE_LOGIN_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+  if(
+    !savedLicense ||
+    savedLicense.email !== email ||
+    savedLicense.allowed !== true ||
+    !savedLicense.checkedAt ||
+    (Date.now() - savedLicense.checkedAt) > OFFLINE_LOGIN_MAX_AGE_MS
+  ){
+    return false;
+  }
+
+  console.log('[קבקליק] Starting verified offline session for:', email);
+
+  applyAccountAfterLicense(email);
+
+  const restored = loadOfflineDataSnapshot();
+
+  if(restored){
+    applyBranding();
+    applyModeTerminology();
+    showHomeScreen();
+    refreshRecentResidents();
+    validateForm();
+  }
+
+  updateNetworkStatus();
+  return restored;
+}
+
+window.addEventListener('load', ()=>{
+  tryOfflineBoot();
+});
+
+/* Accepts either a full Google Sheets/Drive URL or a bare ID and returns the ID. */
+function extractSheetId(input){
+  const s=(input||'').trim();
+  const m=s.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  return m ? m[1] : s;
+}
+function extractFolderId(input){
+  const s=(input||'').trim();
+  const m=s.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+  return m ? m[1] : s;
+}
+/* ═══════════════════════════════════════
+   CONFIG & STORAGE
+═══════════════════════════════════════ */
+const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email';
+function residentsSheetName(){ return CFG.usageMode==='business' ? 'לקוחות' : 'אנשי קשר'; }
+const RECEIPTS_SHEET  = 'קבלות';
+/**
+ * The receipts log's column layout differs by mode: vaad needs a "מספר
+ * חודשים" column (meaningful for monthly dues), business doesn't (every
+ * receipt is a one-off "מטרה" and that column would always read 0). Since a
+ * vaad account and a business account always live in separate spreadsheets
+ * (never shared), each can safely have its own column count/order.
+ */
+function receiptSheetLayout(){
+  if(CFG.usageMode==='business'){
+    return {
+      lastCol:'I',
+      header:['תאריך הפקה','שם לקוח','טלפון','מטרה','סכום כולל','אמצעי תשלום','מספר קבלה','שם קובץ','קישור לקובץ'],
+      receiptNumIdx:6
+    };
+  }
+  return {
+    lastCol:'J',
+    header:['תאריך הפקה','שם דייר','טלפון','חודשים / מטרה','מספר חודשים','סכום כולל','אמצעי תשלום','מספר קבלה','שם קובץ','קישור לקובץ'],
+    receiptNumIdx:7
+  };
+}
+const SETTINGS_SHEET  = 'הגדרות';
+const MONTH_NAMES = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+
+function loadCfg(){
+  let c;
+  try{ c = JSON.parse(localStorage.getItem('vaad_generic_cfg')||'{}'); }
+  catch(e){ c = {}; }
+  // Migrate old installs that still have separate buildingName/buildingAddr
+  // into the new single buildingInfo field, so existing setups keep working.
+  if(!c.buildingInfo && (c.buildingName || c.buildingAddr)){
+    c.buildingInfo = [c.buildingName, c.buildingAddr].filter(Boolean).join(', ');
+  }
+  return c;
+}
+function saveCfg(c){ localStorage.setItem('vaad_generic_cfg', JSON.stringify(c)); }
+
+/* ─── Per-account, per-mode settings ───────────────────────────────────
+   Every Google account gets its own sheet/folder/building-info per usage
+   mode, keyed by email. This is what lets the same device be used with
+   multiple accounts (or one account switching between vaad/business)
+   without one overwriting the other's data. */
+function accountCfgKey(email, mode){ return `kabklik_cfg::${email}::${mode}`; }
+function accountModeKey(email){ return `kabklik_lastmode::${email}`; }
+
+function currentCalendarYear(){
+  return new Date().getFullYear();
+}
+
+function normalizeYearWorkspaces(saved){
+  const result = {};
+  const existing = saved && saved.yearWorkspaces && typeof saved.yearWorkspaces==='object'
+    ? saved.yearWorkspaces
+    : {};
+
+  Object.keys(existing).forEach(year=>{
+    const y = parseInt(year,10);
+    const ws = existing[year];
+    if(y && ws && ws.spreadsheetId && ws.folderId){
+      result[String(y)] = {
+        spreadsheetId: ws.spreadsheetId,
+        folderId: ws.folderId
+      };
+    }
+  });
+
+  // Migration from Build 187 and earlier:
+  // the currently-connected workspace becomes the current calendar year.
+  if(
+    saved &&
+    saved.spreadsheetId &&
+    saved.folderId &&
+    !Object.values(result).some(ws =>
+      ws.spreadsheetId===saved.spreadsheetId &&
+      ws.folderId===saved.folderId
+    )
+  ){
+    const legacyYear = parseInt(saved.activeYear,10) || currentCalendarYear();
+    result[String(legacyYear)] = {
+      spreadsheetId:saved.spreadsheetId,
+      folderId:saved.folderId
+    };
+  }
+
+  return result;
+}
+
+function seriesIdFromSpreadsheetId(spreadsheetId){
+  const id=(spreadsheetId||'')
+    .toString()
+    .replace(/[^A-Za-z0-9_-]/g,'');
+
+  return id ? 'series_'+id : '';
+}
+
+function ensureLocalWorkspaceSeriesId(){
+  if(CFG.seriesId) return CFG.seriesId;
+
+  const known = Object.entries(CFG.yearWorkspaces || {})
+    .map(([year,ws])=>({
+      year:parseInt(year,10),
+      spreadsheetId:ws?.spreadsheetId || ''
+    }))
+    .filter(x=>x.year && x.spreadsheetId)
+    .sort((a,b)=>a.year-b.year);
+
+  // During migration the oldest known annual spreadsheet is the stable
+  // identity of this KabClick dataset. All later years inherit it.
+  const seed =
+    known[0]?.spreadsheetId ||
+    CFG.spreadsheetId ||
+    '';
+
+  const seriesId = seriesIdFromSpreadsheetId(seed);
+  if(!seriesId) return '';
+
+  CFG.seriesId = seriesId;
+  persistCurrentAccountCfg();
+
+  return seriesId;
+}
+
+function loadAccountCfg(email, mode){
+  try{ return JSON.parse(localStorage.getItem(accountCfgKey(email, mode))||'null'); }
+  catch(e){ return null; }
+}
+function saveAccountCfg(email, mode, data){
+  try{ localStorage.setItem(accountCfgKey(email, mode), JSON.stringify(data)); }catch(e){}
+}
+function loadLastMode(email){
+  try{ return localStorage.getItem(accountModeKey(email)) || null; }catch(e){ return null; }
+}
+function saveLastMode(email, mode){
+  try{ localStorage.setItem(accountModeKey(email), mode); }catch(e){}
+}
+/** Saves the live CFG fields into this account+mode's own bucket. */
+function persistCurrentAccountCfg(){
+  if(!CFG.email || !CFG.usageMode) return;
+
+  CFG.activeYear = parseInt(CFG.activeYear,10) || currentCalendarYear();
+  CFG.yearWorkspaces =
+    CFG.yearWorkspaces && typeof CFG.yearWorkspaces==='object'
+      ? CFG.yearWorkspaces
+      : {};
+
+  if(CFG.spreadsheetId && CFG.folderId){
+    CFG.yearWorkspaces[String(CFG.activeYear)] = {
+      spreadsheetId:CFG.spreadsheetId,
+      folderId:CFG.folderId
+    };
+  }else{
+    delete CFG.yearWorkspaces[String(CFG.activeYear)];
+  }
+
+  saveAccountCfg(CFG.email, CFG.usageMode, {
+    spreadsheetId:  CFG.spreadsheetId  || '',
+    folderId:       CFG.folderId       || '',
+    activeYear:     CFG.activeYear,
+    yearWorkspaces: CFG.yearWorkspaces,
+    seriesId:       CFG.seriesId || '',
+    buildingInfo:   CFG.buildingInfo   || '',
+    businessNumber: CFG.businessNumber || '',
+    logoUrl:        CFG.logoUrl        || '',
+    defaultFee:     CFG.defaultFee     || 140,
+    businessDefaultAmount:     CFG.businessDefaultAmount     || '',
+    businessDefaultAmountAuto: CFG.businessDefaultAmountAuto || false,
+    businessTaxType: CFG.businessTaxType || 'exempt',
+    vatRate: Number.isFinite(Number(CFG.vatRate)) ? Number(CFG.vatRate) : 18,
+    nextReceiptNumber: CFG.nextReceiptNumber || 1000,
+    financeOpeningBalance: CFG.financeOpeningBalance || 0,
+    financeOpeningBalanceDate: CFG.financeOpeningBalanceDate || ''
+  });
+}
+/**
+ * One-time migration for installs from before per-account separation
+ * existed: if this email has no saved config in ANY mode yet, but the old
+ * single global config has real data in it, adopt it as this account's
+ * starting point (in whichever mode it was already set up for) — so nobody's
+ * existing sheet/folder connection is lost when this update ships.
+ */
+function migrateLegacyCfgIfNeeded(email){
+  if(loadAccountCfg(email,'vaad') || loadAccountCfg(email,'business')) return;
+  let legacy;
+  try{ legacy = JSON.parse(localStorage.getItem('vaad_generic_cfg')||'null'); }catch(e){ legacy = null; }
+  if(legacy && (legacy.spreadsheetId || legacy.folderId || legacy.buildingInfo)){
+    const mode = legacy.usageMode || 'vaad';
+    saveAccountCfg(email, mode, {
+      spreadsheetId:  legacy.spreadsheetId  || '',
+      folderId:       legacy.folderId       || '',
+      buildingInfo:   legacy.buildingInfo   || '',
+      businessNumber: legacy.businessNumber || '',
+      logoUrl:        legacy.logoUrl        || '',
+      defaultFee:     legacy.defaultFee     || 140
+    });
+    saveLastMode(email, mode);
+  }
+}
+/** Loads this account+mode's saved sheet/folder/branding into the live CFG. */
+function applyAccountAndMode(email, mode){
+  CFG.email     = email;
+  CFG.usageMode = mode;
+
+  const saved = loadAccountCfg(email, mode) || {};
+  const workspaces = normalizeYearWorkspaces(saved);
+  const years = Object.keys(workspaces)
+    .map(Number)
+    .filter(Number.isFinite)
+    .sort((a,b)=>b-a);
+
+  let activeYear = parseInt(saved.activeYear,10) || currentCalendarYear();
+  if(!workspaces[String(activeYear)] && years.length){
+    activeYear = workspaces[String(currentCalendarYear())]
+      ? currentCalendarYear()
+      : years[0];
+  }
+
+  const activeWorkspace = workspaces[String(activeYear)] || {};
+
+  CFG.seriesId = (saved.seriesId || '').toString().trim();
+  CFG.pendingSeriesId = '';
+
+  CFG.activeYear = activeYear;
+  CFG.yearWorkspaces = workspaces;
+  CFG.spreadsheetId = activeWorkspace.spreadsheetId || saved.spreadsheetId || '';
+  CFG.folderId = activeWorkspace.folderId || saved.folderId || '';
+  CFG.buildingInfo   = saved.buildingInfo   || '';
+  CFG.businessNumber = saved.businessNumber || '';
+  CFG.logoUrl        = saved.logoUrl        || '';
+  CFG.defaultFee     = saved.defaultFee     || 140;
+  CFG.businessDefaultAmount     = saved.businessDefaultAmount     || '';
+  CFG.businessDefaultAmountAuto = saved.businessDefaultAmountAuto || false;
+  CFG.businessTaxType = saved.businessTaxType || 'exempt';
+  CFG.vatRate = Number.isFinite(Number(saved.vatRate)) ? Number(saved.vatRate) : 18;
+  CFG.nextReceiptNumber = saved.nextReceiptNumber || 1000;
+  CFG.financeOpeningBalance = saved.financeOpeningBalance || 0;
+  CFG.financeOpeningBalanceDate = saved.financeOpeningBalanceDate || '';
+
+  saveLastMode(email, mode);
+  persistCurrentAccountCfg();
+  applyBranding();
+  applyModeTerminology();
+}
+/** Reloads sheet-backed data (residents/receipts) for whatever is now in
+ *  CFG, or clears stale data from a previous account/mode if nothing is
+ *  configured yet for this one. */
+/* ─── Cross-device Drive recovery ──────────────────────────────────────
+   localStorage is only a fast local cache. Drive/Sheets is the recoverable
+   source of truth for the KabClick connection. */
+async function stampKabClickDriveIdentity(){
+  if(!navigator.onLine) return;
+
+  if(
+    !accessToken ||
+    !CFG.spreadsheetId ||
+    !CFG.folderId ||
+    !CFG.usageMode
+  ) return;
+
+  const seriesId = ensureLocalWorkspaceSeriesId();
+  if(!seriesId) return;
+
+  try{
+    gapi.client.setToken({access_token:accessToken});
+
+    await Promise.all([
+      gapi.client.drive.files.update({
+        fileId:CFG.spreadsheetId,
+        resource:{appProperties:{
+          kabclick:'1',
+          kind:'sheet',
+          mode:CFG.usageMode,
+          year:String(CFG.activeYear||currentCalendarYear()),
+          seriesId
+        }}
+      }),
+
+      gapi.client.drive.files.update({
+        fileId:CFG.folderId,
+        resource:{appProperties:{
+          kabclick:'1',
+          kind:'receipts-folder',
+          mode:CFG.usageMode,
+          year:String(CFG.activeYear||currentCalendarYear()),
+          seriesId
+        }}
+      })
+    ]);
+  }catch(e){
+    console.warn(
+      '[קבקליק] סימון קבצי Drive לזיהוי עתידי נכשל:',
+      e
+    );
+  }
+}
+
+async function stampKnownYearWorkspacesSeriesIdentity(){
+  if(
+    !navigator.onLine ||
+    !accessToken ||
+    !CFG.usageMode
+  ) return;
+
+  const seriesId = ensureLocalWorkspaceSeriesId();
+  if(!seriesId) return;
+
+  const entries = Object.entries(CFG.yearWorkspaces || {})
+    .filter(([,ws])=>
+      ws?.spreadsheetId &&
+      ws?.folderId
+    );
+
+  if(!entries.length) return;
+
+  gapi.client.setToken({access_token:accessToken});
+
+  const jobs = [];
+
+  entries.forEach(([year,ws])=>{
+    jobs.push(
+      gapi.client.drive.files.update({
+        fileId:ws.spreadsheetId,
+        resource:{appProperties:{
+          kabclick:'1',
+          kind:'sheet',
+          mode:CFG.usageMode,
+          year:String(year),
+          seriesId
+        }}
+      })
+    );
+
+    jobs.push(
+      gapi.client.drive.files.update({
+        fileId:ws.folderId,
+        resource:{appProperties:{
+          kabclick:'1',
+          kind:'receipts-folder',
+          mode:CFG.usageMode,
+          year:String(year),
+          seriesId
+        }}
+      })
+    );
+  });
+
+  const results = await Promise.allSettled(jobs);
+
+  const failed =
+    results.filter(r=>r.status==='rejected');
+
+  if(failed.length){
+    console.warn(
+      '[קבקליק] חלק מקבצי שנות העבודה לא קיבלו seriesId:',
+      failed.map(r=>r.reason)
+    );
+  }
+}
+
+async function readKabClickSettingsFromCandidate(spreadsheetId){
+  try{
+    const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId});
+    const titles = (meta.result.sheets||[]).map(s=>s.properties.title);
+    const inferredMode = titles.includes('לקוחות') ? 'business' : (titles.includes('אנשי קשר') ? 'vaad' : '');
+    if(!inferredMode) return null;
+
+    const map = {};
+    if(titles.includes(SETTINGS_SHEET)){
+      try{
+        const res = await gapi.client.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range:`'${SETTINGS_SHEET}'!A:B`
+        });
+        (res.result.values||[]).forEach(r=>{
+          const k=(r[0]||'').toString().trim();
+          if(k) map[k]=(r[1]||'').toString().trim();
+        });
+      }catch(e){}
+    }
+
+    const storedMode = map['סוג חשבון'] || '';
+    const mode = (storedMode==='vaad'||storedMode==='business') ? storedMode : inferredMode;
+
+    return {
+      spreadsheetId,
+      mode,
+      year: parseInt(map['שנת עבודה'],10) || null,
+      buildingInfo: map['שם/כתובת בניין'] || '',
+      folderId: map['FolderId'] || '',
+      businessNumber: map['מספר עסק'] || '',
+      logoUrl: map['קישור ללוגו'] || '',
+      defaultFee: parseFloat(map['מחיר ברירת מחדל']) || 140,
+      businessDefaultAmount: parseFloat(map['סכום ברירת מחדל לעסק']) || '',
+      businessDefaultAmountAuto: map['סכום עסק אוטומטי']==='1' || (map['סכום עסק אוטומטי']||'').toLowerCase()==='true',
+      businessTaxType: map['סוג עסק לצורכי מע"מ'] || 'exempt',
+      vatRate: Number.isFinite(parseFloat(map['שיעור מע"מ'])) ? parseFloat(map['שיעור מע"מ']) : 18,
+      nextReceiptNumber: parseInt(map['מספר הקבלה הבא'],10) || 1000,
+      financeOpeningBalance: parseFloat(map['יתרת פתיחה (הוצאות/הכנסות)']) || 0,
+      financeOpeningBalanceDate: map['תאריך יתרת פתיחה'] || ''
+    };
+  }catch(e){
+    return null;
+  }
+}
+
+async function recoverKabClickConnectionFromDrive(email, mode){
+
+  if(!accessToken || !email || !mode) return false;
+
+  const existing = loadAccountCfg(email, mode);
+  if(existing && existing.spreadsheetId && existing.folderId) return true;
+
+  try{
+    gapi.client.setToken({access_token:accessToken});
+
+    const fields = 'files(id,name,mimeType,appProperties,trashed,modifiedTime)';
+    const strict = await gapi.client.drive.files.list({
+      q:`trashed=false and mimeType='application/vnd.google-apps.spreadsheet' and appProperties has { key='kabclick' and value='1' } and appProperties has { key='mode' and value='${mode}' }`,
+      fields,
+      orderBy:'modifiedTime desc',
+      pageSize:100
+    });
+
+    let files = strict.result.files || [];
+
+    // Legacy fallback: KabClick-created sheets from before appProperties existed.
+    if(!files.length){
+      const legacy = await gapi.client.drive.files.list({
+        q:`trashed=false and mimeType='application/vnd.google-apps.spreadsheet' and name contains 'קבקליק'`,
+        fields,
+        orderBy:'modifiedTime desc',
+        pageSize:100
+      });
+      files = legacy.result.files || [];
+    }
+
+    let matches = [];
+    for(const f of files){
+      const candidate = await readKabClickSettingsFromCandidate(f.id);
+      if(candidate && candidate.mode===mode){
+        const taggedYear = parseInt(f.appProperties?.year,10) || null;
+        const nameMatch = (f.name||'').match(/(?:^|\s|-)(20\d{2})(?:$|\s|-)/);
+        candidate.year =
+          taggedYear ||
+          candidate.year ||
+          (nameMatch ? parseInt(nameMatch[1],10) : null);
+
+        matches.push({
+          ...candidate,
+          driveName:f.name,
+          seriesId:(f.appProperties?.seriesId||'')
+            .toString()
+            .trim()
+        });
+      }
+    }
+
+    if(matches.length===0) return false;
+
+    const savedSeriesId =
+      (existing?.seriesId || '')
+        .toString()
+        .trim();
+
+    const taggedSeriesIds = [
+      ...new Set(
+        matches
+          .map(m=>m.seriesId)
+          .filter(Boolean)
+      )
+    ];
+
+    let selectedSeriesId = savedSeriesId;
+
+    if(savedSeriesId){
+      matches =
+        matches.filter(m=>m.seriesId===savedSeriesId);
+
+      if(!matches.length){
+        console.warn(
+          '[קבקליק] seriesId שמור לא נמצא ב-Drive:',
+          savedSeriesId
+        );
+        return false;
+      }
+
+    }else if(taggedSeriesIds.length===1){
+
+      selectedSeriesId = taggedSeriesIds[0];
+
+      matches =
+        matches.filter(
+          m=>m.seriesId===selectedSeriesId
+        );
+
+    }else if(taggedSeriesIds.length>1){
+
+      console.warn(
+        '[קבקליק] נמצאו כמה סדרות קבקליק מאותו סוג:',
+        taggedSeriesIds
+      );
+
+      showMsg(
+        'נמצאו כמה סביבות קבקליק מאותו סוג ב-Google Drive. לא בוצע חיבור אוטומטי כדי למנוע ערבוב בין בניינים או עסקים שונים.',
+        'error'
+      );
+
+      return false;
+
+    }else if(matches.length>1){
+
+      // Build 187 and earlier normally contain one workspace per mode.
+      // If several untagged legacy environments exist, never guess.
+      console.warn(
+        '[קבקליק] נמצאו כמה סביבות ישנות ללא seriesId:',
+        matches.map(m=>m.driveName)
+      );
+
+      showMsg(
+        'נמצאו כמה סביבות קבקליק ישנות מאותו סוג ב-Google Drive. לא בוצע חיבור אוטומטי כדי למנוע חיבור לנתונים הלא נכונים.',
+        'error'
+      );
+
+      return false;
+    }
+
+    // A single legacy workspace can be migrated safely.
+    if(!selectedSeriesId){
+      selectedSeriesId =
+        seriesIdFromSpreadsheetId(
+          matches[0].spreadsheetId
+        );
+    }
+
+    // Several YEARS inside one series are valid.
+    // Several sheets for the SAME year are not.
+    const grouped = {};
+
+    matches.forEach(m=>{
+      const key =
+        m.year ? String(m.year) : 'unknown';
+
+      grouped[key] = grouped[key] || [];
+      grouped[key].push(m);
+    });
+
+    const ambiguous =
+      Object.entries(grouped)
+        .find(([,list])=>list.length>1);
+
+    if(ambiguous){
+      console.warn(
+        '[קבקליק] נמצאו כמה סביבות לאותה שנה בתוך אותה סדרה:',
+        ambiguous[0],
+        ambiguous[1].map(m=>m.driveName)
+      );
+
+      showMsg(
+        'נמצאו כמה סביבות קבקליק לאותה שנה ב-Google Drive. לא בוצע חיבור אוטומטי כדי למנוע ערבוב נתונים.',
+        'error'
+      );
+
+      return false;
+    }
+
+    matches.sort(
+      (a,b)=>
+        (Number(b.year)||0) -
+        (Number(a.year)||0)
+    );
+
+    const found =
+      matches.find(
+        m=>
+          Number(m.year)===
+          currentCalendarYear()
+      ) ||
+      matches[0];
+
+    found.year =
+      found.year ||
+      currentCalendarYear();
+
+    async function recoverFolderIdFromReceiptPdf(spreadsheetId){
+      try{
+        const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId});
+        const receiptsSheet = (meta.result.sheets||[]).find(
+          s => s.properties.title===RECEIPTS_SHEET
+        );
+        if(!receiptsSheet) return '';
+
+        const rowsRes = await gapi.client.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range:`'${RECEIPTS_SHEET}'!A2:Z`
+        });
+
+        const rows = rowsRes.result.values || [];
+        if(!rows.length) return '';
+
+        const urls = [];
+        for(const row of rows){
+          for(const cell of row){
+            const value = (cell||'').toString().trim();
+            if(
+              value.includes('drive.google.com') ||
+              value.includes('docs.google.com') ||
+              value.includes('googleusercontent.com')
+            ){
+              urls.push(value);
+            }
+          }
+        }
+
+        function extractDriveFileId(url){
+          const patterns = [
+            /\/file\/d\/([a-zA-Z0-9_-]+)/,
+            /[?&]id=([a-zA-Z0-9_-]+)/,
+            /\/d\/([a-zA-Z0-9_-]+)/
+          ];
+          for(const pattern of patterns){
+            const m = url.match(pattern);
+            if(m) return m[1];
+          }
+          return '';
+        }
+
+        const candidateParents = new Set();
+
+        for(const url of urls){
+          const fileId = extractDriveFileId(url);
+          if(!fileId) continue;
+
+          try{
+            const fileRes = await gapi.client.drive.files.get({
+              fileId,
+              fields:'id,parents,trashed,mimeType'
+            });
+
+            const file = fileRes.result;
+            if(file.trashed) continue;
+
+            for(const parentId of (file.parents||[])){
+              try{
+                const parentRes = await gapi.client.drive.files.get({
+                  fileId:parentId,
+                  fields:'id,mimeType,trashed'
+                });
+
+                if(
+                  !parentRes.result.trashed &&
+                  parentRes.result.mimeType==='application/vnd.google-apps.folder'
+                ){
+                  candidateParents.add(parentId);
+                }
+              }catch(e){}
+            }
+          }catch(e){}
+        }
+
+        if(candidateParents.size===1){
+          return [...candidateParents][0];
+        }
+
+        if(candidateParents.size>1){
+          console.warn(
+            '[קבקליק] נמצאו כמה תיקיות אב אפשריות מתוך קבלות קיימות:',
+            [...candidateParents]
+          );
+        }
+
+        return '';
+      }catch(e){
+        console.warn('[קבקליק] שחזור FolderId מתוך קבלה קיימת נכשל:', e);
+        return '';
+      }
+    }
+
+    if(!found.folderId){
+      found.folderId = await recoverFolderIdFromReceiptPdf(found.spreadsheetId);
+
+      if(found.folderId){
+        console.log(
+          '[קבקליק] FolderId שוחזר מתוך קבלה קיימת:',
+          found.folderId
+        );
+      } else {
+        console.warn(
+          '[קבקליק] נמצא גיליון אך לא ניתן היה לשחזר FolderId:',
+          found.driveName
+        );
+        return false;
+      }
+    }
+
+    const folderChk = await gapi.client.drive.files.get({
+      fileId:found.folderId,
+      fields:'id,trashed'
+    });
+    if(folderChk.result.trashed) return false;
+
+    const recoveredYears = {};
+    matches.forEach(m=>{
+      if(m.year && m.spreadsheetId && m.folderId){
+        recoveredYears[String(m.year)] = {
+          spreadsheetId:m.spreadsheetId,
+          folderId:m.folderId
+        };
+      }
+    });
+    recoveredYears[String(found.year)] = {
+      spreadsheetId:found.spreadsheetId,
+      folderId:found.folderId
+    };
+
+    saveAccountCfg(email, mode, {
+      spreadsheetId:found.spreadsheetId,
+      folderId:found.folderId,
+      activeYear:found.year,
+      yearWorkspaces:recoveredYears,
+      seriesId:selectedSeriesId || '',
+      buildingInfo:found.buildingInfo,
+      businessNumber:found.businessNumber,
+      logoUrl:found.logoUrl,
+      defaultFee:found.defaultFee,
+      businessDefaultAmount:found.businessDefaultAmount,
+      businessDefaultAmountAuto:found.businessDefaultAmountAuto,
+      businessTaxType:found.businessTaxType || 'exempt',
+      vatRate:Number.isFinite(Number(found.vatRate)) ? Number(found.vatRate) : 18,
+      nextReceiptNumber:Math.max(...matches.map(m=>Number(m.nextReceiptNumber)||1000)),
+      financeOpeningBalance:found.financeOpeningBalance,
+      financeOpeningBalanceDate:found.financeOpeningBalanceDate
+    });
+
+    saveLastMode(email, mode);
+    applyAccountAndMode(email, mode);
+
+    await stampKabClickDriveIdentity();
+    await stampKnownYearWorkspacesSeriesIdentity();
+
+    console.log('[קבקליק] החיבור שוחזר אוטומטית מ-Google Drive:', found.driveName);
+    return true;
+  }catch(e){
+    console.warn('[קבקליק] שחזור החיבור מ-Google Drive נכשל:', e);
+    return false;
+  }
+}
+/* ─── Annual workspaces - Build 188 ──────────────────────────────── */
+const annualWorkspacePromises = {};
+
+function registerYearWorkspace(year, spreadsheetId, folderId){
+  const y = parseInt(year,10);
+  if(!y || !spreadsheetId || !folderId) return;
+
+  CFG.yearWorkspaces =
+    CFG.yearWorkspaces && typeof CFG.yearWorkspaces==='object'
+      ? CFG.yearWorkspaces
+      : {};
+
+  CFG.yearWorkspaces[String(y)] = {spreadsheetId, folderId};
+}
+
+function renderYearSelector(){
+  const row = document.getElementById('homeYearRow');
+  const select = document.getElementById('homeYearSelect');
+  if(!row || !select) return;
+
+  const years = Object.keys(CFG.yearWorkspaces || {})
+    .map(Number)
+    .filter(Number.isFinite)
+    .sort((a,b)=>b-a);
+
+  if(!CFG.email || !CFG.usageMode || !years.length){
+    row.hidden = true;
+    row.style.display = 'none';
+    select.innerHTML = '';
+    return;
+  }
+
+  row.hidden = false;
+  row.style.display = 'flex';
+  select.innerHTML = years.map(y=>`<option value="${y}">${y}</option>`).join('');
+  select.value = String(parseInt(CFG.activeYear,10) || years[0]);
+
+  if(select.dataset.bound) return;
+  select.dataset.bound = '1';
+
+  select.addEventListener('change', async ()=>{
+    const year = parseInt(select.value,10);
+    const workspace = (CFG.yearWorkspaces || {})[String(year)];
+
+    if(!year || !workspace){
+      renderYearSelector();
+      return;
+    }
+
+    if(year===Number(CFG.activeYear)) return;
+
+    if(!navigator.onLine || !accessToken){
+      await showAppAlert('כדי לעבור בין שנות נתונים יש להתחבר ל-Google ולהיות מחוברים לאינטרנט.','⚠️');
+      renderYearSelector();
+      return;
+    }
+
+    select.disabled = true;
+    try{
+      await activateYearWorkspace(year, workspace, true);
+      showMsg(`מציג נתונים לשנת ${year}.`,'ok');
+    }catch(e){
+      console.warn('[קבקליק] מעבר בין שנים נכשל:', e);
+      await showAppAlert('לא ניתן היה לטעון את שנת '+year+'.','⚠️');
+    }finally{
+      select.disabled = false;
+      renderYearSelector();
+    }
+  });
+}
+
+async function discoverAnnualWorkspacesFromDrive(){
+  if(
+    !navigator.onLine ||
+    !accessToken ||
+    !CFG.email ||
+    !CFG.usageMode
+  ) return;
+
+  const seriesId =
+    ensureLocalWorkspaceSeriesId();
+
+  if(!seriesId) return;
+
+  try{
+    gapi.client.setToken({
+      access_token:accessToken
+    });
+
+    const res =
+      await gapi.client.drive.files.list({
+        q:`trashed=false and mimeType='application/vnd.google-apps.spreadsheet' and appProperties has { key='kabclick' and value='1' } and appProperties has { key='mode' and value='${CFG.usageMode}' } and appProperties has { key='seriesId' and value='${seriesId}' }`,
+        fields:'files(id,name,appProperties,modifiedTime)',
+        orderBy:'modifiedTime desc',
+        pageSize:100
+      });
+
+    let changed = false;
+
+    for(const f of (res.result.files||[])){
+      const candidate =
+        await readKabClickSettingsFromCandidate(
+          f.id
+        );
+
+      if(
+        !candidate ||
+        candidate.mode!==CFG.usageMode ||
+        !candidate.folderId
+      ) continue;
+
+      const taggedYear =
+        parseInt(
+          f.appProperties?.year,
+          10
+        ) || null;
+
+      const nameMatch =
+        (f.name||'').match(
+          /(?:^|\s|-)(20\d{2})(?:$|\s|-)/
+        );
+
+      const year =
+        taggedYear ||
+        candidate.year ||
+        (
+          nameMatch
+            ? parseInt(nameMatch[1],10)
+            : null
+        );
+
+      if(!year) continue;
+
+      const current =
+        (CFG.yearWorkspaces || {})[
+          String(year)
+        ];
+
+      if(
+        !current ||
+        current.spreadsheetId!==f.id ||
+        current.folderId!==candidate.folderId
+      ){
+        registerYearWorkspace(
+          year,
+          f.id,
+          candidate.folderId
+        );
+
+        changed = true;
+      }
+
+      if(
+        (Number(candidate.nextReceiptNumber)||0) >
+        (CFG.nextReceiptNumber||1000)
+      ){
+        CFG.nextReceiptNumber =
+          Number(candidate.nextReceiptNumber);
+
+        changed = true;
+      }
+    }
+
+    if(changed){
+      persistCurrentAccountCfg();
+    }
+
+    renderYearSelector();
+
+  }catch(e){
+    console.warn(
+      '[קבקליק] גילוי שנות עבודה מ-Drive נכשל:',
+      e
+    );
+  }
+}
+
+async function activateYearWorkspace(year, workspace, loadData){
+  if(!workspace || !workspace.spreadsheetId || !workspace.folderId){
+    throw new Error('YEAR_WORKSPACE_INCOMPLETE');
+  }
+
+  CFG.activeYear = parseInt(year,10);
+  CFG.spreadsheetId = workspace.spreadsheetId;
+  CFG.folderId = workspace.folderId;
+  persistCurrentAccountCfg();
+
+  residents = [];
+  allReceiptRows = [];
+  if(typeof financeRows!=='undefined') financeRows = [];
+
+  applyBranding();
+  refreshWorkspaceOpenButtons();
+
+  if(loadData){
+    await loadDataForCurrentAccountMode();
+  }
+
+  renderYearSelector();
+}
+
+async function findYearWorkspaceOnDrive(year){
+  const y =
+    String(parseInt(year,10));
+
+  const seriesId =
+    ensureLocalWorkspaceSeriesId();
+
+  if(!seriesId){
+    throw new Error(
+      'WORKSPACE_SERIES_ID_MISSING'
+    );
+  }
+
+  gapi.client.setToken({
+    access_token:accessToken
+  });
+
+  const [sheetRes,folderRes] =
+    await Promise.all([
+
+      gapi.client.drive.files.list({
+        q:`trashed=false and mimeType='application/vnd.google-apps.spreadsheet' and appProperties has { key='kabclick' and value='1' } and appProperties has { key='mode' and value='${CFG.usageMode}' } and appProperties has { key='year' and value='${y}' } and appProperties has { key='seriesId' and value='${seriesId}' }`,
+        fields:'files(id,name,createdTime)',
+        orderBy:'createdTime asc',
+        pageSize:20
+      }),
+
+      gapi.client.drive.files.list({
+        q:`trashed=false and mimeType='application/vnd.google-apps.folder' and appProperties has { key='kabclick' and value='1' } and appProperties has { key='mode' and value='${CFG.usageMode}' } and appProperties has { key='year' and value='${y}' } and appProperties has { key='seriesId' and value='${seriesId}' }`,
+        fields:'files(id,name,createdTime)',
+        orderBy:'createdTime asc',
+        pageSize:20
+      })
+
+    ]);
+
+  const sheets =
+    sheetRes.result.files || [];
+
+  const folders =
+    folderRes.result.files || [];
+
+  // Never silently combine duplicate annual resources.
+  if(
+    sheets.length>1 ||
+    folders.length>1
+  ){
+    throw new Error(
+      'DUPLICATE_YEAR_WORKSPACE'
+    );
+  }
+
+  return {
+    spreadsheetId:sheets[0]?.id || '',
+    folderId:folders[0]?.id || ''
+  };
+}
+
+function sourceWorkspaceForYear(targetYear){
+  const years = Object.keys(CFG.yearWorkspaces || {})
+    .map(Number)
+    .filter(y=>Number.isFinite(y) && y<Number(targetYear))
+    .sort((a,b)=>b-a);
+
+  const sourceYear = years[0];
+  if(!sourceYear) return null;
+
+  return {
+    year:sourceYear,
+    ...(CFG.yearWorkspaces || {})[String(sourceYear)]
+  };
+}
+
+async function readAnnualSourceSnapshot(source){
+  if(!source || !source.spreadsheetId){
+    throw new Error('ANNUAL_SOURCE_MISSING');
+  }
+
+  const spreadsheetId = source.spreadsheetId;
+  const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId});
+  const titles = (meta.result.sheets||[]).map(s=>s.properties.title);
+  const contactsSheet = residentsSheetName();
+
+  if(!titles.includes(contactsSheet)){
+    throw new Error('לא נמצאה רשימת הדיירים/לקוחות של השנה הקודמת.');
+  }
+
+  const contactsRes = await gapi.client.sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range:`'${contactsSheet}'!A:ZZ`
+  });
+  const contacts = contactsRes.result.values || [];
+
+  const settingsMap = {};
+  if(titles.includes(SETTINGS_SHEET)){
+    const settingsRes = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range:`'${SETTINGS_SHEET}'!A:B`
+    });
+    (settingsRes.result.values||[]).forEach(row=>{
+      const key=(row[0]||'').toString().trim();
+      if(key) settingsMap[key]=(row[1]||'').toString().trim();
+    });
+  }
+
+  const opening = parseFloat(settingsMap['יתרת פתיחה (הוצאות/הכנסות)']) || 0;
+  let financeTotal = 0;
+
+  if(titles.includes(FINANCE_SHEET)){
+    const financeRes = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range:`'${FINANCE_SHEET}'!A2:E`
+    });
+
+    (financeRes.result.values||[]).forEach(row=>{
+      const type=(row[1]||'').toString().trim();
+      const amount=parseFloat(row[4]) || 0;
+      if(type==='הכנסה') financeTotal += amount;
+      else if(type==='הוצאה') financeTotal -= amount;
+    });
+  }
+
+  let highestReceipt = 0;
+  if(titles.includes(RECEIPTS_SHEET)){
+    const receiptRes = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range:`'${RECEIPTS_SHEET}'!A2:J`
+    });
+    const idx = receiptSheetLayout().receiptNumIdx;
+    (receiptRes.result.values||[]).forEach(row=>{
+      const n=parseInt(row[idx],10);
+      if(Number.isFinite(n) && n>highestReceipt) highestReceipt=n;
+    });
+  }
+
+  const settingsNext = parseInt(settingsMap['מספר הקבלה הבא'],10) || 1000;
+
+  return {
+    contacts,
+    closingBalance:opening + financeTotal,
+    nextReceiptNumber:Math.max(
+      Number(CFG.nextReceiptNumber)||1000,
+      settingsNext,
+      highestReceipt+1
+    )
+  };
+}
+
+async function prepareAnnualSpreadsheet(spreadsheetId, contacts){
+  const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId});
+  const sheets = meta.result.sheets || [];
+  let contactsMeta = sheets.find(s=>s.properties.title===residentsSheetName());
+
+  if(!contactsMeta){
+    if(sheets.length!==1){
+      throw new Error('YEAR_CONTACTS_SHEET_MISSING');
+    }
+
+    await gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      resource:{requests:[{updateSheetProperties:{
+        properties:{
+          sheetId:sheets[0].properties.sheetId,
+          title:residentsSheetName(),
+          rightToLeft:true
+        },
+        fields:'title,rightToLeft'
+      }}]}
+    });
+  }else if(contactsMeta.properties.rightToLeft!==true){
+    await gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      resource:{requests:[{updateSheetProperties:{
+        properties:{sheetId:contactsMeta.properties.sheetId,rightToLeft:true},
+        fields:'rightToLeft'
+      }}]}
+    });
+  }
+
+  const existing = await gapi.client.sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range:`'${residentsSheetName()}'!A:ZZ`
+  });
+
+  if((existing.result.values||[]).length){
+    return;
+  }
+
+  const rows = Array.isArray(contacts) && contacts.length
+    ? contacts
+    : [[...(CFG.usageMode==='business'
+      ? ['שם','טלפון','מייל']
+      : ['שם','טלפון','מחיר','מייל','דירה'])]];
+
+  await gapi.client.sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range:`'${residentsSheetName()}'!A1:ZZ${rows.length}`,
+    valueInputOption:'RAW',
+    resource:{values:rows}
+  });
+}
+
+async function yearWorkspaceIsHealthy(workspace){
+  if(!workspace?.spreadsheetId || !workspace?.folderId) return false;
+  try{
+    const [sheet,folder] = await Promise.all([
+      gapi.client.drive.files.get({fileId:workspace.spreadsheetId,fields:'id,trashed'}),
+      gapi.client.drive.files.get({fileId:workspace.folderId,fields:'id,trashed'})
+    ]);
+    return !sheet.result.trashed && !folder.result.trashed;
+  }catch(e){
+    return false;
+  }
+}
+
+async function annualWorkspaceHasActivity(){
+  try{
+    const [financeRes,receiptRes] = await Promise.all([
+      gapi.client.sheets.spreadsheets.values.get({
+        spreadsheetId:CFG.spreadsheetId,
+        range:`'${FINANCE_SHEET}'!A2:H`
+      }).catch(()=>({result:{values:[]}})),
+      gapi.client.sheets.spreadsheets.values.get({
+        spreadsheetId:CFG.spreadsheetId,
+        range:`'${RECEIPTS_SHEET}'!A2:J`
+      }).catch(()=>({result:{values:[]}}))
+    ]);
+
+    const financeHas = (financeRes.result.values||[]).some(r=>r.some(v=>(v||'').toString().trim()));
+    const receiptHas = (receiptRes.result.values||[]).some(r=>r.some(v=>(v||'').toString().trim()));
+    return financeHas || receiptHas;
+  }catch(e){
+    return true;
+  }
+}
+
+async function refreshAnnualCarryForwardIfPristine(year){
+  const source = sourceWorkspaceForYear(year);
+  if(!source || Number(source.year)>=Number(year)) return;
+
+  const hasActivity = await annualWorkspaceHasActivity();
+  if(hasActivity) return;
+
+  const snapshot = await readAnnualSourceSnapshot(source);
+
+  CFG.financeOpeningBalance = snapshot.closingBalance;
+  CFG.financeOpeningBalanceDate = `${year}-01-01`;
+  CFG.nextReceiptNumber = Math.max(
+    Number(CFG.nextReceiptNumber)||1000,
+    Number(snapshot.nextReceiptNumber)||1000
+  );
+
+  persistCurrentAccountCfg();
+  await ensureFinanceSheet();
+  await pushSettingsToSheet();
+}
+
+async function verifyAnnualWorkspaceReady(year, spreadsheetId, folderId){
+  const folder = await gapi.client.drive.files.get({
+    fileId:folderId,
+    fields:'id,trashed'
+  });
+  if(folder.result.trashed) throw new Error('YEAR_FOLDER_TRASHED');
+
+  const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId});
+  const titles = (meta.result.sheets||[]).map(s=>s.properties.title);
+
+  for(const title of [residentsSheetName(),RECEIPTS_SHEET,FINANCE_SHEET,SETTINGS_SHEET]){
+    if(!titles.includes(title)) throw new Error('YEAR_SHEET_MISSING_'+title);
+  }
+
+  const settings = await gapi.client.sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range:`'${SETTINGS_SHEET}'!A:B`
+  });
+
+  const map={};
+  (settings.result.values||[]).forEach(row=>{
+    const key=(row[0]||'').toString().trim();
+    if(key) map[key]=(row[1]||'').toString().trim();
+  });
+
+  if(parseInt(map['שנת עבודה'],10)!==Number(year)){
+    throw new Error('YEAR_SETTINGS_NOT_READY');
+  }
+  if(map['FolderId']!==folderId){
+    throw new Error('YEAR_FOLDER_ID_NOT_READY');
+  }
+}
+
+async function ensureYearWorkspaceForWrite(targetYear){
+  const year = parseInt(targetYear,10);
+  if(!year){
+    await showAppAlert('לא ניתן לזהות את שנת הפעולה.','⚠️');
+    return false;
+  }
+
+  const seriesId =
+    ensureLocalWorkspaceSeriesId();
+
+  if(!seriesId){
+    await showAppAlert(
+      'לא ניתן לזהות את סביבת העבודה המחוברת. יש לפתוח את ההגדרות ולוודא שהגיליון והתיקייה מחוברים.',
+      '⚠️'
+    );
+
+    return false;
+  }
+
+  // Migration step: stamp every year already known locally before
+  // searching Drive for the requested year.
+  await stampKnownYearWorkspacesSeriesIdentity();
+
+  if(annualWorkspacePromises[year]){
+    return annualWorkspacePromises[year];
+  }
+
+  annualWorkspacePromises[year] = (async ()=>{
+    if(!navigator.onLine || !accessToken){
+      await showAppAlert('יש להתחבר ל-Google ולהיות מחוברים לאינטרנט לפני יצירת שנת עבודה חדשה.','⚠️');
+      return false;
+    }
+
+    await discoverAnnualWorkspacesFromDrive();
+
+    let existing = (CFG.yearWorkspaces || {})[String(year)];
+    if(existing && await yearWorkspaceIsHealthy(existing)){
+      if(Number(CFG.activeYear)!==year){
+        await activateYearWorkspace(year, existing, true);
+      }
+      await refreshAnnualCarryForwardIfPristine(year);
+      return true;
+    }
+
+    // Required re-check in Drive before offering creation.
+    let driveWorkspace = await findYearWorkspaceOnDrive(year);
+    if(driveWorkspace.spreadsheetId && driveWorkspace.folderId){
+      registerYearWorkspace(year, driveWorkspace.spreadsheetId, driveWorkspace.folderId);
+      persistCurrentAccountCfg();
+      await activateYearWorkspace(year, CFG.yearWorkspaces[String(year)], true);
+      await refreshAnnualCarryForwardIfPristine(year);
+      return true;
+    }
+
+    const confirmed = await showAppConfirm(
+      `לא קיימת עדיין סביבת עבודה לשנת ${year}.\n\n` +
+      `האם ליצור גיליון ותיקיית קבלות חדשים לשנת ${year} ולהעתיק את רשימת ` +
+      `${CFG.usageMode==='business'?'הלקוחות':'הדיירים'} מהשנה הקודמת?`,
+      '📅',
+      'צור והמשך',
+      'ביטול'
+    );
+
+    if(!confirmed) return false;
+
+    // Re-check again after confirmation to avoid duplicates.
+    driveWorkspace = await findYearWorkspaceOnDrive(year);
+    if(driveWorkspace.spreadsheetId && driveWorkspace.folderId){
+      registerYearWorkspace(year, driveWorkspace.spreadsheetId, driveWorkspace.folderId);
+      persistCurrentAccountCfg();
+      await activateYearWorkspace(year, CFG.yearWorkspaces[String(year)], true);
+      await refreshAnnualCarryForwardIfPristine(year);
+      return true;
+    }
+
+    const source = sourceWorkspaceForYear(year);
+    if(!source){
+      await showAppAlert('לא נמצאה שנת עבודה קודמת שממנה ניתן להעתיק את רשימת הדיירים או הלקוחות.','⚠️');
+      return false;
+    }
+
+    let sourceSnapshot;
+    try{
+      sourceSnapshot = await readAnnualSourceSnapshot(source);
+    }catch(e){
+      console.error('[קבקליק] קריאת השנה הקודמת נכשלה:', e);
+      await showAppAlert('לא ניתן היה לקרוא באופן מלא את נתוני השנה הקודמת. לא נוצרה שנת עבודה חדשה.','⚠️');
+      return false;
+    }
+
+    const oldState = {
+      activeYear:CFG.activeYear,
+      spreadsheetId:CFG.spreadsheetId,
+      folderId:CFG.folderId,
+      financeOpeningBalance:CFG.financeOpeningBalance,
+      financeOpeningBalanceDate:CFG.financeOpeningBalanceDate,
+      nextReceiptNumber:CFG.nextReceiptNumber,
+      yearWorkspaces:JSON.parse(JSON.stringify(CFG.yearWorkspaces || {}))
+    };
+
+    let spreadsheetId = driveWorkspace.spreadsheetId || '';
+    let folderId = driveWorkspace.folderId || '';
+    let createdSpreadsheetId = '';
+    let createdFolderId = '';
+
+    try{
+      gapi.client.setToken({access_token:accessToken});
+      const titleBase =
+        CFG.buildingInfo ||
+        (CFG.usageMode==='business' ? 'עסק' : 'ועד בית');
+
+      if(!spreadsheetId){
+        const created = await gapi.client.drive.files.create({
+          resource:{
+            name:`קבקליק - ${titleBase} - ${year}`,
+            mimeType:'application/vnd.google-apps.spreadsheet',
+            appProperties:{
+              kabclick:'1',
+              kind:'sheet',
+              mode:CFG.usageMode,
+              year:String(year),
+              seriesId:CFG.seriesId
+            }
+          },
+          fields:'id'
+        });
+        spreadsheetId = created.result.id;
+        createdSpreadsheetId = spreadsheetId;
+      }
+
+      if(!folderId){
+        const created = await gapi.client.drive.files.create({
+          resource:{
+            name:`קבלות - ${titleBase} - ${year}`,
+            mimeType:'application/vnd.google-apps.folder',
+            appProperties:{
+              kabclick:'1',
+              kind:'receipts-folder',
+              mode:CFG.usageMode,
+              year:String(year),
+              seriesId:CFG.seriesId
+            }
+          },
+          fields:'id'
+        });
+        folderId = created.result.id;
+        createdFolderId = folderId;
+      }
+
+      // Converge on the oldest tagged resources if another request/device
+      // created the same year at almost the same time. A resource created
+      // by THIS attempt is moved to Trash only if another older matching
+      // resource won the race, so we do not leave duplicate annual files.
+      const converged = await findYearWorkspaceOnDrive(year);
+
+      if(
+        createdSpreadsheetId &&
+        converged.spreadsheetId &&
+        converged.spreadsheetId!==createdSpreadsheetId
+      ){
+        try{
+          await gapi.client.drive.files.update({
+            fileId:createdSpreadsheetId,
+            resource:{trashed:true}
+          });
+        }catch(_){}
+      }
+
+      if(
+        createdFolderId &&
+        converged.folderId &&
+        converged.folderId!==createdFolderId
+      ){
+        try{
+          await gapi.client.drive.files.update({
+            fileId:createdFolderId,
+            resource:{trashed:true}
+          });
+        }catch(_){}
+      }
+
+      spreadsheetId = converged.spreadsheetId || spreadsheetId;
+      folderId = converged.folderId || folderId;
+
+      if(!spreadsheetId || !folderId){
+        throw new Error('YEAR_RESOURCE_CREATION_INCOMPLETE');
+      }
+
+      await prepareAnnualSpreadsheet(spreadsheetId, sourceSnapshot.contacts);
+
+      CFG.activeYear = year;
+      CFG.spreadsheetId = spreadsheetId;
+      CFG.folderId = folderId;
+      CFG.financeOpeningBalance = sourceSnapshot.closingBalance;
+      CFG.financeOpeningBalanceDate = `${year}-01-01`;
+      CFG.nextReceiptNumber = Math.max(
+        Number(CFG.nextReceiptNumber)||1000,
+        Number(sourceSnapshot.nextReceiptNumber)||1000
+      );
+
+      await ensureReceiptsSheet();
+      await ensureFinanceSheet();
+      await pushSettingsToSheet();
+      await verifyAnnualWorkspaceReady(year, spreadsheetId, folderId);
+
+      registerYearWorkspace(year, spreadsheetId, folderId);
+      persistCurrentAccountCfg();
+      await loadDataForCurrentAccountMode();
+
+      await showAppAlert(
+        `סביבת העבודה לשנת ${year} נוצרה בהצלחה.\n\n` +
+        `הגיליון, תיקיית הקבלות ורשימת ${CFG.usageMode==='business'?'הלקוחות':'הדיירים'} מוכנים לשימוש.`,
+        '✅'
+      );
+
+      return true;
+    }catch(e){
+      console.error('[קבקליק] יצירת שנת עבודה נכשלה:', e);
+
+      CFG.activeYear = oldState.activeYear;
+      CFG.spreadsheetId = oldState.spreadsheetId;
+      CFG.folderId = oldState.folderId;
+      CFG.financeOpeningBalance = oldState.financeOpeningBalance;
+      CFG.financeOpeningBalanceDate = oldState.financeOpeningBalanceDate;
+      CFG.nextReceiptNumber = oldState.nextReceiptNumber;
+      CFG.yearWorkspaces = oldState.yearWorkspaces;
+      persistCurrentAccountCfg();
+      applyBranding();
+
+      await showAppAlert(
+        `יצירת סביבת העבודה לשנת ${year} לא הושלמה.\n` +
+        `לא הופקה קבלה ולא נשמרה תנועה.\n` +
+        `אפשר לנסות שוב - המערכת תשתמש במה שכבר נוצר ולא תיצור כפילויות.`,
+        '⚠️'
+      );
+      return false;
+    }
+  })();
+
+  try{
+    return await annualWorkspacePromises[year];
+  }finally{
+    delete annualWorkspacePromises[year];
+  }
+}
+
+async function loadDataForCurrentAccountMode(){
+  if((!CFG.spreadsheetId || !CFG.folderId) && CFG.email && CFG.usageMode && accessToken){
+    await recoverKabClickConnectionFromDrive(CFG.email, CFG.usageMode);
+  }
+  if(CFG.spreadsheetId && CFG.folderId){
+    await Promise.all([loadResidents(), ensureReceiptsSheet()]);
+    await Promise.all([syncSettingsFromSheet(), loadAllReceiptRows()]);
+    await pushSettingsToSheet();
+    await stampKnownYearWorkspacesSeriesIdentity();
+    await discoverAnnualWorkspacesFromDrive();
+    renderYearSelector();
+    validateForm();
+  } else {
+    residents = [];
+    allReceiptRows = [];
+    const badge = document.getElementById('residentsLoadedBadge');
+    if(badge) badge.style.display = 'none';
+    refreshRecentResidents();
+  }
+}
+/** Called once we know who signed in and the license check passed — decides
+ *  whether we already know this account's mode (and loads its data), or
+ *  whether this is their first time and they need to pick vaad/business. */
+function applyAccountAfterLicense(email){
+  document.getElementById('loginGate').classList.add('hidden');
+  migrateLegacyCfgIfNeeded(email);
+  const knownMode = loadLastMode(email);
+  if(knownMode){
+    applyAccountAndMode(email, knownMode);
+  } else {
+    CFG.email = email;
+    CFG.usageMode = null;
+    document.getElementById('modeSelectGate').classList.add('show');
+  }
+}
+
+let CFG = loadCfg();
+
+function isConfigured(){
+  const base = !!(CFG.spreadsheetId && CFG.folderId && CFG.buildingInfo);
+  if(CFG.usageMode==='business') return base && !!CFG.businessNumber;
+  return base;
+}
+
+/* ═══════════════════════════════════════
+   STATE
+═══════════════════════════════════════ */
+let residents      = [];   // [{name, phone, fee, email, apartment, row}]
+let residentsGid       = null; // sheetId (gid) of the residents tab — needed to delete rows
+let residentsCols      = {name:0, phone:1, fee:-1, email:-1, apartment:-1}; // column indices found on last load
+let selectedMonths = new Set();
+let selectedPay    = null;
+let isOtherPurpose = false;
+let gapiReady      = false;
+let tokenClient    = null;
+let accessToken    = null;
+let lastPdfBlob    = null;
+let lastFileName   = null;
+
+/* ═══════════════════════════════════════
+   TOPBAR BRANDING
+═══════════════════════════════════════ */
+function applyModeTerminology(){
+  const isBiz = CFG.usageMode==='business';
+  const h = document.getElementById('step0Heading');
+  const s = document.getElementById('step0Sub');
+  if(h) h.textContent = isBiz ? 'מי הלקוח?' : 'מי משלם?';
+  if(s) s.textContent = isBiz ? 'בחרו את הלקוח שעבורו מפיקים את הקבלה.' : 'בחרו את הדייר שעבורו מפיקים את הקבלה.';
+
+  // Home screen: vaad keeps the "upcoming payments" list (still meaningful —
+  // monthly dues genuinely have a next-due-date). Business receipts are
+  // one-off, so "upcoming payments" isn't a real concept there — that whole
+  // section is replaced with a single clear button straight into the
+  // customer list instead. Visibility itself is driven by CSS off this one
+  // class (see body.mode-business rules) so it can't drift out of sync.
+  document.body.classList.toggle('mode-business', isBiz);
+  const homeBizBtn = document.getElementById('homeBizManageBtn');
+  if(homeBizBtn) homeBizBtn.textContent = isBiz ? '🗂️ ניהול והוספת לקוח חדש' : '📋 ניהול והוספת דיירים';
+  // Wizard step 1's management shortcut is vaad-only now — business mode
+  // already has a clear, direct "ניהול והוספת לקוח חדש" button on the home
+  // screen, so a second one here would just be redundant.
+  const wizardManageBtn = document.getElementById('wizardManageResidentsBtn');
+  if(wizardManageBtn){
+    wizardManageBtn.style.display = isBiz ? 'none' : '';
+    wizardManageBtn.textContent = '📋 ניהול והוספת דיירים';
+  }
+
+  const pickerLabel = document.getElementById('residentPickerLabel');
+  if(pickerLabel) pickerLabel.textContent = isBiz ? 'בחירת לקוח' : 'בחירת דייר';
+  const clearBtn = document.getElementById('residentClearBtn');
+  if(clearBtn) clearBtn.setAttribute('aria-label', isBiz ? 'נקה בחירת לקוח' : 'נקה בחירת דייר');
+  const rsmTitle = document.getElementById('rsmPickerTitle');
+  if(rsmTitle) rsmTitle.textContent = isBiz ? 'בחירת לקוח' : 'בחירת דייר';
+  const dot0Lbl = document.getElementById('wizardDot0Lbl');
+  if(dot0Lbl) dot0Lbl.textContent = isBiz ? 'לקוח' : 'דייר';
+  const dot1Lbl = document.getElementById('wizardDot1Lbl');
+  if(dot1Lbl) dot1Lbl.textContent = isBiz ? 'מטרה' : 'חודשים';
+
+  // Phone/apartment placeholders only need updating when nothing is picked
+  // yet — once a resident/customer IS selected, the change handler already
+  // fills in the real value and this would just be overwritten anyway.
+  const phoneBoxEl = document.getElementById('phoneBox');
+  if(phoneBoxEl && !phoneBoxEl.textContent.startsWith('טלפון:')){
+    phoneBoxEl.textContent = isBiz ? 'טלפון יוצג לאחר בחירת לקוח' : 'טלפון יוצג לאחר בחירת דייר';
+  }
+  // Apartment number is a vaad-only concept — hide it entirely for business.
+  const aptBoxEl = document.getElementById('aptBox');
+  if(aptBoxEl) aptBoxEl.style.display = isBiz ? 'none' : '';
+
+  applyPurposeModeUI();
+}
+
+function applyBranding(){
+  const nameEl  = document.getElementById('topBuildingName');
+  const addrEl  = document.getElementById('topBuildingAddr');
+
+  // Brand identity is always קבקליק — the building's name/address never overrides it.
+  nameEl.innerHTML = '<span class="gold">קב</span>קליק';
+  addrEl.classList.add('tagline');
+  addrEl.innerHTML = '<span class="dot">•</span>מפיקים קבלות בקלות ובמהירות';
+  document.title = 'קבקליק';
+
+  // Building info shows once, in the greeting subtitle.
+  const homeSub = document.getElementById('homeGreetingSub');
+  if(homeSub) homeSub.textContent = CFG.buildingInfo || '';
+
+  const logoEl  = document.getElementById('topLogo');
+  const logoSrc = CFG.logoUrl || 'icon-mark-192.png';
+  logoEl.innerHTML = `<img src="${logoSrc}" alt="לוגו" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+
+  updateSetupChecklist();
+
+  const illoImg = document.getElementById('homeIllustrationImg');
+  if(illoImg) illoImg.src = CFG.usageMode==='business' ? 'login-illustration-freelance.jpg?v=2' : 'buildings-illustration.jpg?v=2';
+
+  renderYearSelector();
+}
+/**
+ * Renders the exact list of setup requirements still missing, so the
+ * warning banner on the home screen is a real checklist rather than one
+ * generic sentence — and gates actual use of the system (see validateForm)
+ * until every item is checked off.
+ */
+function updateSetupChecklist(){
+  const isBiz = CFG.usageMode==='business';
+  const items = [
+    { ok: !!CFG.buildingInfo, label: isBiz ? 'שם העסק' : 'שם הבניין' }
+  ];
+  if(isBiz) items.push({ ok: !!CFG.businessNumber, label: 'מספר עוסק מורשה/פטור (ח"פ)' });
+  items.push({ ok: !!(CFG.spreadsheetId && CFG.folderId), label: 'חיבור לגיליון Google Sheets — לחיצה על "יצירת גיליון ותיקייה אוטומטית"' });
+
+  const banner = document.getElementById('setupBanner');
+  const allOk = items.every(i=>i.ok);
+  banner.style.display = allOk ? 'none' : 'flex';
+  if(!allOk){
+    document.getElementById('setupChecklist').innerHTML =
+      items.map(i=>`<li>${i.ok ? '✅' : '❌'} ${i.label}</li>`).join('');
+  }
+}
+applyBranding(); applyModeTerminology();
+
+/* ═══════════════════════════════════════
+   SETTINGS MODAL
+═══════════════════════════════════════ */
+function applyModeUI(mode){
+  const isBiz = mode==='business';
+  document.getElementById('orgInfoHeading').textContent = isBiz ? '💼 פרטי העסק' : '🏢 פרטי הבניין';
+  document.getElementById('orgInfoLabel').textContent    = isBiz ? 'שם העסק' : 'שם/כתובת הבניין';
+  document.getElementById('cfg-buildingInfo').placeholder = isBiz ? 'לדוגמה: דנה כהן - עיצוב גרפי' : 'לדוגמה: קונגרס 17, פתח תקווה';
+  document.getElementById('businessNumberRow').style.display = isBiz ? 'block' : 'none';
+  document.getElementById('pricingSection').style.display    = isBiz ? 'none' : 'block';
+  document.getElementById('businessAmountSection').style.display = isBiz ? 'block' : 'none';
+}
+
+document.getElementById('cfg-businessTaxType').addEventListener('change', ()=>{
+  const taxType = document.getElementById('cfg-businessTaxType').value;
+
+  document.getElementById('businessVatRateRow').style.display =
+    taxType === 'authorized'
+      ? 'block'
+      : 'none';
+});
+
+function activateSettingsTab(tabName, focusTab=false){
+  const tabs=[...document.querySelectorAll('[data-settings-tab]')];
+  const panels=[...document.querySelectorAll('[data-settings-panel]')];
+  tabs.forEach(tab=>{
+    const active=tab.dataset.settingsTab===tabName;
+    tab.classList.toggle('active',active);
+    tab.setAttribute('aria-selected',String(active));
+    tab.tabIndex=active ? 0 : -1;
+    if(active && focusTab) tab.focus();
+  });
+  panels.forEach(panel=>{
+    const active=panel.dataset.settingsPanel===tabName;
+    panel.classList.toggle('active',active);
+    panel.hidden=!active;
+  });
+  const modal=document.querySelector('.settings-main-modal');
+  if(modal) modal.scrollTop=0;
+}
+
+document.querySelectorAll('[data-settings-tab]').forEach((tab,index,tabs)=>{
+  tab.addEventListener('click',()=>activateSettingsTab(tab.dataset.settingsTab));
+  tab.addEventListener('keydown',event=>{
+    if(!['ArrowRight','ArrowLeft','Home','End'].includes(event.key)) return;
+    event.preventDefault();
+    let nextIndex=index;
+    if(event.key==='Home') nextIndex=0;
+    else if(event.key==='End') nextIndex=tabs.length-1;
+    else if(event.key==='ArrowLeft') nextIndex=(index+1)%tabs.length;
+    else if(event.key==='ArrowRight') nextIndex=(index-1+tabs.length)%tabs.length;
+    activateSettingsTab(tabs[nextIndex].dataset.settingsTab,true);
+  });
+});
+
+function activeYearWorkspaceForLinks(){
+  const year = parseInt(CFG.activeYear,10) || currentCalendarYear();
+  const workspace = (CFG.yearWorkspaces || {})[String(year)] || {};
+  return {
+    year,
+    spreadsheetId: workspace.spreadsheetId || CFG.spreadsheetId || '',
+    folderId: workspace.folderId || CFG.folderId || ''
+  };
+}
+
+function refreshWorkspaceOpenButtons(){
+  const workspace = activeYearWorkspaceForLinks();
+  const sheetBtn = document.getElementById('openSheetBtn');
+  const folderBtn = document.getElementById('openFolderBtn');
+  sheetBtn.disabled = !workspace.spreadsheetId;
+  folderBtn.disabled = !workspace.folderId;
+  sheetBtn.setAttribute('aria-label', `הצגת הגיליון של שנת ${workspace.year}`);
+  folderBtn.setAttribute('aria-label', `הצגת תיקיית הקבלות של שנת ${workspace.year}`);
+}
+
+document.getElementById('settingsBtn').onclick = ()=>{
+  document.getElementById('cfg-buildingInfo').value = CFG.buildingInfo||'';
+  document.getElementById('cfg-defaultFee').value   = CFG.defaultFee||'';
+  document.getElementById('cfg-businessNumber').value = CFG.businessNumber||'';
+  document.getElementById('cfg-businessDefaultAmount').value = CFG.businessDefaultAmount||'';
+  document.getElementById('cfg-businessDefaultAmountAuto').checked = !!CFG.businessDefaultAmountAuto;
+
+  const businessTaxTypeEl = document.getElementById('cfg-businessTaxType');
+  const vatRateEl = document.getElementById('cfg-vatRate');
+  const vatRateRow = document.getElementById('businessVatRateRow');
+
+  businessTaxTypeEl.value = CFG.businessTaxType || 'exempt';
+  vatRateEl.value = Number.isFinite(Number(CFG.vatRate)) ? Number(CFG.vatRate) : 18;
+
+  vatRateRow.style.display =
+    businessTaxTypeEl.value === 'authorized'
+      ? 'block'
+      : 'none';
+  document.getElementById('cfg-nextReceiptNumber').value = CFG.nextReceiptNumber||1000;
+  document.getElementById('cfg-spreadsheetId').value= CFG.spreadsheetId||'';
+  document.getElementById('cfg-folderId').value     = CFG.folderId||'';
+  document.getElementById('cfg-spreadsheetId').readOnly = true;
+  document.getElementById('cfg-folderId').readOnly = true;
+  refreshWorkspaceOpenButtons();
+  document.getElementById('cfg-financeOpeningBalance').value = CFG.financeOpeningBalance || '';
+  document.getElementById('cfg-financeOpeningBalanceDate').value = CFG.financeOpeningBalanceDate || '';
+  applyModeUI(CFG.usageMode||'vaad');
+  const verEl = document.getElementById('appVersionMarker');
+  if(verEl){
+    verEl.textContent = `גרסה 4  Build ${APP_BUILD}`;
+  }
+  document.getElementById('settingsConnectedEmail').textContent = CFG.email || 'לא מחובר';
+  activateSettingsTab('profile');
+  document.getElementById('modalBg').classList.add('show');
+};
+document.getElementById('openSheetBtn').addEventListener('click', ()=>{
+  const workspace = activeYearWorkspaceForLinks();
+  if(!workspace.spreadsheetId) return;
+  window.open(`https://docs.google.com/spreadsheets/d/${workspace.spreadsheetId}/edit`, '_blank', 'noopener');
+});
+document.getElementById('openFolderBtn').addEventListener('click', ()=>{
+  const workspace = activeYearWorkspaceForLinks();
+  if(!workspace.folderId) return;
+  window.open(`https://drive.google.com/drive/folders/${workspace.folderId}`, '_blank', 'noopener');
+});
+document.getElementById('resetConnectionBtn').addEventListener('click', async ()=>{
+  const ok = await showAppConfirm('לנתק את הגיליון/התיקייה המחוברים כעת? הנתונים עצמם יישארו קיימים ב-Drive שלכם (לא נמחקים), אך האפליקציה תפסיק לקרוא/לכתוב אליהם עד שתיצרו חיבור חדש.', '🔄');
+  if(!ok) return;
+  document.getElementById('cfg-spreadsheetId').value = '';
+  document.getElementById('cfg-folderId').value = '';
+  document.getElementById('openSheetBtn').disabled = true;
+  document.getElementById('openFolderBtn').disabled = true;
+});
+document.getElementById('modalCancel').onclick = ()=> document.getElementById('modalBg').classList.remove('show');
+
+document.getElementById('modalSave').onclick = async ()=>{
+  if(!CFG.email){
+    await showAppAlert('יש להתחבר עם Google לפני שמירת ההגדרות.','⚠️');
+    return;
+  }
+  // Usage mode is no longer editable here — switching modes happens through
+  // the account menu (sign-out icon → "מעבר בין ועד לעצמאי"), which properly
+  // loads/creates that mode's own data. Settings just edits the CURRENT mode.
+  CFG.buildingInfo  = document.getElementById('cfg-buildingInfo').value.trim();
+  CFG.businessNumber= document.getElementById('cfg-businessNumber').value.trim();
+  CFG.defaultFee    = parseFloat(document.getElementById('cfg-defaultFee').value)||140;
+  CFG.businessDefaultAmount     = parseFloat(document.getElementById('cfg-businessDefaultAmount').value) || '';
+  CFG.businessDefaultAmountAuto = document.getElementById('cfg-businessDefaultAmountAuto').checked;
+
+  if(CFG.usageMode === 'business'){
+    CFG.businessTaxType =
+      document.getElementById('cfg-businessTaxType').value || 'exempt';
+
+    const enteredVatRate =
+      parseFloat(document.getElementById('cfg-vatRate').value);
+
+    CFG.vatRate =
+      Number.isFinite(enteredVatRate) &&
+      enteredVatRate >= 0 &&
+      enteredVatRate <= 100
+        ? enteredVatRate
+        : 18;
+  }
+  const enteredNextNum = parseInt(document.getElementById('cfg-nextReceiptNumber').value, 10) || 1000;
+  const highestUsed = getHighestUsedReceiptNumber();
+  const sequenceFloor = Math.max(
+    highestUsed + 1,
+    CFG.nextReceiptNumber || 1000
+  );
+  if(enteredNextNum < sequenceFloor){
+    await showAppAlert(`מספר הקבלה הבא לא יכול לרדת מתחת לרצף הקיים (${sequenceFloor}). הוגדר אוטומטית ל-${sequenceFloor}.`, '⚠️');
+    CFG.nextReceiptNumber = sequenceFloor;
+  } else {
+    CFG.nextReceiptNumber = enteredNextNum;
+  }
+  const previousSpreadsheetId =
+    CFG.spreadsheetId || '';
+
+  const previousFolderId =
+    CFG.folderId || '';
+
+  const nextSpreadsheetId =
+    extractSheetId(
+      document.getElementById(
+        'cfg-spreadsheetId'
+      ).value
+    );
+
+  const nextFolderId =
+    extractFolderId(
+      document.getElementById(
+        'cfg-folderId'
+      ).value
+    );
+
+  const connectionChanged =
+    previousSpreadsheetId!==nextSpreadsheetId ||
+    previousFolderId!==nextFolderId;
+
+  CFG.spreadsheetId =
+    nextSpreadsheetId;
+
+  CFG.folderId =
+    nextFolderId;
+
+  if(connectionChanged){
+    CFG.seriesId =
+      CFG.pendingSeriesId || '';
+
+    CFG.pendingSeriesId = '';
+
+    CFG.yearWorkspaces = {};
+    CFG.activeYear =
+      currentCalendarYear();
+  }
+
+  CFG.financeOpeningBalance = parseFloat(document.getElementById('cfg-financeOpeningBalance').value) || 0;
+  CFG.financeOpeningBalanceDate = document.getElementById('cfg-financeOpeningBalanceDate').value || '';
+  persistCurrentAccountCfg();
+  document.getElementById('modalBg').classList.remove('show');
+  applyBranding(); applyModeTerminology();
+  refreshPreview();
+  initGoogle();
+  pushSettingsToSheet();
+  await loadDataForCurrentAccountMode();
+};
+
+/**
+ * "I don't have a sheet yet" helper — creates a brand-new Google Sheet
+ * (with the "אנשי קשר" tab already correctly named + header row) and a
+ * matching Drive folder, then fills both link fields automatically. Removes
+ * the most error-prone part of onboarding: getting the tab name exactly
+ * right and remembering which columns to add.
+ */
+document.getElementById('autoCreateBtn').addEventListener('click', async ()=>{
+  const btn = document.getElementById('autoCreateBtn');
+  const statusEl = document.getElementById('autoCreateStatus');
+  const defaultLabel = '✨ אין לך גיליון עדיין? ליצור אחד אוטומטית';
+
+  if(!accessToken){
+    statusEl.style.color = 'var(--bad)';
+    statusEl.textContent = 'יש להתחבר עם Google קודם מהמסך הראשי, ואז לחזור להגדרות וללחוץ שוב.';
+    return;
+  }
+
+  const buildingNameInput = document.getElementById('cfg-buildingInfo').value.trim();
+  if(!buildingNameInput){
+    statusEl.style.color = 'var(--bad)';
+    statusEl.textContent = CFG.usageMode==='business'
+      ? 'יש למלא קודם את שם העסק למעלה, ורק אז ליצור את הגיליון — כך שם הגיליון והתיקייה ייקראו נכון.'
+      : 'יש למלא קודם את שם/כתובת הבניין למעלה, ורק אז ליצור את הגיליון — כך שם הגיליון והתיקייה ייקראו נכון.';
+    document.getElementById('cfg-buildingInfo').focus();
+    return;
+  }
+  const buildingName = buildingNameInput;
+  const createYear = currentCalendarYear();
+
+  const currentSheetVal = document.getElementById('cfg-spreadsheetId').value.trim();
+  if(currentSheetVal){
+    statusEl.style.color = 'var(--bad)';
+    statusEl.textContent = 'כבר קיים גיליון מקושר. כדי ליצור סביבת עבודה חדשה יש להשתמש בכפתור "ניתוק וחיבור מחדש".';
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = 'יוצר גיליון ותיקייה…';
+  statusEl.style.color = 'var(--slate)';
+  statusEl.textContent = '';
+
+  try{
+    gapi.client.setToken({access_token:accessToken});
+
+    // 1) A new spreadsheet whose only tab is already correctly named
+    //    "אנשי קשר", with the expected header row pre-filled.
+    const sheetRes = await gapi.client.sheets.spreadsheets.create({
+      resource:{
+        properties:{title:`קבקליק - ${buildingName} - ${createYear}`},
+        sheets:[{properties:{title:residentsSheetName(), rightToLeft:true}}]
+      }
+    });
+    const spreadsheetId = sheetRes.result.spreadsheetId;
+    const createSeriesId =
+      seriesIdFromSpreadsheetId(
+        spreadsheetId
+      );
+
+    const headerRow = CFG.usageMode==='business' ? ['שם','טלפון','מייל'] : ['שם','טלפון','מחיר','מייל','דירה'];
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId, range:`'${residentsSheetName()}'!A1:${String.fromCharCode(64+headerRow.length)}1`, valueInputOption:'RAW',
+      resource:{values:[headerRow]}
+    });
+
+    // 2) A Drive folder for the generated receipt PDFs.
+    const folderRes = await gapi.client.drive.files.create({
+      resource:{name:`קבלות - ${buildingName} - ${createYear}`, mimeType:'application/vnd.google-apps.folder'},
+      fields:'id'
+    });
+    const folderId = folderRes.result.id;
+
+    try{
+      await Promise.all([
+        gapi.client.drive.files.update({
+          fileId:spreadsheetId,
+          resource:{appProperties:{kabclick:'1', kind:'sheet', mode:CFG.usageMode, year:String(createYear), seriesId:createSeriesId}}
+        }),
+        gapi.client.drive.files.update({
+          fileId:folderId,
+          resource:{appProperties:{kabclick:'1', kind:'receipts-folder', mode:CFG.usageMode, year:String(createYear), seriesId:createSeriesId}}
+        })
+      ]);
+    }catch(e){
+      console.warn('[קבקליק] סימון קבצי Drive נכשל, אך היצירה עצמה הצליחה:', e);
+    }
+
+    CFG.pendingSeriesId =
+      createSeriesId;
+
+    document.getElementById('cfg-spreadsheetId').value = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
+    document.getElementById('cfg-folderId').value      = `https://drive.google.com/drive/folders/${folderId}`;
+
+    statusEl.style.color = 'var(--good)';
+    statusEl.textContent = '✅ הגיליון והתיקייה נוצרו בהצלחה. לאחר שמירת ההגדרות אפשר לפתוח אותם מהכפתורים למטה. פותח את הגיליון להזנת הדיירים…';
+    btn.textContent = '✅ נוצר בהצלחה';
+
+    window.open(`https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`, '_blank');
+  }catch(err){
+    const code = err.status || err.result?.error?.code;
+    const msg  = err.result?.error?.message || err.message || '';
+    if(code===401 || code===403 || /insufficient|permission|scope/i.test(msg)){
+      // Most common cause: the person didn't fully click through Google's
+      // "app isn't verified" warning (Advanced → Continue), so the Drive/
+      // Sheets scopes were never actually granted — the request reaches
+      // Google but gets rejected for lacking permission, not for a normal
+      // network/API error.
+      statusEl.style.color = 'var(--bad)';
+      statusEl.textContent = 'Google חסם את הבקשה מפני שההרשאה לגיליון/Drive לא הושלמה. יש להתנתק ולהתחבר שוב, ובמסך של Google ללחוץ על "מתקדם" ואז "מעבר אל קבקליק (לא בטוח)" כדי לאשר את ההרשאות עד הסוף — רק אז התיקייה תיווצר.';
+    } else {
+      statusEl.style.color = 'var(--bad)';
+      statusEl.textContent = 'שגיאה ביצירה — אפשר לנסות שוב, או להדביק קישורים לגיליון/תיקייה קיימים ידנית.';
+    }
+    btn.disabled = false; btn.textContent = defaultLabel;
+  }
+});
+
+
+/* ═══════════════════════════════════════
+   MONTHS GRID
+═══════════════════════════════════════ */
+const monthsGrid = document.getElementById('monthsGrid');
+let paidMonthsSet = new Set();
+MONTH_NAMES.forEach((m,idx)=>{
+  const el = document.createElement('div');
+  el.className='month-box'; el.dataset.idx=idx;
+  el.innerHTML = `<span class="month-dot"></span>${m}`;
+  el.addEventListener('click',()=>{
+    if(paidMonthsSet.has(idx)) return; // already marked as paid — not selectable
+    if(selectedMonths.has(idx)) selectedMonths.delete(idx); else selectedMonths.add(idx);
+    paintMonthsGrid();
+    refreshTotal(); refreshPreview();
+  });
+  monthsGrid.appendChild(el);
+});
+function paintMonthsGrid(){
+  const curMonth = new Date().getMonth();
+  [...monthsGrid.children].forEach(el=>{
+    const idx = +el.dataset.idx;
+    el.classList.remove('paid','selected','future');
+    if(selectedMonths.has(idx)) el.classList.add('selected');
+    else if(paidMonthsSet.has(idx)) el.classList.add('paid');
+    else if(idx>curMonth) el.classList.add('future');
+  });
+}
+document.getElementById('selectAllBtn').onclick=()=>{
+  selectedMonths=new Set(MONTH_NAMES.map((_,i)=>i).filter(i=>!paidMonthsSet.has(i)));
+  paintMonthsGrid();
+  refreshTotal(); refreshPreview();
+};
+document.getElementById('clearAllBtn').onclick=()=>{
+  selectedMonths.clear();
+  paintMonthsGrid();
+  refreshTotal(); refreshPreview();
+};
+
+/* ═══════════════════════════════════════
+   OTHER PURPOSE TOGGLE
+═══════════════════════════════════════ */
+document.getElementById('otherPurposeCheck').addEventListener('change', e=>{
+  isOtherPurpose = e.target.checked;
+  document.getElementById('monthsSection').style.display      = isOtherPurpose ? 'none':'';
+  document.getElementById('otherPurposeSection').style.display= isOtherPurpose ? '':'none';
+  refreshTotal(); refreshPreview();
+});
+document.getElementById('purposeInput').addEventListener('input', refreshPreview);
+document.getElementById('manualAmountInput').addEventListener('input', ()=>{
+  updateBusinessVatUI();
+  refreshTotal();
+  refreshPreview();
+});
+
+document.getElementById('receiptVatMode').addEventListener('change', ()=>{
+  updateBusinessVatUI();
+  refreshTotal();
+  refreshPreview();
+});
+
+/**
+ * Business/independent accounts don't have "months of vaad dues" — every
+ * payment is a one-off description + amount. Rather than making them toggle
+ * "other purpose" on every single receipt, business mode skips the months
+ * grid entirely and goes straight to the free-text flow; vaad mode is
+ * unaffected and keeps the toggle.
+ */
+function applyPurposeModeUI(){
+  const isBiz = CFG.usageMode==='business';
+  const toggleRow = document.getElementById('otherPurposeToggle');
+  if(toggleRow) toggleRow.style.display = isBiz ? 'none' : '';
+  const cb = document.getElementById('otherPurposeCheck');
+  if(isBiz){
+    isOtherPurpose = true;
+    if(cb) cb.checked = true;
+    document.getElementById('monthsSection').style.display = 'none';
+    document.getElementById('otherPurposeSection').style.display = '';
+  } else {
+    isOtherPurpose = false;
+    if(cb) cb.checked = false;
+    document.getElementById('monthsSection').style.display = '';
+    document.getElementById('otherPurposeSection').style.display = 'none';
+  }
+  const step1Sub = document.getElementById('step1Sub');
+  if(step1Sub) step1Sub.textContent = isBiz ? 'תארו את השירות או המוצר, והזינו את הסכום לתשלום.' : 'בחרו את חודשי התשלום, או תשלום למטרה אחרת.';
+  const purposeInputEl = document.getElementById('purposeInput');
+  if(purposeInputEl) purposeInputEl.placeholder = isBiz ? 'לדוגמה: שיעורים פרטיים, עיצוב לוגו, ייעוץ...' : 'לדוגמה: שיפוץ חניון, החלפת דוד שמש...';
+}
+
+/* ═══════════════════════════════════════
+   PAYMENT METHOD
+═══════════════════════════════════════ */
+document.getElementById('payGrid').addEventListener('click', e=>{
+  const opt=e.target.closest('.pay-opt'); if(!opt) return;
+  document.querySelectorAll('.pay-opt').forEach(o=>o.classList.remove('active'));
+  opt.classList.add('active'); selectedPay=opt.dataset.val;
+  refreshPreview();
+});
+
+/* ═══════════════════════════════════════
+   RESIDENT SELECT
+═══════════════════════════════════════ */
+const residentSelect = document.getElementById('residentSelect');
+const phoneBox       = document.getElementById('phoneBox');
+const aptBox         = document.getElementById('aptBox');
+residentSelect.addEventListener('change',()=>{
+  const r = residents[residentSelect.value];
+  const isBiz = CFG.usageMode==='business';
+  phoneBox.textContent = r ? 'טלפון: '+(r.phone||'לא צויין') : (isBiz ? 'טלפון יוצג לאחר בחירת לקוח' : 'טלפון יוצג לאחר בחירת דייר');
+  if(r){
+    const hasApt = !!(r.apartment && r.apartment.trim());
+    aptBox.textContent = hasApt ? 'דירה: '+r.apartment : 'דירה: לא צויין';
+    aptBox.classList.toggle('empty', !hasApt);
+  } else {
+    aptBox.textContent = 'דירה תוצג לאחר בחירת דייר';
+    aptBox.classList.remove('empty');
+  }
+  updateEmailCheckbox(r);
+  paidMonthsSet = getPaidMonthsForResident(r);
+  paintMonthsGrid();
+  if(isBiz && r && CFG.businessDefaultAmountAuto && CFG.businessDefaultAmount){
+    document.getElementById('manualAmountInput').value = CFG.businessDefaultAmount;
+  }
+  refreshTotal(); refreshPreview();
+});
+
+function updateEmailCheckbox(r){
+  const cb   = document.getElementById('emailSendCheckbox');
+  const row  = document.getElementById('emailCheckRow');
+  const hint = document.getElementById('emailCheckHint');
+  const hasEmail = !!(r && r.email);
+  cb.disabled = !hasEmail;
+  if(!hasEmail){ cb.checked = false; }
+  row.classList.toggle('disabled', !hasEmail);
+  hint.textContent = hasEmail ? `(${r.email})` : '(לא הוגדר מייל לדייר זה)';
+}
+
+/* ═══════════════════════════════════════
+   RESIDENT LIVE SEARCH (autocomplete over the hidden <select>)
+═══════════════════════════════════════ */
+const residentSearchInput = document.getElementById('residentSearchInput');
+const residentDropdown    = document.getElementById('residentDropdown');
+const residentClearBtn    = document.getElementById('residentClearBtn');
+let residentActiveIdx = -1;   // index within the currently *filtered* list
+let residentFiltered  = [];   // [{i, r}] currently shown, in display order
+
+function toggleResidentClearBtn(){
+  residentClearBtn.classList.toggle('show', !!residentSearchInput.value);
+}
+function clearResidentSelection(){
+  residentSearchInput.value = '';
+  toggleResidentClearBtn();
+  closeResidentDropdown();
+
+  // Clear whatever the person had already picked for this receipt too, so
+  // switching to a different resident starts the form fresh instead of
+  // carrying over stale selections (months, payment method, etc.).
+  selectedMonths.clear();
+  selectedPay = null;
+  document.querySelectorAll('.pay-opt').forEach(o=>o.classList.remove('active'));
+  document.getElementById('purposeInput').value = '';
+  document.getElementById('manualAmountInput').value = '';
+
+  const receiptVatModeEl = document.getElementById('receiptVatMode');
+  if(receiptVatModeEl) receiptVatModeEl.value = 'included';
+  applyPurposeModeUI(); // resets to the months grid (vaad) or the free-text flow (business), as appropriate
+  document.getElementById('receiptSuccessModalBg').classList.remove('show');
+
+  residentSelect.value = '';
+  residentSelect.dispatchEvent(new Event('change'));  // resets phone/apt/months/preview, doesn't touch the sheet
+  wizardShowStep(0);
+}
+residentClearBtn.addEventListener('click', e=>{
+  e.stopPropagation();
+  clearResidentSelection();
+});
+
+function escapeHtml2(s){
+  return (''+s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function highlightMatch(name, query){
+  if(!query) return escapeHtml2(name);
+  const idx = name.toLowerCase().indexOf(query.toLowerCase());
+  if(idx===-1) return escapeHtml2(name);
+  return escapeHtml2(name.slice(0,idx)) + '<mark>' + escapeHtml2(name.slice(idx,idx+query.length)) + '</mark>' + escapeHtml2(name.slice(idx+query.length));
+}
+function positionResidentDropdown(){
+  const r = residentSearchInput.getBoundingClientRect();
+  const gap = 4;
+  const spaceBelow = window.innerHeight - r.bottom - 10;
+  const spaceAbove = r.top - 10;
+
+  residentDropdown.style.left  = r.left + 'px';
+  residentDropdown.style.width = r.width + 'px';
+
+  if(spaceBelow >= 160 || spaceBelow >= spaceAbove){
+    residentDropdown.style.top    = (r.bottom + gap) + 'px';
+    residentDropdown.style.bottom = 'auto';
+    residentDropdown.style.maxHeight = Math.max(120, Math.min(300, spaceBelow)) + 'px';
+  } else {
+    residentDropdown.style.bottom = (window.innerHeight - r.top + gap) + 'px';
+    residentDropdown.style.top    = 'auto';
+    residentDropdown.style.maxHeight = Math.max(120, Math.min(300, spaceAbove)) + 'px';
+  }
+}
+
+function renderResidentDropdown(query){
+  const q = (query||'').trim();
+  // Prefix match first (what the person asked for — typing 'א' shows names
+  // starting with א), falling back to "contains" so a middle-of-name typo
+  // still finds someone rather than showing nothing.
+  const starts = [];
+  const contains = [];
+  residents.forEach((r,i)=>{
+    if(!q){ starts.push({i,r}); return; }
+    const n = r.name.toLowerCase();
+    const qq = q.toLowerCase();
+    if(n.startsWith(qq)) starts.push({i,r});
+    else if(n.includes(qq)) contains.push({i,r});
+  });
+  residentFiltered = starts.concat(contains);
+  residentActiveIdx = residentFiltered.length ? 0 : -1;
+
+  const isBiz = CFG.usageMode==='business';
+  const exactMatch = q && residents.some(r=>r.name.trim().toLowerCase()===q.toLowerCase());
+  const addRowHtml = (q && !exactMatch)
+    ? `<div class="resident-add-new" data-add-name="${escapeHtml2(q)}">➕ הוספת "${escapeHtml2(q)}" כ${isBiz?'לקוח':'דייר'} חדש</div>`
+    : '';
+
+  if(!residentFiltered.length){
+    residentDropdown.innerHTML = `<div class="resident-empty">לא נמצא דייר תואם${q?` ל-"${escapeHtml2(q)}"`:''}</div>` + addRowHtml;
+  } else {
+    residentDropdown.innerHTML = residentFiltered.map((item,pos)=>
+      `<div class="resident-option${pos===0?' active':''}" data-pos="${pos}">
+         <span class="rname">${highlightMatch(item.r.name, q)}</span>
+         <span class="rphone">${escapeHtml2(item.r.phone||'')}</span>
+       </div>`
+    ).join('') + addRowHtml;
+  }
+  residentDropdown.classList.add('show');
+  positionResidentDropdown();
+}
+function closeResidentDropdown(){
+  residentDropdown.classList.remove('show');
+  residentActiveIdx = -1;
+}
+function selectResidentByFilteredPos(pos){
+  const item = residentFiltered[pos];
+  if(!item) return;
+  residentSelect.value = item.i;
+  residentSelect.dispatchEvent(new Event('change'));
+  residentSearchInput.value = item.r.name;
+  toggleResidentClearBtn();
+  closeResidentDropdown();
+}
+
+/* ═══════════════════════════════════════
+   RESIDENT SEARCH — full-screen sheet
+   The small dropdown above is cramped on short screens; this gives the
+   list the whole screen to scroll in, which is a natural, expected place
+   to scroll (unlike the wizard steps themselves).
+═══════════════════════════════════════ */
+const residentSearchModal = document.getElementById('residentSearchModal');
+const rsmSearchInput      = document.getElementById('rsmSearchInput');
+const rsmList             = document.getElementById('rsmList');
+
+function openResidentSearchModal(){
+  residentSearchModal.classList.add('show');
+  rsmSearchInput.value = '';
+  renderResidentModalList('');
+  setTimeout(()=>rsmSearchInput.focus(), 60);
+}
+function closeResidentSearchModal(){
+  residentSearchModal.classList.remove('show');
+}
+function renderResidentModalList(query){
+  const q = (query||'').trim();
+  const starts = [], contains = [];
+  residents.forEach((r,i)=>{
+    if(!q){ starts.push({i,r}); return; }
+    const n = r.name.toLowerCase(), qq = q.toLowerCase();
+    if(n.startsWith(qq)) starts.push({i,r});
+    else if(n.includes(qq)) contains.push({i,r});
+  });
+  residentFiltered = starts.concat(contains); // shared with selectResidentByFilteredPos
+
+  const isBiz = CFG.usageMode==='business';
+  const exactMatch = q && residents.some(r=>r.name.trim().toLowerCase()===q.toLowerCase());
+  const addRowHtml = (q && !exactMatch)
+    ? `<div class="resident-add-new" data-add-name="${escapeHtml2(q)}">➕ הוספת "${escapeHtml2(q)}" כ${isBiz?'לקוח':'דייר'} חדש</div>`
+    : '';
+
+  if(!residentFiltered.length){
+    rsmList.innerHTML = `<div class="resident-empty">לא נמצא דייר תואם${q?` ל-"${escapeHtml2(q)}"`:''}</div>` + addRowHtml;
+    return;
+  }
+  rsmList.innerHTML = residentFiltered.map((item,pos)=>
+    `<div class="resident-option" data-pos="${pos}">
+       <span class="rname">${highlightMatch(item.r.name, q)}</span>
+       <span class="rphone">${escapeHtml2(item.r.phone||'')}</span>
+     </div>`
+  ).join('') + addRowHtml;
+}
+rsmSearchInput.addEventListener('input', ()=> renderResidentModalList(rsmSearchInput.value));
+rsmList.addEventListener('click', e=>{
+  const addBtn = e.target.closest('.resident-add-new');
+  if(addBtn){ startAddResidentFromPicker(addBtn.dataset.addName); return; }
+  const opt = e.target.closest('.resident-option');
+  if(!opt) return;
+  selectResidentByFilteredPos(+opt.dataset.pos);
+  closeResidentSearchModal();
+});
+document.getElementById('rsmCloseBtn').addEventListener('click', closeResidentSearchModal);
+rsmSearchInput.addEventListener('keydown', e=>{
+  if(e.key === 'Escape') closeResidentSearchModal();
+  if(e.key === 'Enter' && residentFiltered.length){
+    selectResidentByFilteredPos(0);
+    closeResidentSearchModal();
+  }
+});
+function updateActiveHighlight(){
+  residentDropdown.querySelectorAll('.resident-option').forEach(el=>{
+    el.classList.toggle('active', +el.dataset.pos === residentActiveIdx);
+  });
+  const activeEl = residentDropdown.querySelector('.resident-option.active');
+  if(activeEl) activeEl.scrollIntoView({block:'nearest'});
+}
+
+residentSearchInput.addEventListener('input', ()=>{
+  renderResidentDropdown(residentSearchInput.value);
+  toggleResidentClearBtn();
+});
+residentSearchInput.addEventListener('focus', ()=>{
+  if(residentSelect.options.length>1){
+    residentSearchInput.blur();
+    openResidentSearchModal();
+  }
+});
+residentSearchInput.addEventListener('keydown', e=>{
+  if(!residentDropdown.classList.contains('show')) return;
+  if(e.key==='ArrowDown'){
+    e.preventDefault();
+    if(residentFiltered.length){ residentActiveIdx=(residentActiveIdx+1)%residentFiltered.length; updateActiveHighlight(); }
+  } else if(e.key==='ArrowUp'){
+    e.preventDefault();
+    if(residentFiltered.length){ residentActiveIdx=(residentActiveIdx-1+residentFiltered.length)%residentFiltered.length; updateActiveHighlight(); }
+  } else if(e.key==='Enter'){
+    e.preventDefault();
+    if(residentActiveIdx>-1) selectResidentByFilteredPos(residentActiveIdx);
+  } else if(e.key==='Escape'){
+    closeResidentDropdown();
+  }
+});
+residentDropdown.addEventListener('mousedown', e=>{
+  // mousedown (not click) so this fires before the input's blur handler
+  const addBtn = e.target.closest('.resident-add-new');
+  if(addBtn){ startAddResidentFromPicker(addBtn.dataset.addName); return; }
+  const opt = e.target.closest('.resident-option');
+  if(!opt) return;
+  selectResidentByFilteredPos(+opt.dataset.pos);
+});
+document.addEventListener('click', e=>{
+  if(!document.getElementById('residentPicker').contains(e.target)) closeResidentDropdown();
+});
+
+/* ═══════════════════════════════════════
+   TOTAL & VALIDATION
+═══════════════════════════════════════ */
+function residentFee(){
+  const r = residents[residentSelect.value];
+  if(!r) return CFG.defaultFee||140;
+  return r.fee || CFG.defaultFee || 140;
+}
+function manualAmount(){
+  const v=parseFloat((document.getElementById('manualAmountInput').value||'').replace(',','.'));
+  return isNaN(v)||v<0?0:v;
+}
+function businessVatEnabled(){
+  return CFG.usageMode === 'business' && CFG.businessTaxType === 'authorized';
+}
+
+function calculateBusinessVat(){
+  const amount = manualAmount();
+  const rate = Number.isFinite(Number(CFG.vatRate)) ? Number(CFG.vatRate) : 18;
+
+  if(!businessVatEnabled()){
+    return {
+      enabled: false,
+      mode: 'none',
+      rate: 0,
+      net: amount,
+      vat: 0,
+      total: amount
+    };
+  }
+
+  const mode = document.getElementById('receiptVatMode').value || 'included';
+
+  if(mode === 'add'){
+    const vat = amount * rate / 100;
+
+    return {
+      enabled: true,
+      mode: mode,
+      rate: rate,
+      net: amount,
+      vat: vat,
+      total: amount + vat
+    };
+  }
+
+  const net = rate > 0
+    ? amount / (1 + rate / 100)
+    : amount;
+
+  return {
+    enabled: true,
+    mode: mode,
+    rate: rate,
+    net: net,
+    vat: amount - net,
+    total: amount
+  };
+}
+
+function updateBusinessVatUI(){
+  const box = document.getElementById('businessVatReceiptOptions');
+  const preview = document.getElementById('receiptVatPreview');
+
+  if(!box || !preview) return;
+
+  if(!businessVatEnabled()){
+    box.style.display = 'none';
+    preview.textContent = '';
+    return;
+  }
+
+  box.style.display = 'block';
+
+  const c = calculateBusinessVat();
+
+  if(c.total <= 0){
+    preview.textContent = '';
+    return;
+  }
+
+  preview.textContent =
+    'לפני מע"מ: ' + c.net.toFixed(2) + '  | ' +
+    'מע"מ ' + c.rate + '%: ' + c.vat.toFixed(2) + '  | ' +
+    'סה"כ: ' + c.total.toFixed(2) + ' ';
+}
+function refreshTotal(){
+  let total=0, lbl='סכום לתשלום';
+  if(isOtherPurpose){
+    total = businessVatEnabled()
+      ? calculateBusinessVat().total
+      : manualAmount();
+    lbl='סכום לתשלום';
+  } else {
+    const fee=residentFee();
+    total=selectedMonths.size*fee;
+    lbl=`סכום לתשלום (${fee.toLocaleString('he-IL')} ₪ × חודשים)`;
+  }
+  document.getElementById('totalAmt').textContent=total.toLocaleString('he-IL')+' ₪';
+  document.getElementById('totalLbl').textContent=lbl;
+  updateBusinessVatUI();
+  validateForm();
+}
+function currentResident(){ return residents[residentSelect.value]; }
+function validateForm(){
+  let ok;
+  if(isOtherPurpose){
+    ok=currentResident()&&selectedPay&&document.getElementById('purposeInput').value.trim()&&manualAmount()>0&&accessToken;
+  } else {
+    ok=currentResident()&&selectedPay&&selectedMonths.size>0&&accessToken;
+  }
+  ok = ok && isConfigured();
+  const cancelBtnForValidate = document.getElementById('wizardCancelBtn');
+  if(cancelBtnForValidate) cancelBtnForValidate.disabled=!ok;
+  wizardRefreshNextBtn();
+}
+
+/* ═══════════════════════════════════════
+   WIZARD (4-step receipt flow: דייר → חודשים → תשלום → אישור)
+═══════════════════════════════════════ */
+const WIZARD_STEP_COUNT = 5;
+let wizardIndex = 0;
+
+function wizardStepValid(i){
+  switch(i){
+    case 0: return !!currentResident();
+    case 1: return isOtherPurpose
+      ? !!(document.getElementById('purposeInput').value.trim() && manualAmount()>0)
+      : selectedMonths.size>0;
+    case 2: return !!selectedPay;
+    default: return true;
+  }
+}
+
+function wizardRefreshNextBtn(){
+  const btn = document.getElementById('wizardNextBtn');
+  if(!btn) return; // not rendered yet on first script pass
+  btn.disabled = !wizardStepValid(wizardIndex);
+}
+
+function wizardUpdateSummary(){
+  const r = currentResident();
+  const monthsTxt = isOtherPurpose
+    ? (document.getElementById('purposeInput').value.trim() || '—')
+    : (selectedMonths.size ? sortedMonths().map(i=>MONTH_NAMES[i]).join(', ') : '—');
+  document.getElementById('wizardSummary').innerHTML = `
+    <div class="wizard-summary-row"><span>${CFG.usageMode==='business' ? 'לקוח' : 'דייר'}</span><b>${r ? r.name : '—'}</b></div>
+    <div class="wizard-summary-row"><span>${isOtherPurpose ? 'מטרה' : 'חודשים'}</span><b>${monthsTxt}</b></div>
+    <div class="wizard-summary-row"><span>אמצעי תשלום</span><b>${selectedPay || '—'}</b></div>
+  `;
+}
+
+function wizardShowStep(i){
+  wizardIndex = Math.max(0, Math.min(WIZARD_STEP_COUNT - 1, i));
+  const isLast = wizardIndex === WIZARD_STEP_COUNT - 1;
+
+  for(let s=0; s<WIZARD_STEP_COUNT; s++){
+    const stepEl = document.getElementById('wizardStep'+s);
+    stepEl.style.display = (s===wizardIndex) ? 'flex' : 'none';
+    // Only the last step (confirm/preview) is allowed to scroll — every
+    // other step must fit within the screen without any scrolling at all.
+    stepEl.classList.toggle('scrollable', s===wizardIndex && isLast);
+  }
+
+  document.querySelectorAll('.wizard-dot').forEach((dot,idx)=>{
+    dot.classList.toggle('current', idx===wizardIndex);
+    dot.classList.toggle('done', idx<wizardIndex);
+    dot.classList.toggle('todo', idx>wizardIndex);
+    dot.querySelector('.circ').textContent = idx<wizardIndex ? '✓' : (idx+1);
+  });
+  document.getElementById('wizardProgressFill').style.width = (wizardIndex/(WIZARD_STEP_COUNT-1)*100) + '%';
+  document.getElementById('wizardCounter').textContent = `שלב ${wizardIndex+1} מתוך ${WIZARD_STEP_COUNT}`;
+
+  const backBtn = document.getElementById('wizardBackBtn');
+  backBtn.style.visibility = 'visible';
+  backBtn.innerHTML = wizardIndex===0
+    ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--blue);vertical-align:-2px;"><path d="M3 11l9-8 9 8"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/></svg> בית'
+    : '→ חזרה';
+  document.getElementById('wizardNextBtn').style.display    = wizardIndex===WIZARD_STEP_COUNT-1 ? 'none' : '';
+  const cancelBtnEl = document.getElementById('wizardCancelBtn');
+  cancelBtnEl.style.display  = wizardIndex===WIZARD_STEP_COUNT-1 ? '' : 'none';
+  if(wizardIndex===WIZARD_STEP_COUNT-1) cancelBtnEl.textContent = '🧾 הפק קבלה';
+
+  if(wizardIndex === 3) wizardUpdateSummary();
+  if(isLast) refreshPreview(); // step is now display:flex, so clientWidth is real — safe to scale the receipt now
+  validateForm();
+}
+
+function wizardNext(){
+  if(!wizardStepValid(wizardIndex)) return;
+  wizardShowStep(wizardIndex + 1);
+}
+function wizardBack(){
+  if(wizardIndex === 0){
+    clearResidentSelection(); // clean slate, in case anything was picked before backing out
+    showHomeScreen();
+    return;
+  }
+  wizardShowStep(wizardIndex - 1);
+}
+
+document.getElementById('wizardNextBtn').addEventListener('click', wizardNext);
+document.getElementById('wizardBackBtn').addEventListener('click', wizardBack);
+document.getElementById('wizardCancelBtn').addEventListener('click', async ()=>{
+  const ok = await showAppConfirm('להפיק את הקבלה?', '🧾');
+  if(ok) performGenerateReceipt();
+});
+
+/* ═══════════════════════════════════════
+   HOME / FINANCE / WIZARD SCREEN SWITCHING
+═══════════════════════════════════════ */
+function setFooterNavVisible(show){
+  const nav = document.getElementById('homeFooterNav');
+  if(nav) nav.style.display = show ? '' : 'none';
+}
+function setFooterNavActive(screen){ // 'home' | 'finance'
+  const financeBtn = document.getElementById('homeFinanceBtn');
+  if(financeBtn) financeBtn.classList.toggle('active', screen==='finance');
+}
+function showWizardFromHome(){
+  document.getElementById('homeScreen').style.display = 'none';
+  document.getElementById('financeScreen').style.display = 'none';
+  document.querySelector('.wizard-card').style.display = '';
+  document.body.classList.remove('home-active');
+  document.getElementById('appTopbar').style.display = '';
+  document.getElementById('appTopbar').classList.add('wizard-active');
+  document.getElementById('wizardHomeBtn').style.display = '';
+  setFooterNavVisible(false);
+  wizardShowStep(0);
+}
+function showHomeScreen(){
+  document.querySelector('.wizard-card').style.display = 'none';
+  document.getElementById('financeScreen').style.display = 'none';
+  document.getElementById('homeScreen').style.display = '';
+  document.body.classList.add('home-active');
+  document.getElementById('appTopbar').style.display = '';
+  document.getElementById('appTopbar').classList.remove('wizard-active');
+  document.getElementById('wizardHomeBtn').style.display = 'none';
+  setFooterNavVisible(true);
+  setFooterNavActive('home');
+  refreshRecentResidents();
+}
+async function showFinanceScreen(){
+  document.querySelector('.wizard-card').style.display = 'none';
+  document.getElementById('homeScreen').style.display = 'none';
+  document.getElementById('financeScreen').style.display = '';
+  document.body.classList.add('home-active');
+  document.getElementById('appTopbar').style.display = 'none'; // finance screen has its own header (back/title/filter) — matches the design mockup filling header-to-footer
+  document.getElementById('appTopbar').classList.remove('wizard-active');
+  document.getElementById('wizardHomeBtn').style.display = 'none';
+  setFooterNavVisible(true);
+  setFooterNavActive('finance');
+  await loadAndRenderFinanceScreen();
+}
+
+/**
+ * Relocated from the old footer "בית" button to a dedicated refresh icon
+ * next to the "תשלומים קרובים" heading — same underlying refresh logic
+ * (re-fetch residents + receipts from Google Sheets), just triggered from
+ * its new home so the footer button itself could become "הוצאות והכנסות".
+ */
+async function refreshUpcomingPayments(){
+  if(!accessToken || !CFG.spreadsheetId) return;
+
+  const btn    = document.getElementById('homeRefreshBtn');
+  const status = document.getElementById('homeRefreshStatus');
+  const list   = document.getElementById('homeResidentsList');
+  const originalListHtml = list.innerHTML;
+
+  btn.classList.add('spinning');
+  btn.disabled = true;
+  status.textContent = 'מעדכן…';
+  list.innerHTML = '<div class="home-residents-loading">⏳ טוען נתונים מהגיליון…</div>';
+
+  try{
+    await Promise.all([loadResidents(), loadAllReceiptRows()]);
+    refreshRecentResidents();
+    status.textContent = 'עודכן עכשיו';
+  }catch(e){
+    list.innerHTML = originalListHtml; // refresh failed — restore whatever was showing before
+    status.textContent = 'לא ניתן לרענן כרגע';
+  }finally{
+    btn.classList.remove('spinning');
+    btn.disabled = false;
+  }
+}
+
+function spawnConfetti(){
+  const wrap = document.getElementById('confettiWrap');
+  wrap.innerHTML = '';
+  const colors = ['#2563EB','#0E9F6E','#E0A72E','#FF3D00','#9333EA'];
+  for(let i=0; i<16; i++){
+    const el = document.createElement('span');
+    el.className = 'confetti-piece';
+    el.style.background = colors[i % colors.length];
+    el.style.left = (8 + Math.random()*84) + '%';
+    el.style.setProperty('--dx', (Math.random()*100-50) + 'px');
+    el.style.animationDelay = (Math.random()*0.2) + 's';
+    wrap.appendChild(el);
+  }
+}
+
+document.getElementById('homeStartBtn').addEventListener('click', showWizardFromHome);
+document.getElementById('homeFinanceBtn').addEventListener('click', showFinanceScreen);
+document.getElementById('homeRefreshBtn').addEventListener('click', refreshUpcomingPayments);
+document.getElementById('financeBackBtn').addEventListener('click', showHomeScreen);
+document.getElementById('homeSettingsBtn').addEventListener('click', ()=>document.getElementById('settingsBtn').click());
+document.getElementById('homeHistoryBtn').addEventListener('click', ()=>document.getElementById('historyBtn').click());
+document.getElementById('homeTourBtn').addEventListener('click', tourStart);
+document.getElementById('successNewBtn').addEventListener('click', ()=>{
+  document.getElementById('receiptSuccessModalBg').classList.remove('show');
+  hideMsg();
+  clearResidentSelection(); // clears fields and returns to step 0 for a new receipt — wizard stays open
+});
+document.getElementById('receiptSuccessCloseBtn').addEventListener('click', ()=>{
+  document.getElementById('receiptSuccessModalBg').classList.remove('show');
+});
+
+/* ═══════════════════════════════════════
+   RECEIPT HTML (used in preview & PDF)
+═══════════════════════════════════════ */
+function todayStr(){
+  return new Date().toLocaleDateString('he-IL',{year:'numeric',month:'long',day:'numeric'});
+}
+function sortedMonths(){ return [...selectedMonths].sort((a,b)=>a-b); }
+
+function receiptHTML(forPdf=false, opts={}){
+  const r      = currentResident();
+  const months = sortedMonths();
+  const fee    = residentFee();
+  const vatCalc = businessVatEnabled() ? calculateBusinessVat() : null;
+  const total = isOtherPurpose
+    ? (vatCalc ? vatCalc.total : manualAmount())
+    : months.length*fee;
+  const bInfo = CFG.buildingInfo || 'ועד בית';
+  const isBiz = CFG.usageMode==='business';
+  const receiptNum = CFG.nextReceiptNumber || 1000;
+  const now = new Date();
+
+  const serviceYear =
+    Number(opts.serviceYear) ||
+    Number(CFG.activeYear) ||
+    currentCalendarYear();
+
+  const receiptYear =
+    Number(opts.receiptYear) ||
+    now.getFullYear();
+
+  const dateMain = now.toLocaleDateString('he-IL', {day:'numeric', month:'long'});
+  const dateYear = now.toLocaleDateString('he-IL', {year:'numeric'});
+  const receiptTitle = isBiz ? `אישור תשלום עבור ${escapeHtml2(bInfo)}` : `אישור תשלום עבור ועד בית ${escapeHtml2(bInfo)}`;
+  const businessNumberLine = (isBiz && CFG.businessNumber)
+    ? `<div class="info-row">
+         <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M4 21V9l8-5 8 5v12M9 21v-6h6v6"/></svg></div>
+         <div class="info"><div class="label">מספר עוסק</div><div class="value">${escapeHtml2(CFG.businessNumber)}</div></div>
+       </div>`
+    : '';
+
+  const receiptMonthLabel = i =>
+    MONTH_NAMES[i] +
+    (serviceYear!==receiptYear ? ` ${serviceYear}` : '');
+
+  const monthsChips =
+    months.map(i=>`<span class="chip">${receiptMonthLabel(i)}</span>`).join('');
+  const monthsOrPurpose = isOtherPurpose
+    ? `<div class="info-row">
+         <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg></div>
+         <div class="info"><div class="label">מטרת התשלום</div><div class="value">${document.getElementById('purposeInput').value||'—'}</div></div>
+       </div>`
+    : `<div class="months"><div><div class="label">חודשים משולמים</div></div><div class="chips">${monthsChips||'—'}</div></div>`;
+
+  const vatBreakdown = (vatCalc && vatCalc.enabled)
+    ? `<div style="margin-top:12px;padding:12px 14px;background:#F8FAFC;border-radius:12px;font-size:14px;line-height:1.8;">
+         <div>סכום לפני מע"מ: <strong> ${vatCalc.net.toFixed(2)}</strong></div>
+         <div>מע"מ (${vatCalc.rate}%): <strong> ${vatCalc.vat.toFixed(2)}</strong></div>
+       </div>`
+    : '';
+
+  const minH = forPdf ? 'min-height:1123px;' : '';
+
+  return `
+  <div class="receipt-paper" style="${minH}">
+    <div class="decor-dots"></div>
+    <img class="building-art" src="${CFG.usageMode==='business' ? 'login-illustration-freelance.jpg?v=2' : 'buildings-illustration.jpg?v=2'}" alt="${CFG.usageMode==='business' ? 'עסק עצמאי' : 'בניין מגורים'}">
+    <header class="r-brand">
+      <img class="r-brand-logo" src="icon-mark-192.png" alt="קבקליק">
+      <div class="r-brand-name"><span class="dark">קב</span>קליק</div>
+      <div class="r-brand-tag">מפיקים קבלות בקלות ובמהירות</div>
+    </header>
+    <div class="divider"><span class="receipt-chip">קבלה מס׳ ${receiptNum}</span></div>
+    <section class="meta">
+      <div class="meta-side"><span>מס׳ הקבלה</span><strong>${receiptNum}</strong></div>
+      <div class="main-title">${receiptTitle}</div>
+      <div class="meta-side left"><span>תאריך</span><strong class="meta-date-value"><span class="meta-date-main">${dateMain}</span><span class="meta-date-year">${dateYear}</span></strong></div>
+    </section>
+    ${businessNumberLine}
+    <section class="details">
+      <div class="info-row">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></div>
+        <div class="info"><div class="label">${CFG.usageMode==='business' ? 'שם הלקוח' : 'שם הדייר'}</div><div class="value">${r?r.name:'—'}${(r && r.apartment && r.apartment.trim()) ? ` (דירה ${r.apartment})` : ''}</div></div>
+      </div>
+      <div class="info-row">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .3 2 .7 2.9a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.2-1.2a2 2 0 0 1 2.1-.5c.9.4 1.9.6 2.9.7a2 2 0 0 1 1.8 2z"/></svg></div>
+        <div class="info"><div class="label">טלפון</div><div class="value">${r?(r.phone||'—'):'—'}</div></div>
+      </div>
+      <div class="info-row">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M4 21V9l8-5 8 5v12M9 21v-6h6v6"/></svg></div>
+        <div class="info"><div class="label">אמצעי תשלום</div><div class="value">${selectedPay||'—'}</div></div>
+      </div>
+      ${monthsOrPurpose}
+    </section>
+    ${vatBreakdown}
+    <section class="total">
+      <div class="label">סכום לתשלום</div>
+      <div class="total-right-group">
+        <div class="amount">₪ ${total.toLocaleString('he-IL')}</div>
+      </div>
+      <div class="watermark"></div>
+    </section>
+    <div class="total-seal-wrap">
+      <div class="total-seal"><span class="stars">★ ★ ★</span><span class="thanks-text">תודה רבה</span></div>
+    </div>
+    <footer class="footer">
+      <div class="thanks-line"><span></span><div class="heart">♡</div><span></span></div>
+      <div class="thanks">תודה על התשלום!</div>
+      <div class="committee">${escapeHtml2(bInfo)}</div>
+      <div class="trust">
+        <div class="trust-main">🛡️ <b>הנתונים שלכם נשמרים ב-Google בלבד</b></div>
+        <div class="trust-sub"><span>📄 Google Sheets</span><span><svg width="14" height="13" viewBox="0 0 40 36" style="vertical-align:-2px;"><polygon points="15,2 25,2 40,28 30,28" fill="#00AC47"/><polygon points="15,2 0,28 5,36 20,10" fill="#FFBA00"/><polygon points="5,36 35,36 40,28 10,28" fill="#0066DA"/></svg> Google Drive</span><span>🔒 אין שרתים חיצוניים</span></div>
+      </div>
+    </footer>
+  </div>`;
+}
+
+function refreshPreview(){
+  const r   = currentResident();
+  const box = document.getElementById('receiptPaper');
+  if(!r && selectedMonths.size===0 && !selectedPay && !isOtherPurpose){
+    box.innerHTML='<div class="empty-hint">בחרו דייר, אמצעי תשלום וחודשים — התצוגה המקדימה תופיע כאן.</div>';
+    box.style.height = '';
+  } else {
+    box.innerHTML=receiptHTML(false);
+    // The receipt is designed at a fixed 794px width (matching the actual
+    // PDF); scale it down to fit whatever width the preview box actually
+    // has, and shrink the box's own height to match so there's no leftover
+    // empty space below the scaled-down receipt.
+    requestAnimationFrame(()=>{
+      const paper = box.querySelector('.receipt-paper');
+      if(!paper) return;
+      const scale = box.clientWidth / 794;
+      paper.style.transform = `scale(${scale})`;
+      box.style.height = (paper.offsetHeight * scale) + 'px';
+    });
+  }
+  validateForm();
+}
+
+/* ═══════════════════════════════════════
+   MESSAGES
+═══════════════════════════════════════ */
+function showMsg(txt,type){
+  const b=document.getElementById('msgBox');
+  b.textContent=txt; b.className='msg show '+type;
+}
+function hideMsg(){ document.getElementById('msgBox').className='msg'; }
+
+/* ═══════════════════════════════════════
+   GOOGLE INIT / AUTH
+═══════════════════════════════════════ */
+const TOKEN_CACHE_KEY = 'vaad_generic_token';
+let googleInitPromise = null;
+let authInProgress = false;
+
+function setAuthButtonsDisabled(disabled){
+  const authBtn = document.getElementById('authBtn');
+  const loginBtn = document.getElementById('loginGateGoogleBtn');
+  if(authBtn) authBtn.disabled = disabled;
+  if(loginBtn) loginBtn.disabled = disabled;
+}
+
+function waitForGoogleLibraries(timeoutMs=15000){
+  const startedAt = Date.now();
+  return new Promise((resolve,reject)=>{
+    const check = ()=>{
+      if(typeof gapi!=='undefined' && typeof google!=='undefined' && google.accounts?.oauth2){
+        resolve();
+        return;
+      }
+      if(Date.now()-startedAt >= timeoutMs){
+        reject(new Error('שירותי Google לא נטענו'));
+        return;
+      }
+      setTimeout(check,100);
+    };
+    check();
+  });
+}
+
+function saveTokenCache(token, expiresInSec){
+  const expiresAt = Date.now() + ((expiresInSec||3500)*1000) - 60000; // 1-min safety buffer
+  try{ localStorage.setItem(TOKEN_CACHE_KEY, JSON.stringify({token, expiresAt})); }catch(e){}
+}
+function loadTokenCache(){
+  try{
+    const c = JSON.parse(localStorage.getItem(TOKEN_CACHE_KEY)||'null');
+    if(c && c.token && c.expiresAt > Date.now()) return c.token;
+  }catch(e){}
+  return null;
+}
+function clearTokenCache(){
+  try{ localStorage.removeItem(TOKEN_CACHE_KEY); }catch(e){}
+}
+function markConnected(){
+  document.getElementById('authDot').classList.add('on');
+  document.getElementById('authLabel').textContent='מחובר ✓';
+  // Deliberately NOT hiding #loginGate here — it stays up (with the license
+  // check happening quietly behind it) until we know the account is actually
+  // licensed. That way an unregistered account sees the registration screen
+  // appear in front of the login gate, never a flash of the vaad/business
+  // home screen it hasn't earned access to yet.
+}
+async function chooseUsageMode(mode){
+  applyAccountAndMode(CFG.email, mode);
+  document.getElementById('modeSelectGate').classList.remove('show');
+  await loadDataForCurrentAccountMode();
+}
+document.getElementById('modeSelectVaad').addEventListener('click', ()=>chooseUsageMode('vaad'));
+document.getElementById('modeSelectBusiness').addEventListener('click', ()=>chooseUsageMode('business'));
+function markDisconnected(){
+  accessToken=null;
+  document.getElementById('authDot').classList.remove('on');
+  document.getElementById('authLabel').textContent='התחברות עם Google';
+  document.getElementById('loginGate').classList.remove('hidden');
+}
+
+function signOut(){
+  // Only clear the local session — do NOT revoke the Google grant itself
+  // (google.accounts.oauth2.revoke) since that forces the person to click
+  // through the full scope-approval screens again on next sign-in. A local
+  // sign-out should just forget the cached token and show the login gate.
+  clearTokenCache();
+  clearLicenseCache();
+  // Also clear the in-memory account state (not the per-account storage —
+  // that stays on disk under this account's own key) so nothing from this
+  // account lingers on screen if a different account signs in next.
+  CFG.email = null; CFG.usageMode = null;
+  CFG.spreadsheetId = ''; CFG.folderId = ''; CFG.buildingInfo = '';
+  CFG.businessNumber = ''; CFG.logoUrl = ''; CFG.defaultFee = 140;
+  CFG.businessDefaultAmount = ''; CFG.businessDefaultAmountAuto = false;
+  CFG.businessTaxType = 'exempt'; CFG.vatRate = 18;
+  CFG.nextReceiptNumber = 1000;
+  CFG.financeOpeningBalance = 0; CFG.financeOpeningBalanceDate = '';
+  CFG.activeYear = null; CFG.yearWorkspaces = {};
+  CFG.seriesId = ''; CFG.pendingSeriesId = '';
+  residents = []; allReceiptRows = [];
+  if(typeof financeRows!=='undefined') financeRows = [];
+  markDisconnected();
+  showHomeScreen();
+  applyBranding(); applyModeTerminology();
+  refreshRecentResidents();
+}
+
+document.getElementById('loginGateGoogleBtn').addEventListener('click', requestGoogleAccess);
+/** True if the person has entered anything in the current receipt that
+ *  would be lost by leaving the wizard — used to decide whether exiting
+ *  needs a confirmation or can happen immediately. */
+function wizardHasUnsavedInput(){
+  return !!(currentResident() || selectedPay || selectedMonths.size>0 ||
+    document.getElementById('purposeInput').value.trim() ||
+    document.getElementById('manualAmountInput').value.trim());
+}
+document.getElementById('wizardHomeBtn').addEventListener('click', async ()=>{
+  if(wizardHasUnsavedInput()){
+    const ok = await showAppConfirm('לצאת מהאשף? הנתונים שהוזנו לא יישמרו.', '🏠');
+    if(!ok) return;
+  }
+  clearResidentSelection();
+  showHomeScreen();
+});
+document.getElementById('signOutBtn').addEventListener('click', ()=>{
+  document.getElementById('accountMenuBg').classList.add('show');
+});
+document.getElementById('accountMenuCancelBtn').addEventListener('click', ()=>{
+  document.getElementById('accountMenuBg').classList.remove('show');
+});
+document.getElementById('accountMenuCloseBtn').addEventListener('click', ()=>{
+  document.getElementById('accountMenuBg').classList.remove('show');
+});
+document.getElementById('accountMenuSignOutBtn').addEventListener('click', ()=>{
+  document.getElementById('accountMenuBg').classList.remove('show');
+  signOut();
+});
+document.getElementById('accountMenuSwitchModeBtn').addEventListener('click', ()=>{
+  document.getElementById('accountMenuBg').classList.remove('show');
+  document.getElementById('homeScreen').style.display='';
+  document.querySelector('.wizard-card').style.display='none';
+  document.getElementById('modeSelectGate').classList.add('show');
+});
+
+/* ═══════════════════════════════════════
+   LICENSE ENFORCEMENT
+   Runs after every successful Google sign-in, before any data loads.
+═══════════════════════════════════════ */
+function loadLicenseCache(email){
+  try{
+    const c = JSON.parse(localStorage.getItem(LICENSE_CACHE_KEY)||'null');
+    if(c && c.email===email && (Date.now()-c.checkedAt) < LICENSE_CACHE_TTL_MS) return c;
+  }catch(e){}
+  return null;
+}
+function saveLicenseCache(email, result){
+  try{ localStorage.setItem(LICENSE_CACHE_KEY, JSON.stringify({email, ...result, checkedAt:Date.now()})); }catch(e){}
+}
+function clearLicenseCache(){
+  try{ localStorage.removeItem(LICENSE_CACHE_KEY); }catch(e){}
+}
+// Remembers which email last successfully signed in on THIS device — lets a
+// returning, already-verified session skip straight past the network calls
+// (see the "fast path" in enforceLicense below) instead of waiting on them
+// on every single app open, and keeps the app usable when briefly offline.
+const LAST_EMAIL_KEY = 'kabklik_last_email';
+function saveLastEmail(email){ try{ localStorage.setItem(LAST_EMAIL_KEY, email); }catch(e){} }
+function loadLastEmail(){ try{ return localStorage.getItem(LAST_EMAIL_KEY) || null; }catch(e){ return null; } }
+function clearLastEmail(){ try{ localStorage.removeItem(LAST_EMAIL_KEY); }catch(e){} }
+let lastCheckedEmail = ''; // set by enforceLicense — used by the self-registration form below
+async function getUserEmail(token){
+  const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+    headers:{Authorization:'Bearer '+token}
+  });
+  if(!res.ok) return null;
+  const data = await res.json();
+  if(data.email) saveLastEmail(data.email);
+  return data.email || null;
+}
+async function checkLicense(email){
+  const cached = loadLicenseCache(email);
+  if(cached && cached.allowed) return cached;
+  const url = `${LICENSE_API_URL}?email=${encodeURIComponent(email)}&key=${encodeURIComponent(LICENSE_SECRET)}`;
+  const res = await fetch(url);
+  const result = await res.json();
+  console.log('[קבקליק] תגובת בדיקת רישיון עבור', email, ':', result);
+  // Only cache a positive result. Caching a "not registered"/"blocked" result
+  // would mean the block screen stays hidden for up to 6 hours even after
+  // the person registers in the meantime via a different tab/attempt — worse,
+  // it would also mean a genuinely unregistered account might not see the
+  // registration screen again if anything ever cached a stale negative.
+  if(result.allowed) saveLicenseCache(email, result);
+  return result;
+}
+function showLicenseBlock(message, notFound){
+  document.getElementById('licenseBlockTitle').textContent = notFound ? '🔑 כניסה למערכת' : '🔔 עדכון מנוי נדרש';
+  document.getElementById('licenseBlockMsg').textContent = message || 'חשבון זה אינו רשום כלקוח פעיל.';
+  document.getElementById('licenseRegisterSection').style.display = notFound ? 'block' : 'none';
+  document.getElementById('licenseContactSection').style.display  = notFound ? 'none'  : 'block';
+  document.getElementById('licenseRetrySection').style.display    = 'none';
+  document.getElementById('licenseBlockBg').classList.add('show');
+}
+/**
+ * Shown when the license check itself couldn't complete (network hiccup,
+ * the check service being briefly unreachable, etc.) AND there's no locally
+ * cached, already-verified account to fall back on — this only happens for
+ * a brand-new sign-in with no connectivity, since returning sessions use
+ * the offline-friendly fast path in enforceLicense instead.
+ */
+function showLicenseRetry(){
+  document.getElementById('licenseBlockTitle').textContent = '⚠️ לא ניתן היה לאמת את החשבון';
+  document.getElementById('licenseBlockMsg').textContent = 'אירעה תקלה זמנית באימות החשבון. יש לבדוק את החיבור לאינטרנט וללחוץ "נסה שוב".';
+  document.getElementById('licenseRegisterSection').style.display = 'none';
+  document.getElementById('licenseContactSection').style.display = 'none';
+  document.getElementById('licenseRetrySection').style.display   = 'block';
+  document.getElementById('licenseBlockBg').classList.add('show');
+}
+function hideLicenseBlock(){
+  document.getElementById('licenseBlockBg').classList.remove('show');
+}
+document.getElementById('licenseRetryBtn').addEventListener('click', async ()=>{
+  const btn = document.getElementById('licenseRetryBtn');
+  btn.disabled = true; btn.textContent = 'בודק…';
+  hideLicenseBlock();
+  if(accessToken && await enforceLicense(accessToken, {trustCache:false})){
+    await loadDataForCurrentAccountMode();
+    validateForm();
+  }
+  btn.disabled = false; btn.textContent = '🔄 נסה שוב';
+});
+document.getElementById('licenseBlockCancelBtn').addEventListener('click', ()=>{
+  // Returns to the sign-in screen without registering. Deliberately does NOT
+  // remember "already seen" anywhere — signing in again with the same
+  // still-unregistered account will show this exact block again, every time,
+  // until registration actually completes.
+  hideLicenseBlock();
+  signOut();
+});
+/**
+ * Returns true if allowed to proceed, false if blocked (and shows the block
+ * screen). Two modes:
+ *
+ * - trustCache=true (returning session, e.g. a cached token being silently
+ *   reused): if this device already has a verified, still-valid ("allowed")
+ *   license cached for its last-signed-in email, unlock the app INSTANTLY
+ *   with that — no network wait, works offline — then quietly re-verify in
+ *   the background. If the background check ever comes back negative, the
+ *   block screen appears then, even though the person was already in.
+ *
+ * - trustCache=false (a fresh/explicit sign-in, or a manual retry): always
+ *   does the full live check before unlocking anything. This is what keeps
+ *   a genuinely unregistered account — or someone deliberately switching to
+ *   a different Google account — from ever being let in on a stale cache.
+ */
+async function enforceLicense(token, {trustCache=false}={}){
+  if(!LICENSE_API_URL){ document.getElementById('loginGate').classList.add('hidden'); return true; } // licensing not configured yet — no-op
+
+  if(trustCache){
+    const cachedEmail = loadLastEmail();
+    const cachedLicense = cachedEmail ? loadLicenseCache(cachedEmail) : null;
+    if(cachedEmail && cachedLicense && cachedLicense.allowed){
+      document.getElementById('loginGate').classList.add('hidden');
+      applyAccountAfterLicense(cachedEmail);
+      verifyLicenseInBackground(token, cachedEmail); // fire-and-forget
+      return true;
+    }
+  }
+
+  // A few silent internal attempts before ever showing an error screen —
+  // smooths over the kind of brief network hiccup that's common right after
+  // signing in for the first time (e.g. mobile data still settling), so a
+  // brand-new customer doesn't get scared off by a technical-looking error
+  // for something that would have resolved itself a second later.
+  const MAX_SILENT_ATTEMPTS = 3;
+  let lastErr = null;
+  for(let attempt=1; attempt<=MAX_SILENT_ATTEMPTS; attempt++){
+    try{
+      const email = await getUserEmail(token);
+      if(!email) throw new Error('לא ניתן לזהות את חשבון הגוגל');
+      lastCheckedEmail = email;
+      const result = await checkLicense(email);
+      if(result.allowed){ hideLicenseBlock(); applyAccountAfterLicense(email); return true; }
+      showLicenseBlock(result.message, !!result.notFound);
+      return false;
+    }catch(e){
+      lastErr = e;
+      if(attempt < MAX_SILENT_ATTEMPTS){
+        await new Promise(res=>setTimeout(res, 1200*attempt));
+      }
+    }
+  }
+  // License service unreachable/erroring after every silent retry — fail
+  // CLOSED. An unregistered account must never slip through just because a
+  // check happened to fail; the person can retry once the connection/
+  // service recovers.
+  console.error('[קבקליק] בדיקת הרישיון נכשלה אחרי כמה ניסיונות:', lastErr);
+  showLicenseRetry();
+  return false;
+}
+/**
+ * Quietly re-confirms a session that was let in on the fast path. Never
+ * blocks on its own failure (offline is expected and fine — the person
+ * stays in on the cached license, and this just tries again next launch);
+ * it only interrupts the session if the server actively comes back with
+ * "not allowed" (e.g. a cancelled subscription), or if the token turns out
+ * to belong to a different account than the one we trusted.
+ */
+async function verifyLicenseInBackground(token, expectedEmail){
+  try{
+    const email = await getUserEmail(token);
+    if(!email || email!==expectedEmail){
+      clearLicenseCache();
+      return;
+    }
+    lastCheckedEmail = email;
+    const result = await checkLicense(email);
+    if(!result.allowed){
+      showLicenseBlock(result.message, !!result.notFound);
+    }
+  }catch(e){
+    console.warn('[קבקליק] אימות רקע של הרישיון לא הצליח (לא חוסם — ממשיכים על הנתונים השמורים):', e);
+  }
+}
+
+/**
+ * Called right after a successful self-registration — the person already has
+ * a valid accessToken from the Google sign-in that got them to the license
+ * block in the first place, so we can pick up exactly where the normal
+ * sign-in flow would have continued, without asking them to reconnect.
+ */
+async function resumeAfterLicenseGranted(){
+  if(!accessToken) return;
+  gapi.client.setToken({access_token:accessToken});
+  markConnected();
+  applyAccountAfterLicense(lastCheckedEmail);
+  await loadDataForCurrentAccountMode();
+  validateForm();
+}
+
+document.getElementById('regSubmitBtn').addEventListener('click', async ()=>{
+  const buildingName = document.getElementById('regBuildingName').value.trim();
+  const statusEl = document.getElementById('regStatusMsg');
+  const btn = document.getElementById('regSubmitBtn');
+
+  if(!buildingName){
+    statusEl.style.color = 'var(--bad)';
+    statusEl.textContent = 'נא להזין שם בניין.';
+    return;
+  }
+  if(!lastCheckedEmail){
+    statusEl.style.color = 'var(--bad)';
+    statusEl.textContent = 'לא זוהה מייל מחובר — יש להתחבר מחדש עם Google ולנסות שוב.';
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = 'נרשם…';
+  statusEl.textContent = '';
+
+  try{
+    const res = await fetch(LICENSE_API_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'}, // avoids CORS preflight to Apps Script
+      body: JSON.stringify({ key: LICENSE_SECRET, action:'register', email: lastCheckedEmail, buildingName })
+    });
+    const data = await res.json();
+
+    if(data.ok){
+      clearLicenseCache();
+      statusEl.style.color = 'var(--good)';
+      statusEl.textContent = `נרשמת בהצלחה! טוען את האפליקציה…`;
+      setTimeout(async ()=>{
+        hideLicenseBlock();
+        await resumeAfterLicenseGranted();
+      }, 1200);
+    } else {
+      statusEl.style.color = 'var(--bad)';
+      statusEl.textContent = data.message || 'שגיאה בהרשמה.';
+      btn.disabled = false; btn.textContent = '🚀 הרשמה לשימוש חינם';
+    }
+  }catch(err){
+    statusEl.style.color = 'var(--bad)';
+    statusEl.textContent = 'שגיאת רשת — נסה שוב.';
+    btn.disabled = false; btn.textContent = '🚀 הרשמה לשימוש חינם';
+  }
+});
+
+function initGoogle(){
+  if(googleInitPromise) return googleInitPromise;
+  googleInitPromise=(async()=>{
+    try{
+      await waitForGoogleLibraries();
+      await new Promise((resolve,reject)=>{
+        gapi.load('client',{
+          callback:resolve,
+          onerror:()=>reject(new Error('טעינת Google API נכשלה'))
+        });
+      });
+      await gapi.client.init({
+        apiKey:APP_API_KEY,
+        discoveryDocs:[
+          'https://sheets.googleapis.com/$discovery/rest?version=v4',
+          'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'
+        ]
+      });
+      gapiReady=true;
+      if(!gapi.client.sheets || !gapi.client.drive?.files){
+        throw new Error('שירותי Sheets או Drive לא הושלמו');
+      }
+      tokenClient=google.accounts.oauth2.initTokenClient({
+        client_id:APP_CLIENT_ID,
+        scope:SCOPES,
+        callback:async(resp)=>{
+          authInProgress=false;
+          setAuthButtonsDisabled(false);
+          if(resp.error){
+            showMsg('ההתחברות נכשלה: '+resp.error,'error');
+            return;
+          }
+          accessToken=resp.access_token;
+          gapi.client.setToken({access_token:accessToken});
+          saveTokenCache(accessToken, resp.expires_in);
+          markConnected();
+          if(!(await enforceLicense(accessToken, {trustCache:false}))) return;
+          await loadDataForCurrentAccountMode();
+          validateForm();
+        }
+      });
+      // If a still-valid token is cached from a previous visit, reuse it immediately —
+      // no popup, no network round trip, no re-login needed.
+      const cached = loadTokenCache();
+      if(cached){
+        accessToken = cached;
+        gapi.client.setToken({access_token:accessToken});
+        markConnected();
+        if(await enforceLicense(accessToken, {trustCache:true})){
+          await loadDataForCurrentAccountMode();
+          validateForm();
+        }
+      }
+      return true;
+    }catch(e){
+      googleInitPromise=null;
+      console.warn('[קבקליק] Google initialization failed:',e);
+      return false;
+    }
+  })();
+  return googleInitPromise;
+}
+
+function requestGoogleAccess(){
+  if(authInProgress) return;
+  if(!gapiReady || !tokenClient || !gapi.client.sheets || !gapi.client.drive?.files){
+    initGoogle().catch(()=>{});
+    showMsg('החיבור ל-Google עדיין לא מוכן. נסה שוב בעוד רגע.','error');
+    return;
+  }
+  authInProgress=true;
+  setAuthButtonsDisabled(true);
+  tokenClient.requestAccessToken();
+}
+
+document.getElementById('authBtn').onclick=requestGoogleAccess;
+
+/* ═══════════════════════════════════════
+   SHEETS: LOAD RESIDENTS
+═══════════════════════════════════════ */
+async function ensureResidentsSheetName(){
+  try{
+    const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:CFG.spreadsheetId});
+    const sheets = meta.result.sheets || [];
+    if(sheets.some(s=>s.properties.title===residentsSheetName())) return; // already named correctly
+
+    // Look for a still-default-named tab (e.g. "Sheet1" / "גיליון1") that the
+    // person forgot to rename. Only auto-rename if there's exactly one such
+    // tab — if it's ambiguous, leave it alone rather than guess wrong.
+    const defaultNamed = sheets.filter(s=>/^(sheet\s*\d*|גיליון\s*\d*)$/i.test((s.properties.title||'').trim()));
+    if(defaultNamed.length!==1) return;
+
+    await gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId:CFG.spreadsheetId,
+      resource:{requests:[{updateSheetProperties:{
+        properties:{sheetId:defaultNamed[0].properties.sheetId, title:residentsSheetName()},
+        fields:'title'
+      }}]}
+    });
+  }catch(e){
+    // Non-fatal — if this fails, loadResidents() below will show its normal
+    // "sheet not found" error and the person can rename the tab manually.
+    console.warn('שגיאה בבדיקת/שינוי שם לשונית אנשי קשר:', e);
+  }
+}
+
+/**
+ * Clears any stale in-memory residents/receipts data and invalidates the
+ * local sheet/folder pointer, so the app stops showing data from a
+ * connection that no longer actually works — and so the setup checklist /
+ * "יצירה אוטומטית" become available again immediately, instead of the app
+ * believing it's still configured.
+ */
+function clearDeadDataConnection(message){
+  residents = [];
+  allReceiptRows = [];
+  residentSelect.innerHTML = '';
+  const searchInputEl = document.getElementById('residentSearchInput');
+  if(searchInputEl){
+    searchInputEl.value = '';
+    searchInputEl.disabled = true;
+    searchInputEl.placeholder = 'יש להתחבר ולטעון רשימת דיירים';
+  }
+  const badgeEl = document.getElementById('residentsLoadedBadge');
+  if(badgeEl) badgeEl.style.display = 'none';
+  CFG.spreadsheetId = '';
+  CFG.folderId = '';
+  persistCurrentAccountCfg();
+  updateSetupChecklist();
+  refreshRecentResidents();
+  showMsg(message, 'error');
+}
+async function loadResidents(){
+  try{
+    // A file/folder sitting in the Google Drive Trash is still fully
+    // reachable through the API — Google only removes it for real once the
+    // Trash is emptied — so a plain "did the request fail" check misses
+    // exactly this case, which otherwise looks identical to a healthy
+    // connection. Checking the actual `trashed` flag catches it directly.
+    try{
+      const [sheetChk, folderChk] = await Promise.all([
+        gapi.client.drive.files.get({fileId:CFG.spreadsheetId, fields:'trashed'}),
+        gapi.client.drive.files.get({fileId:CFG.folderId, fields:'trashed'})
+      ]);
+      if(sheetChk.result.trashed || folderChk.result.trashed){
+        clearDeadDataConnection('⚠️ הגיליון ו/או התיקייה שהיו מחוברים נמצאים בסל המיחזור ב-Drive, ולכן לא זמינים בפועל. יש לפתוח את ⚙ ההגדרות וליצור גיליון/תיקייה חדשים — או לשחזר אותם מסל המיחזור בגוגל דרייב ולחבר מחדש.');
+        return;
+      }
+    }catch(trashCheckErr){
+      // This pre-check itself failing (e.g. truly deleted, not just
+      // trashed) is fine — the normal read below will hit the same 404
+      // handling a few lines down.
+    }
+
+    await ensureResidentsSheetName();
+    try{
+      const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:CFG.spreadsheetId});
+      const sheetMeta = (meta.result.sheets||[]).find(s=>s.properties.title===residentsSheetName());
+      residentsGid = sheetMeta ? sheetMeta.properties.sheetId : null;
+      if(sheetMeta && sheetMeta.properties.rightToLeft !== true){
+        try{
+          await gapi.client.sheets.spreadsheets.batchUpdate({
+            spreadsheetId:CFG.spreadsheetId,
+            resource:{requests:[{updateSheetProperties:{
+              properties:{sheetId:sheetMeta.properties.sheetId, rightToLeft:true},
+              fields:'rightToLeft'
+            }}]}
+          });
+        }catch(e){}
+      }
+    }catch(e){ residentsGid = null; } // non-fatal — delete-row just won't be available
+    const res = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId:CFG.spreadsheetId, range:`'${residentsSheetName()}'!A:Z`
+    });
+    const rows=res.result.values||[];
+    if(!rows.length){ showMsg('הגיליון "אנשי קשר" ריק.','error'); return; }
+
+    // detect header row
+    let header=rows[0].map(h=>(h||'').toString().trim().toLowerCase());
+    let nameIdx  = header.findIndex(h=>/שם|name|איש קשר|דייר|תושב/.test(h));
+    let phoneIdx = header.findIndex(h=>/טלפון|פלאפון|נייד|phone/.test(h));
+    let feeIdx   = header.findIndex(h=>/מחיר|fee|סכום/.test(h));
+    let emailIdx = header.findIndex(h=>/מייל|אימייל|email/.test(h));
+    let aptIdx   = header.findIndex(h=>/דירה|apartment|apt/.test(h));
+    // If ANY column header was recognized, row 0 is a header row and should be
+    // skipped — not just when the name column specifically was found. This
+    // avoids accidentally treating the header itself as a resident.
+    const headerRecognized = nameIdx>-1 || phoneIdx>-1 || feeIdx>-1 || emailIdx>-1 || aptIdx>-1;
+    let startRow = headerRecognized ? 1 : 0;
+    // Position-based fallback (assume column A=name, B=phone) is only safe
+    // when NO header was recognized at all — i.e. this looks like a sheet
+    // with no header row, so "first two columns" is a reasonable guess.
+    // If a header WAS recognized (so we know row 0 is real) but name/phone
+    // specifically aren't in it — e.g. someone deleted the "טלפון" column —
+    // guessing a raw position would silently misread whatever data shifted
+    // into that slot. Treat it as genuinely missing instead (healed below,
+    // same as the optional columns) rather than guessing wrong.
+    if(!headerRecognized){
+      if(nameIdx===-1)  nameIdx = 0;
+      if(phoneIdx===-1) phoneIdx = 1;
+    }
+
+    // Auto-complete the sheet itself: if this mode's expected columns aren't
+    // there yet, add them as new columns at the end — so a freshly-pasted
+    // sheet becomes fully structured for this mode without the person
+    // having to guess our exact expected header names, and without ever
+    // silently reading the wrong data into the wrong field. This is
+    // idempotent: once added, later loads find them via the regex above and
+    // this block has nothing left to do.
+    const isBizCols = CFG.usageMode==='business';
+    const missingCols = [];
+    if(nameIdx===-1){               missingCols.push({key:'name', label:isBizCols?'שם הלקוח':'שם הדייר'}); }
+    if(phoneIdx===-1){              missingCols.push({key:'phone',label:'טלפון'}); }
+    if(!isBizCols && feeIdx===-1){ missingCols.push({key:'fee',  label:'מחיר חודשי'}); }
+    if(emailIdx===-1){             missingCols.push({key:'email',label:'מייל'}); }
+    if(!isBizCols && aptIdx===-1){ missingCols.push({key:'apt',  label:'דירה'}); }
+    if(missingCols.length){
+      const startColIdx = header.length;
+      try{
+        await gapi.client.sheets.spreadsheets.values.update({
+          spreadsheetId:CFG.spreadsheetId,
+          range:`'${residentsSheetName()}'!${colLetter(startColIdx)}1:${colLetter(startColIdx+missingCols.length-1)}1`,
+          valueInputOption:'RAW',
+          resource:{values:[missingCols.map(c=>c.label)]}
+        });
+        missingCols.forEach((c,i)=>{
+          const newIdx = startColIdx + i;
+          if(c.key==='name') nameIdx = newIdx;
+          else if(c.key==='phone') phoneIdx = newIdx;
+          else if(c.key==='fee') feeIdx = newIdx;
+          else if(c.key==='email') emailIdx = newIdx;
+          else if(c.key==='apt') aptIdx = newIdx;
+        });
+      }catch(e){} // non-fatal — worst case, this column just isn't recognized this one time
+    }
+
+    residentsCols = {name:nameIdx, phone:phoneIdx, fee:feeIdx, email:emailIdx, apartment:aptIdx};
+
+    // Row numbers (1-indexed, matching the actual sheet) are captured BEFORE
+    // filtering out blank-name rows, so edits/deletes always target the
+    // correct physical row even when some rows in between are skipped.
+    residents=rows.slice(startRow)
+      .map((r,idx)=>({r, sheetRow:startRow+idx+1}))
+      .filter(o=>o.r[nameIdx]&&o.r[nameIdx].toString().trim())
+      .map(o=>{
+        const r=o.r;
+        return {
+          name: r[nameIdx].toString().trim(),
+          phone:(r[phoneIdx]||'').toString().trim(),
+          fee:  feeIdx>-1 ? (parseFloat(r[feeIdx])||0) : 0,
+          email: emailIdx>-1 ? (r[emailIdx]||'').toString().trim() : '',
+          apartment: aptIdx>-1 ? (r[aptIdx]||'').toString().trim() : '',
+          row: o.sheetRow
+        };
+      });
+
+    const isBiz = CFG.usageMode==='business';
+    residentSelect.innerHTML=`<option value="">— ${isBiz?'בחרו לקוח':'בחרו דייר'} —</option>`+
+      residents.map((r,i)=>`<option value="${i}">${r.name}${r.fee?` (${r.fee} ₪/חודש)`:''}</option>`).join('');
+
+    const searchInput = document.getElementById('residentSearchInput');
+    searchInput.disabled = false;
+    searchInput.placeholder = isBiz ? 'הקלידו שם לקוח לחיפוש...' : 'הקלידו שם דייר לחיפוש...';
+    searchInput.value = '';
+    toggleResidentClearBtn();
+
+    const badge = document.getElementById('residentsLoadedBadge');
+    badge.textContent = isBiz ? `נטענו ${residents.length} לקוחות` : `נטענו ${residents.length} דיירים`;
+    badge.style.display = 'block';
+
+    // Keep the latest successful Google data available for offline use.
+    saveOfflineDataSnapshot();
+  }catch(e){
+    if(e.status===401||e.result?.error?.code===401){
+      // Cached token turned out to be invalid (revoked/expired) — clear it and ask
+      // the person to reconnect, rather than showing a confusing raw error.
+      clearTokenCache();
+      accessToken = null;
+      try{ gapi.client.setToken(null); }catch(_){}
+      document.getElementById('authDot').classList.remove('on');
+      document.getElementById('authLabel').textContent='התחברות עם Google';
+      hideMsg();
+      console.warn('[קבקליק] חיבור Google פג במהלך רענון רקע.');
+      return;
+    }
+    const code = e.status || e.result?.error?.code;
+    const msg = e.result?.error?.message || e.message || String(e);
+
+    if(code===404 || /requested entity was not found/i.test(msg)){
+      // The spreadsheet itself is gone (permanently deleted, not just
+      // trashed — that case is caught earlier above), or the ID is simply
+      // wrong.
+      clearDeadDataConnection('⚠️ הגיליון שהיה מחובר לא נמצא (כנראה נמחק מ-Drive). יש לפתוח את ⚙ ההגדרות וליצור גיליון חדש, או לחבר גיליון קיים.');
+      return;
+    }
+
+    if(/unable to parse range|not found/i.test(msg)){
+      showMsg('לא נמצאה לשונית "אנשי קשר" בגיליון — יש לוודא שקיימת לשונית בשם הזה עם שמות ומספרי טלפון של הדיירים.', 'error');
+    } else {
+      showMsg('שגיאה בטעינת הדיירים: '+msg, 'error');
+    }
+  }
+}
+
+/* ═══════════════════════════════════════
+   RESIDENTS / CUSTOMERS MANAGEMENT SCREEN
+   Full add/edit/real-delete against the "אנשי קשר"/"לקוחות" sheet tab.
+   Edits/deletes always act on residents[i].row, captured at load time, so
+   they target the exact physical sheet row regardless of gaps or filtering.
+═══════════════════════════════════════ */
+let rmmEditingIndex = -1; // -1 = adding a new resident/customer
+let rmmAddContext   = 'management'; // 'management' | 'wizard' — where to return focus after a successful add
+
+function residentsManageTitle(){ return CFG.usageMode==='business' ? 'ניהול והוספת לקוחות' : 'ניהול והוספת דיירים'; }
+
+function colLetter(idx){
+  let s='', n=idx+1;
+  while(n>0){ const m=(n-1)%26; s=String.fromCharCode(65+m)+s; n=Math.floor((n-1)/26); }
+  return s;
+}
+
+function renderResidentsManageList(filter){
+  const list = document.getElementById('rmmList');
+  const q = (filter||'').trim().toLowerCase();
+  const isBiz = CFG.usageMode==='business';
+
+  const items = residents
+    .map((r,i)=>({r,i}))
+    .filter(o=>
+      !q ||
+      (o.r.name||'').toLowerCase().includes(q) ||
+      (o.r.phone||'').toLowerCase().includes(q) ||
+      (!isBiz && (o.r.apartment||'').toString().toLowerCase().includes(q))
+    );
+
+  if(!items.length){
+    list.innerHTML = '<div class="history-empty">'+(residents.length? 'לא נמצאו תוצאות.' : 'אין עדיין רשומות ברשימה - אפשר להוסיף אחת עם כפתור "הוספה".')+'</div>';
+    return;
+  }
+
+  list.innerHTML = items.map(({r,i})=>{
+    const subParts = [];
+    if(r.phone) subParts.push(r.phone);
+    if(isBiz){
+      if(r.email) subParts.push(r.email);
+    } else {
+      if(r.apartment) subParts.push('דירה '+r.apartment);
+      if(r.fee) subParts.push(r.fee+' ₪/חודש');
+    }
+
+    return `<div class="rmm-row">
+      <div class="rmm-row-main">
+        <div class="rmm-row-name">${escapeHtml2(r.name)}</div>
+        <div class="rmm-row-sub">${escapeHtml2(subParts.join(' · '))}</div>
+      </div>
+      <div class="rmm-row-actions">
+        <button type="button" class="rmm-icon-btn rmm-edit-btn" data-idx="${i}" aria-label="עריכה">✏️</button>
+        <button type="button" class="rmm-icon-btn rmm-del-btn" data-idx="${i}" aria-label="מחיקה">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function openResidentsManageModal(openAddDirectly){
+  document.getElementById('rmmTitle').textContent = residentsManageTitle();
+  const rmmSearch = document.getElementById('rmmSearchInput');
+  rmmSearch.value = '';
+  rmmSearch.placeholder = CFG.usageMode==='business'
+    ? 'חיפוש לפי שם או טלפון...'
+    : 'חיפוש לפי שם, טלפון ודירה...';
+  document.getElementById('residentsManageModal').classList.add('show');
+  const list = document.getElementById('rmmList');
+  list.innerHTML = '<div class="home-residents-loading">⏳ טוען נתונים…</div>';
+  await loadResidents();
+  renderResidentsManageList('');
+  if(openAddDirectly) openResidentEditModal(-1);
+}
+function closeResidentsManageModal(){
+  document.getElementById('residentsManageModal').classList.remove('show');
+}
+
+async function openResidentsManageFromAnywhere(openAddDirectly){
+  if(!CFG.spreadsheetId||!CFG.folderId){ await showAppAlert('יש להגדיר תחילה קישור לגיליון ולתיקייה בהגדרות.','⚠️'); return; }
+  if(!accessToken){ await showAppAlert('יש להתחבר עם Google לפני ניהול רשימת הדיירים.','⚠️'); return; }
+  document.getElementById('modalBg').classList.remove('show');
+  openResidentsManageModal(openAddDirectly);
+}
+
+function openResidentEditModal(index, prefillName){
+  rmmEditingIndex = (typeof index==='number') ? index : -1;
+  const isBiz = CFG.usageMode==='business';
+  document.getElementById('remTitle').textContent = rmmEditingIndex===-1
+    ? (isBiz?'לקוח חדש':'דייר חדש')
+    : (isBiz?'עריכת לקוח':'עריכת דייר');
+  document.getElementById('remNameLabel').textContent = isBiz?'שם הלקוח':'שם הדייר';
+  document.getElementById('remFeeRow').style.display = isBiz?'none':'block';
+  document.getElementById('remAptRow').style.display = isBiz?'none':'block';
+  const r = rmmEditingIndex>-1 ? residents[rmmEditingIndex] : {name:prefillName||'',phone:'',fee:'',email:'',apartment:''};
+  const nameInput = document.getElementById('rem-name');
+  nameInput.value = r.name||'';
+  nameInput.readOnly = rmmEditingIndex > -1;
+  nameInput.setAttribute('aria-readonly', rmmEditingIndex > -1 ? 'true' : 'false');
+  nameInput.style.background = rmmEditingIndex > -1 ? '#F1F5F9' : '';
+  nameInput.style.color = rmmEditingIndex > -1 ? '#64748B' : '';
+  nameInput.style.cursor = rmmEditingIndex > -1 ? 'not-allowed' : '';
+  document.getElementById('rem-phone').value = r.phone||'';
+  document.getElementById('rem-fee').value   = r.fee||'';
+  document.getElementById('rem-apt').value   = r.apartment||'';
+  document.getElementById('rem-email').value = r.email||'';
+  document.getElementById('residentEditModalBg').classList.add('show');
+  // Focus the next empty field so typing a name then tapping "add" doesn't
+  // require an extra tap to start filling in the phone number.
+  setTimeout(()=>document.getElementById(r.name?'rem-phone':'rem-name').focus(), 60);
+}
+function closeResidentEditModal(){
+  document.getElementById('residentEditModalBg').classList.remove('show');
+  rmmAddContext = 'management';
+}
+
+// Entry point from the resident picker (wizard step 1) when a typed name
+// isn't on the list yet — opens the same add/edit modal pre-filled with
+// what was typed, and on save selects the new resident for this receipt
+// instead of returning to the management list.
+function startAddResidentFromPicker(name){
+  rmmAddContext = 'wizard';
+  closeResidentDropdown();
+  closeResidentSearchModal();
+  openResidentEditModal(-1, name);
+}
+
+function selectResidentByName(name){
+  // Pick the last resident with this exact name — i.e. the one just
+  // appended to the sheet — in case of duplicate names elsewhere.
+  let idx=-1;
+  for(let i=residents.length-1;i>=0;i--){ if(residents[i].name===name){ idx=i; break; } }
+  if(idx===-1) return;
+  residentSelect.value = idx;
+  residentSelect.dispatchEvent(new Event('change'));
+  residentSearchInput.value = residents[idx].name;
+  toggleResidentClearBtn();
+}
+
+async function saveResidentEdit(){
+  if(!navigator.onLine){
+    await showOfflineReadOnlyMessage();
+    return;
+  }
+  const nameInput = document.getElementById('rem-name');
+  const name = rmmEditingIndex > -1
+    ? (residents[rmmEditingIndex]?.name || '')
+    : nameInput.value.trim();
+  const phone = document.getElementById('rem-phone').value.trim();
+  const fee   = document.getElementById('rem-fee').value.trim();
+  const apt   = document.getElementById('rem-apt').value.trim();
+  const email = document.getElementById('rem-email').value.trim();
+  if(!name){ await showAppAlert('יש להזין שם.','⚠️'); return; }
+
+  const saveBtn = document.getElementById('remSaveBtn');
+  saveBtn.disabled = true; saveBtn.textContent = 'שומר…';
+  try{
+    const sheetName = residentsSheetName();
+    if(rmmEditingIndex===-1){
+      // New row — appended at the end. Only columns that were actually
+      // recognized on the current sheet get written; we never invent new
+      // columns, to avoid misaligning the existing layout.
+      const knownIdx = [residentsCols.name, residentsCols.phone, residentsCols.fee, residentsCols.email, residentsCols.apartment].filter(v=>v>-1);
+      const maxIdx = Math.max(...knownIdx);
+      const rowArr = new Array(maxIdx+1).fill('');
+      rowArr[residentsCols.name] = name;
+      if(residentsCols.phone>-1)     rowArr[residentsCols.phone] = phone;
+      if(residentsCols.fee>-1)       rowArr[residentsCols.fee]   = fee;
+      if(residentsCols.email>-1)     rowArr[residentsCols.email] = email;
+      if(residentsCols.apartment>-1) rowArr[residentsCols.apartment] = apt;
+      await gapi.client.sheets.spreadsheets.values.append({
+        spreadsheetId:CFG.spreadsheetId, range:`'${sheetName}'!A:Z`,
+        valueInputOption:'RAW', insertDataOption:'INSERT_ROWS',
+        resource:{values:[rowArr]}
+      });
+    } else {
+      const r = residents[rmmEditingIndex];
+      const updates = [];
+      if(residentsCols.phone>-1)     updates.push({field:residentsCols.phone, val:phone});
+      if(residentsCols.fee>-1)       updates.push({field:residentsCols.fee,   val:fee});
+      if(residentsCols.email>-1)     updates.push({field:residentsCols.email, val:email});
+      if(residentsCols.apartment>-1) updates.push({field:residentsCols.apartment, val:apt});
+      const data = updates.map(u=>({
+        range:`'${sheetName}'!${colLetter(u.field)}${r.row}`,
+        values:[[u.val]]
+      }));
+      await gapi.client.sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId:CFG.spreadsheetId,
+        resource:{valueInputOption:'RAW', data}
+      });
+    }
+    const wasWizardAdd = rmmAddContext==='wizard';
+    closeResidentEditModal(); // also resets rmmAddContext back to 'management'
+    await loadResidents();
+    if(wasWizardAdd){
+      selectResidentByName(name);
+      wizardShowStep(0); // no-op if already there; keeps the flow on the resident step
+    } else {
+      renderResidentsManageList(document.getElementById('rmmSearchInput').value);
+    }
+    refreshRecentResidents();
+  }catch(e){
+    await showAppAlert('שגיאה בשמירה: '+(e.result?.error?.message||e.message||String(e)), '⚠️');
+  }finally{
+    saveBtn.disabled=false; saveBtn.textContent='שמירה';
+  }
+}
+
+async function deleteResident(index){
+  if(!navigator.onLine){
+    await showOfflineReadOnlyMessage();
+    return;
+  }
+
+  const r = residents[index];
+  if(!r) return;
+  const isBiz = CFG.usageMode==='business';
+  const ok = await showAppConfirm(`למחוק את ${isBiz?'הלקוח':'הדייר'} "${r.name}"? השורה תימחק מהגיליון לצמיתות ולא ניתן לבטל את הפעולה.`, '🗑️');
+  if(!ok) return;
+  if(residentsGid==null){ await showAppAlert('לא ניתן לזהות את הלשונית למחיקה. נסו לרענן ולנסות שוב.','⚠️'); return; }
+  try{
+    await gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId: CFG.spreadsheetId,
+      resource:{ requests:[{ deleteDimension:{ range:{ sheetId:residentsGid, dimension:'ROWS', startIndex:r.row-1, endIndex:r.row } } }] }
+    });
+    await loadResidents();
+    renderResidentsManageList(document.getElementById('rmmSearchInput').value);
+    refreshRecentResidents();
+  }catch(e){
+    await showAppAlert('שגיאה במחיקה: '+(e.result?.error?.message||e.message||String(e)), '⚠️');
+  }
+}
+
+document.getElementById('wizardManageResidentsBtn').addEventListener('click', ()=>openResidentsManageFromAnywhere());
+document.getElementById('homeBizManageBtn').addEventListener('click', ()=>openResidentsManageFromAnywhere(true));
+
+document.getElementById('rmmCloseBtn').addEventListener('click', closeResidentsManageModal);
+document.getElementById('rmmAddBtn').addEventListener('click', ()=>openResidentEditModal(-1));
+document.getElementById('rmmSearchInput').addEventListener('input', (e)=>renderResidentsManageList(e.target.value));
+document.getElementById('rmmList').addEventListener('click', (e)=>{
+  const editBtn = e.target.closest('.rmm-edit-btn');
+  const delBtn  = e.target.closest('.rmm-del-btn');
+  if(editBtn) openResidentEditModal(parseInt(editBtn.dataset.idx,10));
+  else if(delBtn) deleteResident(parseInt(delBtn.dataset.idx,10));
+});
+document.getElementById('remCancelBtn').addEventListener('click', closeResidentEditModal);
+document.getElementById('remSaveBtn').addEventListener('click', saveResidentEdit);
+
+/* ═══════════════════════════════════════
+   SHEETS: SETTINGS SYNC ACROSS DEVICES
+   Building name/logo/default fee are mirrored into a "הגדרות" tab inside
+   the same spreadsheet, so changing them on one device updates every other
+   device that opens the app. spreadsheetId/folderId stay local-only on
+   purpose — the app needs those *before* it can know which sheet to read.
+═══════════════════════════════════════ */
+function buildSettingsRows(){
+  return [
+    ['מפתח','ערך'],
+    ['KabClick', '1'],
+    ['סוג חשבון', CFG.usageMode || ''],
+    ['שנת עבודה', CFG.activeYear || currentCalendarYear()],
+    ['שם/כתובת בניין', CFG.buildingInfo || ''],
+    ['FolderId', CFG.folderId || ''],
+    ['מספר עסק', CFG.businessNumber || ''],
+    ['קישור ללוגו', CFG.logoUrl || ''],
+    ['מחיר ברירת מחדל', CFG.defaultFee || ''],
+    ['סכום ברירת מחדל לעסק', CFG.businessDefaultAmount || ''],
+    ['סכום עסק אוטומטי', CFG.businessDefaultAmountAuto ? '1' : '0'],
+    ['סוג עסק לצורכי מע"מ', CFG.businessTaxType || 'exempt'],
+    ['שיעור מע"מ', Number.isFinite(Number(CFG.vatRate)) ? Number(CFG.vatRate) : 18],
+    ['מספר הקבלה הבא', CFG.nextReceiptNumber || 1000],
+    ['יתרת פתיחה (הוצאות/הכנסות)', CFG.financeOpeningBalance || ''],
+    ['תאריך יתרת פתיחה', CFG.financeOpeningBalanceDate || '']
+  ];
+}
+
+async function ensureSettingsSheet(){
+  const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:CFG.spreadsheetId});
+  const sheet = meta.result.sheets.find(s=>s.properties.title===SETTINGS_SHEET);
+  if(!sheet){
+    await gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId:CFG.spreadsheetId,
+      resource:{requests:[{addSheet:{properties:{title:SETTINGS_SHEET, hidden:true}}}]}
+    });
+    return false;
+  }
+  if(!sheet.properties.hidden){
+    // Tab already existed (e.g. created before hiding was added) — hide it now.
+    await gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId:CFG.spreadsheetId,
+      resource:{requests:[{updateSheetProperties:{
+        properties:{sheetId:sheet.properties.sheetId, hidden:true},
+        fields:'hidden'
+      }}]}
+    });
+  }
+  return true;
+}
+
+async function syncSettingsFromSheet(){
+  if(!CFG.spreadsheetId) return;
+  try{
+    const existed = await ensureSettingsSheet();
+    if(!existed){
+      // Brand-new tab — seed it with whatever this device already has locally,
+      // so the first device to connect defines the shared starting point.
+      await gapi.client.sheets.spreadsheets.values.update({
+        spreadsheetId:CFG.spreadsheetId,
+        range:`'${SETTINGS_SHEET}'!A1:B16`,
+        valueInputOption:'RAW',
+        resource:{values: buildSettingsRows()}
+      });
+      return;
+    }
+    const res = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId:CFG.spreadsheetId, range:`'${SETTINGS_SHEET}'!A:B`
+    });
+    const rows = res.result.values || [];
+    if(!rows.length) return; // tab exists but is empty — keep local values as-is
+
+    let changed = false;
+    rows.forEach(row=>{
+      const key = (row[0]||'').toString().trim();
+      const val = (row[1]||'').toString().trim();
+      if(/סוג חשבון|usage.?mode/i.test(key)){ if((val==='vaad'||val==='business') && CFG.usageMode!==val){ CFG.usageMode=val; changed=true; } }
+      else if(/שנת עבודה/i.test(key)){
+        const y=parseInt(val,10);
+        if(y && CFG.activeYear!==y){ CFG.activeYear=y; changed=true; }
+      }
+      else if(/שם.*בניין|כתובת|building/i.test(key)){ if(CFG.buildingInfo!==val){ CFG.buildingInfo=val; changed=true; } }
+      else if(/^FolderId$/i.test(key)){ if(val && CFG.folderId!==val){ CFG.folderId=val; changed=true; } }
+      else if(/מספר עסק|business.?number/i.test(key)){ if(CFG.businessNumber!==val){ CFG.businessNumber=val; changed=true; } }
+      else if(/לוגו|logo/i.test(key)){ if(CFG.logoUrl!==val){ CFG.logoUrl=val; changed=true; } }
+      else if(/סכום ברירת מחדל לעסק/i.test(key)){ const n=parseFloat(val)||''; if(CFG.businessDefaultAmount!==n){ CFG.businessDefaultAmount=n; changed=true; } }
+      else if(/סכום עסק אוטומטי/i.test(key)){ const b=val==='1'||val.toLowerCase()==='true'; if(CFG.businessDefaultAmountAuto!==b){ CFG.businessDefaultAmountAuto=b; changed=true; } }
+      else if(/סוג עסק לצורכי מע"מ/i.test(key)){ const t=(val==='authorized')?'authorized':'exempt'; if(CFG.businessTaxType!==t){ CFG.businessTaxType=t; changed=true; } }
+      else if(/שיעור מע"מ/i.test(key)){ const parsed=parseFloat(val); const n=Number.isFinite(parsed)?parsed:18; if(CFG.vatRate!==n){ CFG.vatRate=n; changed=true; } }
       else if(/מספר הקבלה הבא/i.test(key)){
         const n=parseInt(val,10)||1000;
         if(n>(CFG.nextReceiptNumber||1000)){
