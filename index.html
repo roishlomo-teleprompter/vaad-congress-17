@@ -1780,7 +1780,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '203';
+const APP_BUILD = '204-test';
 
 /* KABCLICK SERVICE WORKER - Build 198
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -1993,7 +1993,7 @@ function extractFolderId(input){
 /* ═══════════════════════════════════════
    CONFIG & STORAGE
 ═══════════════════════════════════════ */
-const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email';
+const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/gmail.send';
 function residentsSheetName(){ return CFG.usageMode==='business' ? 'לקוחות' : 'אנשי קשר'; }
 const RECEIPTS_SHEET  = 'קבלות';
 /**
@@ -4833,7 +4833,7 @@ function hideMsg(){ document.getElementById('msgBox').className='msg'; }
 /* ═══════════════════════════════════════
    GOOGLE INIT / AUTH
 ═══════════════════════════════════════ */
-const TOKEN_CACHE_KEY = 'vaad_generic_token';
+const TOKEN_CACHE_KEY = 'vaad_generic_token_gmail_send_v1';
 let googleInitPromise = null;
 let authInProgress = false;
 
@@ -7411,28 +7411,100 @@ function blobToBase64(blob){
     reader.readAsDataURL(blob);
   });
 }
-async function sendReceiptByEmail(resident, pdfBlob, filename, total){
-  if(!LICENSE_API_URL){
-    throw new Error('שליחת מייל טרם הוגדרה (LICENSE_API_URL ריק).');
+function bytesToBase64(bytes){
+  let binary = '';
+  const chunkSize = 0x8000;
+  for(let i=0;i<bytes.length;i+=chunkSize){
+    binary += String.fromCharCode(...bytes.subarray(i, i+chunkSize));
   }
+  return btoa(binary);
+}
+
+function utf8ToBase64(text){
+  return bytesToBase64(new TextEncoder().encode(text));
+}
+
+function utf8ToBase64Url(text){
+  return utf8ToBase64(text)
+    .replace(/\+/g,'-')
+    .replace(/\//g,'_')
+    .replace(/=+$/,'');
+}
+
+function safeMailHeader(value){
+  return (''+(value||'')).replace(/[\r\n]+/g,' ').trim();
+}
+
+async function sendReceiptByEmail(resident, pdfBlob, filename, total){
+  if(!accessToken){
+    throw new Error('החיבור ל-Google פג. יש להתחבר מחדש כדי לשלוח את הקבלה מהמייל שלך.');
+  }
+
+  const to = safeMailHeader(resident?.email);
+  if(!to){
+    throw new Error('חסרה כתובת מייל לנמען.');
+  }
+
   const pdfBase64 = await blobToBase64(pdfBlob);
-  const res = await fetch(LICENSE_API_URL, {
+  const senderLabel = CFG.buildingInfo || (CFG.usageMode==='business' ? 'קבקליק' : 'ועד הבית');
+  const residentName = safeMailHeader(resident?.name);
+  const subjectText = CFG.usageMode==='business'
+    ? `קבלה - ${senderLabel}`
+    : `קבלה לדמי ועד - ${senderLabel}`;
+  const bodyText = CFG.usageMode==='business'
+    ? `שלום ${residentName},\n\nמצורפת קבלה על תשלום בסך ${total} ₪.\n\nתודה רבה,\n${senderLabel}`
+    : `שלום ${residentName},\n\nמצורפת קבלה על תשלום דמי ועד בית בסך ${total} ₪.\n\nתודה רבה,\n${senderLabel}`;
+
+  const boundary = 'kabclick_' + Date.now().toString(36) + Math.random().toString(36).slice(2);
+  const safeFilename = safeMailHeader(filename || 'קבלה.pdf');
+  const encodedSubject = '=?UTF-8?B?' + utf8ToBase64(subjectText) + '?=';
+  const encodedFilename = encodeURIComponent(safeFilename);
+
+  const mimeMessage = [
+    'To: ' + to,
+    'Subject: ' + encodedSubject,
+    'MIME-Version: 1.0',
+    'Content-Type: multipart/mixed; boundary="' + boundary + '"',
+    '',
+    '--' + boundary,
+    'Content-Type: text/plain; charset="UTF-8"',
+    'Content-Transfer-Encoding: base64',
+    '',
+    utf8ToBase64(bodyText),
+    '',
+    '--' + boundary,
+    'Content-Type: application/pdf; name="' + safeFilename.replace(/"/g,'') + '"',
+    'Content-Transfer-Encoding: base64',
+    "Content-Disposition: attachment; filename*=UTF-8''" + encodedFilename,
+    '',
+    pdfBase64,
+    '',
+    '--' + boundary + '--'
+  ].join('\r\n');
+
+  const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send',{
     method:'POST',
-    headers:{'Content-Type':'text/plain;charset=utf-8'}, // avoids CORS preflight to Apps Script
-    body: JSON.stringify({
-      action:'sendReceipt',
-      key: LICENSE_SECRET,
-      to: resident.email,
-      residentName: resident.name,
-      buildingName: CFG.buildingInfo || 'קבקליק',
-      total: total,
-      filename: filename,
-      pdfBase64: pdfBase64
-    })
+    headers:{
+      Authorization:'Bearer '+accessToken,
+      'Content-Type':'application/json'
+    },
+    body:JSON.stringify({raw:utf8ToBase64Url(mimeMessage)})
   });
-  const data = await res.json();
-  if(!data.ok){ throw new Error(data.message || 'שגיאה לא ידועה בשליחת המייל.'); }
-  return data;
+
+  if(!res.ok){
+    let message = 'שגיאה בשליחת המייל דרך Gmail.';
+    try{
+      const data = await res.json();
+      message = data?.error?.message || message;
+    }catch(e){}
+    if(res.status===401 || res.status===403){
+      clearTokenCache();
+      throw new Error('אין הרשאת Gmail לשליחת המייל. יש להתנתק, להתחבר מחדש ולאשר את הרשאת השליחה.');
+    }
+    throw new Error(message);
+  }
+
+  return res.json();
 }
 
 async function sendPaymentReminderEmail(residentName, email, lastPaidMonthName){
