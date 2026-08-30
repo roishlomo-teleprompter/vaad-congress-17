@@ -1993,7 +1993,7 @@ function extractFolderId(input){
 /* ═══════════════════════════════════════
    CONFIG & STORAGE
 ═══════════════════════════════════════ */
-const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/gmail.send';
+const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/gmail.send';
 function residentsSheetName(){ return CFG.usageMode==='business' ? 'לקוחות' : 'אנשי קשר'; }
 const RECEIPTS_SHEET  = 'קבלות';
 /**
@@ -4833,7 +4833,7 @@ function hideMsg(){ document.getElementById('msgBox').className='msg'; }
 /* ═══════════════════════════════════════
    GOOGLE INIT / AUTH
 ═══════════════════════════════════════ */
-const TOKEN_CACHE_KEY = 'vaad_generic_token_gmail_send_v1';
+const TOKEN_CACHE_KEY = 'vaad_generic_token_gmail_send_v2';
 let googleInitPromise = null;
 let authInProgress = false;
 
