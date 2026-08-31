@@ -1780,7 +1780,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '204';
+const APP_BUILD = '205';
 
 /* KABCLICK SERVICE WORKER - Build 198
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -1993,7 +1993,7 @@ function extractFolderId(input){
 /* ═══════════════════════════════════════
    CONFIG & STORAGE
 ═══════════════════════════════════════ */
-const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/gmail.send';
+const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/gmail.send';
 function residentsSheetName(){ return CFG.usageMode==='business' ? 'לקוחות' : 'אנשי קשר'; }
 const RECEIPTS_SHEET  = 'קבלות';
 /**
@@ -4833,7 +4833,7 @@ function hideMsg(){ document.getElementById('msgBox').className='msg'; }
 /* ═══════════════════════════════════════
    GOOGLE INIT / AUTH
 ═══════════════════════════════════════ */
-const TOKEN_CACHE_KEY = 'vaad_generic_token_gmail_send_v2';
+const TOKEN_CACHE_KEY = 'vaad_generic_token_gmail_send_v3';
 let googleInitPromise = null;
 let authInProgress = false;
 
