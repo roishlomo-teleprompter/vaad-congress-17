@@ -1780,7 +1780,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '205';
+const APP_BUILD = '206-test';
 
 /* KABCLICK SERVICE WORKER - Build 198
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -7718,8 +7718,8 @@ async function finalizeReceiptInBackground(snap, blob, filename, attempt){
     let financeLogFailed = false;
     try{
       const isBiz = snap.usageMode==='business';
-      const financeTitle = isBiz ? 'לקוח' : 'תשלום ועד';
-      const financeCategory = r.name; // per spec: category = the resident/client's own name
+      const financeTitle = isBiz ? 'לקוח' : `${r.name} תשלום ועד`;
+      const financeCategory = isBiz ? r.name : 'דמי ועד';
       const financeNote = snap.isOtherPurpose ? snap.purposeText : monthsCell;
       await appendFinanceRow({
         date: new Date().toISOString().slice(0,10),
