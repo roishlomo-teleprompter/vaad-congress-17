@@ -1831,7 +1831,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '208';
+const APP_BUILD = '209';
 
 /* KABCLICK SERVICE WORKER - Build 198
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -6054,6 +6054,35 @@ const FINANCE_CATEGORIES = {
   income:  ['דמי ועד','תשלום מיוחד','הכנסה מלקוח','החזר','הכנסה אחרת'],
   expense: ['חשמל','מים','ניקיון','תחזוקה','מעלית','גינון','ביטוח','תיקונים','הוצאה אחרת']
 };
+const BUSINESS_FINANCE_CATEGORIES = {
+  income: ['הכנסה אחרת','הכנסה מלקוח','תשלום מיוחד','החזר'],
+  expense: [
+    'ציוד וחומרים',
+    'תוכנות ומנויים',
+    'פרסום ושיווק',
+    'טלפון ואינטרנט',
+    'משרד וציוד משרדי',
+    'שכירות ואחזקה',
+    'חשמל ומים',
+    'רכב, דלק וחניה',
+    'נסיעות ומשלוחים',
+    'הנהלת חשבונות וייעוץ מקצועי',
+    'עמלות בנק וסליקה',
+    'ביטוחים',
+    'הדרכות וקורסים',
+    'קבלני משנה ושירותים מקצועיים',
+    'אירוח וכיבוד',
+    'מיסים ואגרות',
+    'אחר'
+  ]
+};
+function getFinanceCategories(type){
+  const categorySet =
+    CFG.usageMode==='business'
+      ? BUSINESS_FINANCE_CATEGORIES
+      : FINANCE_CATEGORIES;
+  return categorySet[type] || [];
+}
 const FINANCE_CATEGORY_ICONS = {
   'חשמל':'💡','מים':'💧','ניקיון':'🧹','תחזוקה':'🔧','מעלית':'🛗','גינון':'🌳',
   'ביטוח':'🛡️','תיקונים':'🔨','הוצאה אחרת':'📄',
@@ -6500,7 +6529,7 @@ let financeFormType = 'expense';
 let financeEditingRow = null; // null = adding a new transaction, number = editing that sheet row
 function populateFinanceCategories(type){
   const sel = document.getElementById('fin-category');
-  const cats = FINANCE_CATEGORIES[type] || [];
+  const cats = getFinanceCategories(type);
   sel.innerHTML = cats.map(c=>`<option value="${escapeHtml2(c)}">${escapeHtml2(c)}</option>`).join('');
   toggleFinanceCategoryOther();
 }
@@ -6545,7 +6574,8 @@ function openFinanceForm(type, existingEntry){
   const isBusinessMode = CFG.usageMode==='business';
   if(type==='expense'){
     document.getElementById('finTitleLabel').textContent = 'תיאור';
-    titleEl.placeholder = 'לדוגמה: גינון';
+    titleEl.placeholder =
+      isBusinessMode ? 'לדוגמה: ציוד וחומרים' : 'לדוגמה: גינון';
   } else {
     document.getElementById('finTitleLabel').textContent =
       isBusinessMode ? 'תיאור / שם לקוח' : 'תיאור / שם דייר';
@@ -6614,7 +6644,7 @@ function openFinanceForm(type, existingEntry){
     document.getElementById('fin-category');
 
   const cats =
-    FINANCE_CATEGORIES[type] || [];
+    getFinanceCategories(type);
 
   if(
     isEditing &&
