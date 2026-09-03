@@ -890,7 +890,7 @@ body.mode-business #homeResidentsSection{
   }
 }
 
-/* Business settings: fixed header/footer with only the middle content scrolling. */
+/* Settings: fixed header/footer with only the middle content scrolling. */
 .settings-main-modal.settings-fixed-layout{
   display:flex;
   flex-direction:column;
@@ -1898,7 +1898,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '210';
+const APP_BUILD = '211';
 
 /* KABCLICK SERVICE WORKER - Build 198
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -3866,9 +3866,8 @@ document.getElementById('settingsBtn').onclick = ()=>{
   document.getElementById('cfg-financeOpeningBalance').value = CFG.financeOpeningBalance || '';
   document.getElementById('cfg-financeOpeningBalanceDate').value = CFG.financeOpeningBalanceDate || '';
   applyModeUI(CFG.usageMode||'vaad');
-  document.querySelector('.settings-main-modal').classList.toggle(
-    'settings-fixed-layout',
-    CFG.usageMode==='business'
+  document.querySelector('.settings-main-modal').classList.add(
+    'settings-fixed-layout'
   );
   const verEl = document.getElementById('appVersionMarker');
   if(verEl){
