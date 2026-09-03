@@ -254,23 +254,28 @@ body.home-active .finance-screen{height:auto;overflow:visible;}
 
 #financeFormModalBg .finance-form-modal{
   position:relative;
+  display:flex;
+  flex-direction:column;
+  height:min(760px,calc(100dvh - 32px));
+  max-height:calc(100dvh - 32px);
   padding:0;
-  overflow-y:auto;
-  overscroll-behavior:contain;
+  overflow:hidden;
 }
 #financeFormModalBg .finance-form-header{
-  position:sticky;
-  top:0;
+  flex:0 0 auto;
   z-index:3;
   padding:28px 28px 10px;
   background:#fff;
 }
 #financeFormModalBg .finance-form-body{
+  flex:1 1 auto;
+  min-height:0;
   padding:0 28px 12px;
+  overflow-y:auto;
+  overscroll-behavior:contain;
 }
 #financeFormModalBg .finance-form-footer{
-  position:sticky;
-  bottom:0;
+  flex:0 0 auto;
   z-index:3;
   margin:0;
   padding:12px 28px calc(18px + env(safe-area-inset-bottom));
