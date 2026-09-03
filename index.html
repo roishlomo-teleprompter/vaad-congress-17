@@ -252,6 +252,44 @@ body.home-active .finance-screen{height:auto;overflow:visible;}
   border-color:#ef9a9a;
 }
 
+#financeFormModalBg .finance-form-modal{
+  position:relative;
+  padding:0;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+}
+#financeFormModalBg .finance-form-header{
+  position:sticky;
+  top:0;
+  z-index:3;
+  padding:28px 28px 10px;
+  background:#fff;
+}
+#financeFormModalBg .finance-form-body{
+  padding:0 28px 12px;
+}
+#financeFormModalBg .finance-form-footer{
+  position:sticky;
+  bottom:0;
+  z-index:3;
+  margin:0;
+  padding:12px 28px calc(18px + env(safe-area-inset-bottom));
+  background:#fff;
+  border-top:1px solid var(--card-line);
+  box-shadow:0 -8px 18px -14px rgba(15,23,42,.35);
+}
+@media(max-width:600px){
+  #financeFormModalBg .finance-form-header{
+    padding:20px 18px 8px;
+  }
+  #financeFormModalBg .finance-form-body{
+    padding:0 18px 10px;
+  }
+  #financeFormModalBg .finance-form-footer{
+    padding:11px 18px calc(14px + env(safe-area-inset-bottom));
+  }
+}
+
 #financeFormModalBg .finance-edit-locked-field{
   background:var(--app-bg)!important;
   color:var(--slate)!important;
@@ -1646,9 +1684,12 @@ body.mode-business #homeResidentsSection{
 
 <!-- FINANCE TRANSACTION ADD/EDIT MODAL -->
 <div class="modal-bg" id="financeFormModalBg" style="z-index:660;">
-  <div class="modal">
-    <h3 id="financeFormTitle" class="finance-form-heading">הוספת תנועה</h3>
-    <label>סכום (₪)</label>
+  <div class="modal finance-form-modal">
+    <div class="finance-form-header">
+      <h3 id="financeFormTitle" class="finance-form-heading">הוספת תנועה</h3>
+    </div>
+    <div class="finance-form-body">
+      <label>סכום (₪)</label>
     <input type="number" id="fin-amount" min="0" placeholder="לדוגמה: 450">
     <label>תאריך</label>
     <input type="date" id="fin-date" class="ltr-input">
@@ -1675,10 +1716,11 @@ body.mode-business #homeResidentsSection{
     <label>הערות ידניות (אופציונלי)</label>
     <textarea id="fin-manual-note" placeholder="אפשר לרשום כאן הערה אישית..."></textarea>
 
-    <p style="font-size:11px;color:var(--slate);margin:5px 0 0;line-height:1.5;">
-      ההערה נשמרת בנפרד בעמודת "הערות ידניות" בגיליון.
-    </p>
-    <div class="modal-actions">
+      <p style="font-size:11px;color:var(--slate);margin:5px 0 0;line-height:1.5;">
+        ההערה נשמרת בנפרד בעמודת "הערות ידניות" בגיליון.
+      </p>
+    </div>
+    <div class="modal-actions finance-form-footer">
       <button class="cancel" id="finCancelBtn">ביטול</button>
       <button class="save" id="finSaveBtn">שמירה</button>
     </div>
@@ -1784,7 +1826,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '207';
+const APP_BUILD = '208';
 
 /* KABCLICK SERVICE WORKER - Build 198
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -6496,10 +6538,15 @@ function openFinanceForm(type, existingEntry){
     document.getElementById('fin-title');
 
   const isBusinessMode = CFG.usageMode==='business';
-  document.getElementById('finTitleLabel').textContent =
-    isBusinessMode ? 'תיאור / שם לקוח' : 'תיאור / שם דייר';
-  titleEl.placeholder =
-    isBusinessMode ? 'לדוגמה: תשלום מלקוח' : 'לדוגמה: רות תשלום ועד';
+  if(type==='expense'){
+    document.getElementById('finTitleLabel').textContent = 'תיאור';
+    titleEl.placeholder = 'לדוגמה: גינון';
+  } else {
+    document.getElementById('finTitleLabel').textContent =
+      isBusinessMode ? 'תיאור / שם לקוח' : 'תיאור / שם דייר';
+    titleEl.placeholder =
+      isBusinessMode ? 'לדוגמה: תשלום מלקוח' : 'לדוגמה: רות תשלום ועד';
+  }
 
   const sourceNoteEl =
     document.getElementById('fin-note');
