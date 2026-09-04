@@ -1032,6 +1032,13 @@ body.mode-business #homeResidentsSection{
 .login-feature-sub{font-size:9px;font-weight:500;color:var(--slate);line-height:1.3;}
 .login-google-btn{width:100%;background:var(--blue);color:#fff;border:none;border-radius:12px;padding:13px;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:.15s;}
 .login-google-btn:hover{background:var(--blue-dark);}
+.login-google-btn:disabled{cursor:wait;background:#4F7FE8;opacity:1;}
+.login-google-btn.is-connecting svg{display:none;}
+.login-auth-spinner{display:none;width:20px;height:20px;border:2.5px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:loginAuthSpin .8s linear infinite;flex:none;}
+.login-google-btn.is-connecting .login-auth-spinner{display:block;}
+.login-auth-status{min-height:20px;margin:8px 0 0;color:var(--blue-dark);font-size:12px;font-weight:700;opacity:0;transition:opacity .2s;}
+.login-auth-status.show{opacity:1;}
+@keyframes loginAuthSpin{to{transform:rotate(360deg);}}
 .login-privacy-note{display:flex;align-items:center;justify-content:center;gap:6px;font-size:11.5px;font-weight:700;color:var(--ink-soft);background:var(--app-bg);border-radius:10px;padding:8px 12px;margin-top:10px;}
 .login-footnote{font-size:10px;line-height:1.5;color:var(--slate);opacity:.7;margin:10px 0 0;}
 
@@ -1153,8 +1160,10 @@ body.mode-business #homeResidentsSection{
         <path fill="#4CAF50" d="M24 44c5.5 0 10.4-1.8 14.3-5l-6.6-5.4C29.6 35.6 26.9 36.5 24 36.5c-5.3 0-9.7-3.4-11.3-8.1l-6.6 5.1C9.6 39.7 16.3 44 24 44z"/>
         <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.3-4.1 5.7l6.6 5.4C41.6 35.9 44 30.3 44 24c0-1.3-.1-2.7-.4-3.5z"/>
       </svg>
-      התחבר עם Google
+      <span class="login-auth-spinner" aria-hidden="true"></span>
+      <span id="loginGateGoogleLabel">התחבר עם Google</span>
     </button>
+    <p class="login-auth-status" id="loginAuthStatus" role="status" aria-live="polite"></p>
     
 
   </div>
@@ -1898,7 +1907,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '211';
+const APP_BUILD = '212';
 
 /* KABCLICK SERVICE WORKER - Build 198
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -4964,6 +4973,7 @@ function hideMsg(){ document.getElementById('msgBox').className='msg'; }
 const TOKEN_CACHE_KEY = 'vaad_generic_token_gmail_send_v3';
 let googleInitPromise = null;
 let authInProgress = false;
+let authAttemptTimeout = null;
 
 function setAuthButtonsDisabled(disabled){
   const authBtn = document.getElementById('authBtn');
@@ -4971,6 +4981,38 @@ function setAuthButtonsDisabled(disabled){
   if(authBtn) authBtn.disabled = disabled;
   if(loginBtn) loginBtn.disabled = disabled;
 }
+
+function setLoginAuthProgress(active, message=''){
+  const btn = document.getElementById('loginGateGoogleBtn');
+  const label = document.getElementById('loginGateGoogleLabel');
+  const status = document.getElementById('loginAuthStatus');
+  if(btn){
+    btn.classList.toggle('is-connecting', active);
+    btn.setAttribute('aria-busy', active ? 'true' : 'false');
+  }
+  if(label) label.textContent = active ? 'מתחבר לחשבון Google...' : 'התחבר עם Google';
+  if(status){
+    status.textContent = active ? message : '';
+    status.classList.toggle('show', active && !!message);
+  }
+}
+
+function finishAuthAttempt(errorMessage=''){
+  if(authAttemptTimeout){
+    clearTimeout(authAttemptTimeout);
+    authAttemptTimeout = null;
+  }
+  authInProgress = false;
+  setAuthButtonsDisabled(false);
+  setLoginAuthProgress(false);
+  if(errorMessage) showMsg(errorMessage,'error');
+}
+
+document.addEventListener('visibilitychange', ()=>{
+  if(!document.hidden && authInProgress){
+    setLoginAuthProgress(true, 'חזרת לקבקליק - משלימים את ההתחברות, אין צורך ללחוץ שוב');
+  }
+});
 
 function waitForGoogleLibraries(timeoutMs=15000){
   const startedAt = Date.now();
@@ -5359,19 +5401,35 @@ function initGoogle(){
         client_id:APP_CLIENT_ID,
         scope:SCOPES,
         callback:async(resp)=>{
-          authInProgress=false;
-          setAuthButtonsDisabled(false);
-          if(resp.error){
-            showMsg('ההתחברות נכשלה: '+resp.error,'error');
-            return;
+          if(authAttemptTimeout){
+            clearTimeout(authAttemptTimeout);
+            authAttemptTimeout = null;
           }
-          accessToken=resp.access_token;
-          gapi.client.setToken({access_token:accessToken});
-          saveTokenCache(accessToken, resp.expires_in);
-          markConnected();
-          if(!(await enforceLicense(accessToken, {trustCache:false}))) return;
-          await loadDataForCurrentAccountMode();
-          validateForm();
+          setLoginAuthProgress(true, 'החשבון נבחר - מאמתים ומכינים את הנתונים שלך');
+          try{
+            if(resp.error){
+              finishAuthAttempt('ההתחברות נכשלה: '+resp.error);
+              return;
+            }
+            accessToken=resp.access_token;
+            gapi.client.setToken({access_token:accessToken});
+            saveTokenCache(accessToken, resp.expires_in);
+            markConnected();
+            if(!(await enforceLicense(accessToken, {trustCache:false}))) return;
+            setLoginAuthProgress(true, 'כמעט סיימנו - טוענים את סביבת העבודה');
+            await loadDataForCurrentAccountMode();
+            validateForm();
+          }catch(e){
+            console.error('[קבקליק] השלמת ההתחברות נכשלה:',e);
+            finishAuthAttempt('ההתחברות לא הושלמה. אפשר לנסות שוב.');
+          }finally{
+            finishAuthAttempt();
+          }
+        },
+        error_callback:(err)=>{
+          console.warn('[קבקליק] חלון ההתחברות נסגר או נכשל:',err);
+          const isClosed = err?.type === 'popup_closed';
+          finishAuthAttempt(isClosed ? '' : 'לא ניתן היה לפתוח את חלון ההתחברות. נסה שוב.');
         }
       });
       // If a still-valid token is cached from a previous visit, reuse it immediately —
@@ -5405,7 +5463,18 @@ function requestGoogleAccess(){
   }
   authInProgress=true;
   setAuthButtonsDisabled(true);
-  tokenClient.requestAccessToken();
+  setLoginAuthProgress(true, 'בחר את חשבון Google שלך - לאחר הבחירה נחזור לכאן אוטומטית');
+  authAttemptTimeout=setTimeout(()=>{
+    if(authInProgress){
+      finishAuthAttempt('ההתחברות נמשכה זמן רב מדי. אפשר לנסות שוב.');
+    }
+  },60000);
+  try{
+    tokenClient.requestAccessToken();
+  }catch(e){
+    console.error('[קבקליק] פתיחת חלון ההתחברות נכשלה:',e);
+    finishAuthAttempt('לא ניתן היה לפתוח את חלון ההתחברות. נסה שוב.');
+  }
 }
 
 document.getElementById('authBtn').onclick=requestGoogleAccess;
