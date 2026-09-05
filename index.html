@@ -2024,7 +2024,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '221';
+const APP_BUILD = '222';
 
 /* KABCLICK SERVICE WORKER - Build 198
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -3728,7 +3728,7 @@ async function loadDataForCurrentAccountMode(){
   }
   if(CFG.spreadsheetId && CFG.folderId){
     await Promise.all([loadResidents(), ensureReceiptsSheet()]);
-    await Promise.all([syncSettingsFromSheet(), loadAllReceiptRows(), loadFinanceRows()]);
+    await Promise.all([syncSettingsFromSheet(), loadAllReceiptRows(), loadFinanceRows(), loadCancelledScheduleRows()]);
     await pushSettingsToSheet();
     await stampKnownYearWorkspacesSeriesIdentity();
     await discoverAnnualWorkspacesFromDrive();
@@ -6647,6 +6647,56 @@ async function appendReceiptRow(row, spreadsheetId){
 const FINANCE_SHEET  = 'הוצאות והכנסות';
 const FINANCE_HEADER = ['תאריך','סוג','כותרת','קטגוריה','סכום','אמצעי תשלום','הערה','הערות ידניות'];
 const FINANCE_PLAN_HEADER = ['מזהה תוכנית','סטטוס','מספר תשלום','מספר תשלומים','מספר קבלה','סכום תוכנית'];
+const CANCELLATIONS_SHEET = 'ביטולי תוכניות';
+const CANCELLATIONS_HEADER = ['מזהה תוכנית','מספר קבלה','שנה','חודש','תאריך תשלום','תאריך ביטול'];
+let cancelledScheduleRows = [];
+
+async function findCancellationSheet(){
+  const meta=await gapi.client.sheets.spreadsheets.get({
+    spreadsheetId:CFG.spreadsheetId,
+    fields:'sheets(properties)'
+  });
+  return (meta.result.sheets||[]).find(s=>s.properties.title===CANCELLATIONS_SHEET)||null;
+}
+async function ensureCancellationSheet(){
+  let sheet=await findCancellationSheet();
+  if(!sheet){
+    const addRes=await gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId:CFG.spreadsheetId,
+      resource:{requests:[{addSheet:{properties:{title:CANCELLATIONS_SHEET,rightToLeft:true,hidden:true}}}]}
+    });
+    const sheetId=addRes.result.replies[0].addSheet.properties.sheetId;
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId:CFG.spreadsheetId,
+      range:`'${CANCELLATIONS_SHEET}'!A1:F1`,
+      valueInputOption:'RAW',
+      resource:{values:[CANCELLATIONS_HEADER]}
+    });
+    return sheetId;
+  }
+  return sheet.properties.sheetId;
+}
+async function loadCancelledScheduleRows(){
+  try{
+    const sheet=await findCancellationSheet();
+    if(!sheet){ cancelledScheduleRows=[]; return; }
+    const res=await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId:CFG.spreadsheetId,
+      range:`'${CANCELLATIONS_SHEET}'!A2:F`
+    });
+    cancelledScheduleRows=(res.result.values||[]).map(row=>({
+      planId:String(row[0]||''),
+      sourceReceipt:String(row[1]||''),
+      year:Number(row[2])||0,
+      monthIndex:Number(row[3]),
+      date:String(row[4]||''),
+      cancelledAt:String(row[5]||'')
+    }));
+  }catch(err){
+    console.warn('[קבקליק] טעינת רישום הביטולים נכשלה:',err);
+    cancelledScheduleRows=[];
+  }
+}
 
 function todayIsoLocal(){
   const d = new Date();
@@ -7218,47 +7268,69 @@ async function cancelFutureIncomePlan(planId){
   if(!futureRows.length) return;
   const remaining=futureRows.reduce((sum,r)=>sum+r.amount,0);
   const checks=futureRows.some(r=>(r.paymethod||'').includes("צ'ק"));
-  const warning=checks ? '\n\nחשוב: הביטול באפליקציה אינו מבטל את הצ\'קים בבנק.' : '';
+  const warning=checks ? '\n\nחשוב: המחיקה באפליקציה אינה מבטלת את הצ\'קים בבנק.' : '';
   const ok=await showAppConfirm(
-    `לבטל ${futureRows.length} הכנסות עתידיות בסך ${financeFormatAmount(remaining)}? הכנסות שכבר הגיע מועדן יישארו בדוחות.${warning}`,
+    `למחוק ${futureRows.length} תשלומים עתידיים בסך ${financeFormatAmount(remaining)}? הכנסות שכבר הגיע מועדן והקבלה המקורית יישמרו.${warning}`,
     '⚠️',
-    'כן, בטל יתרה',
+    'כן, מחק יתרה',
     'חזרה'
   );
   if(!ok) return;
-  await gapi.client.sheets.spreadsheets.values.batchUpdate({
-    spreadsheetId:CFG.spreadsheetId,
-    resource:{
-      valueInputOption:'RAW',
-      data:futureRows.map(r=>({
-        range:`'${FINANCE_SHEET}'!L${r.sheetRow}`,
-        values:[['בוטל']]
-      }))
-    }
-  });
-  // The cancellation is complete as soon as the status update above succeeds.
-  // Update the local view immediately. A later refresh failure must never turn
-  // a successful cancellation into a misleading error message.
-  futureRows.forEach(r=>{ r.status='בוטל'; });
-  try{
-    const totals=renderFinanceSummary();
-    renderFinanceTxList(financeShowingAll ? undefined : 5);
-    renderFinanceDonut(totals);
-    renderFutureIncome();
-  }catch(renderErr){
-    console.warn('[קבקליק] הביטול הצליח, אך רענון התצוגה המקומית נכשל:', renderErr);
+
+  if(financeSheetGid===null){
+    const financeMeta=await gapi.client.sheets.spreadsheets.get({
+      spreadsheetId:CFG.spreadsheetId,
+      fields:'sheets(properties)'
+    });
+    const financeSheet=(financeMeta.result.sheets||[]).find(s=>s.properties.title===FINANCE_SHEET);
+    if(!financeSheet) throw new Error('FINANCE_SHEET_NOT_FOUND');
+    financeSheetGid=financeSheet.properties.sheetId;
   }
+  const cancellationSheetId=await ensureCancellationSheet();
+  const cancelledAt=todayIsoLocal();
+  const sortedRows=[...futureRows].sort((a,b)=>b.sheetRow-a.sheetRow);
+  const cancellationRecords=futureRows.map(r=>({
+    values:[
+      {userEnteredValue:{stringValue:String(r.planId||'')}},
+      {userEnteredValue:{stringValue:String(r.sourceReceipt||'')}},
+      {userEnteredValue:{numberValue:Number((r.date||'').slice(0,4))||0}},
+      {userEnteredValue:{numberValue:(Number((r.date||'').slice(5,7))||1)-1}},
+      {userEnteredValue:{stringValue:String(r.date||'')}},
+      {userEnteredValue:{stringValue:cancelledAt}}
+    ]
+  }));
+  await gapi.client.sheets.spreadsheets.batchUpdate({
+    spreadsheetId:CFG.spreadsheetId,
+    resource:{requests:[
+      {appendCells:{sheetId:cancellationSheetId,rows:cancellationRecords,fields:'userEnteredValue'}},
+      ...sortedRows.map(r=>({
+        deleteDimension:{range:{
+          sheetId:financeSheetGid,
+          dimension:'ROWS',
+          startIndex:r.sheetRow-1,
+          endIndex:r.sheetRow
+        }}
+      }))
+    ]}
+  });
+
+  futureRows.forEach(r=>{
+    cancelledScheduleRows.push({
+      planId:String(r.planId||''),
+      sourceReceipt:String(r.sourceReceipt||''),
+      year:Number((r.date||'').slice(0,4))||0,
+      monthIndex:(Number((r.date||'').slice(5,7))||1)-1,
+      date:String(r.date||''),
+      cancelledAt
+    });
+  });
+
   try{
-    await Promise.all([
-      loadAndRenderFinanceScreen(),
-      loadAllReceiptRows()
-    ]);
+    await Promise.all([loadAndRenderFinanceScreen(),loadAllReceiptRows(),loadCancelledScheduleRows()]);
   }catch(refreshErr){
-    console.warn('[קבקליק] הביטול הצליח, אך טעינה מחדש של הנתונים נכשלה:', refreshErr);
+    console.warn('[קבקליק] המחיקה הצליחה, אך טעינה מחדש של הנתונים נכשלה:',refreshErr);
   }
 
-  // Recalculate the green month indicators immediately from the refreshed
-  // receipt log and the cancelled schedule rows.
   const selectedResident=currentResident();
   if(selectedResident){
     paidMonthsSet=getPaidMonthsForResident(selectedResident);
@@ -7269,7 +7341,7 @@ async function cancelFutureIncomePlan(planId){
     refreshTotal();
     refreshPreview();
   }
-  await showAppAlert('יתרת התוכנית בוטלה בהצלחה. החודשים העתידיים שבוטלו זמינים שוב לבחירה.','✅');
+  await showAppAlert('התשלומים העתידיים נמחקו. הקבלה המקורית והכנסות שכבר הגיע מועדן נשמרו.','✅');
 }
 
 let financeShowingAll = false;
@@ -8136,21 +8208,26 @@ function getPaidMonthsForResident(resident){
   // A cancelled schedule releases only the future months that were actually
   // cancelled. Months whose due date already arrived stay marked as paid.
   const cancelledMonthKeys = new Set();
-  if(Array.isArray(financeRows)){
-    financeRows.forEach(financeRow=>{
-      if(
-        (financeRow.status||'פעיל')==='בוטל' &&
-        financeRow.sourceReceipt &&
-        financeRow.date &&
-        Number(financeRow.date.slice(0,4))===year
-      ){
-        const monthIndex=Number(financeRow.date.slice(5,7))-1;
-        if(monthIndex>=0 && monthIndex<12){
-          cancelledMonthKeys.add(String(financeRow.sourceReceipt)+':'+monthIndex);
-        }
-      }
-    });
-  }
+  const cancellationSources = [
+    ...(Array.isArray(cancelledScheduleRows) ? cancelledScheduleRows : []),
+    ...(Array.isArray(financeRows)
+      ? financeRows.filter(r=>(r.status||'פעיל')==='בוטל').map(r=>({
+          sourceReceipt:r.sourceReceipt,
+          year:Number((r.date||'').slice(0,4))||0,
+          monthIndex:Number((r.date||'').slice(5,7))-1
+        }))
+      : [])
+  ];
+  cancellationSources.forEach(cancelled=>{
+    if(
+      cancelled.sourceReceipt &&
+      Number(cancelled.year)===year &&
+      Number(cancelled.monthIndex)>=0 &&
+      Number(cancelled.monthIndex)<12
+    ){
+      cancelledMonthKeys.add(String(cancelled.sourceReceipt)+':'+Number(cancelled.monthIndex));
+    }
+  });
 
   allReceiptRows.forEach(row=>{
     const date=row[0], name=row[1], monthsCell=row[3];
