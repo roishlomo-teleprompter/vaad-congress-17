@@ -1043,16 +1043,20 @@ body.mode-business #homeResidentsSection{
 #regSubmitBtn:disabled{opacity:.48;cursor:not-allowed;}
 
 /* QUICK ONBOARDING - six essential screens for newly registered accounts */
-.quick-onboarding{position:fixed;inset:0;z-index:900;background:linear-gradient(160deg,#F8FAFF 0%,#EEF4FF 55%,#FFF 100%);display:none;align-items:stretch;justify-content:center;overflow:hidden;touch-action:pan-y;}
+.quick-onboarding{position:fixed;inset:0;z-index:900;height:100vh;height:100dvh;box-sizing:border-box;padding:calc(12px + env(safe-area-inset-top,0px)) 12px calc(12px + env(safe-area-inset-bottom,0px));background:linear-gradient(160deg,#DCE8FA 0%,#C9DAF3 52%,#E8F0FC 100%);display:none;align-items:stretch;justify-content:center;overflow:hidden;touch-action:pan-y;}
 .quick-onboarding.show{display:flex;}
-.quick-onboarding-card{width:100%;max-width:480px;min-height:100%;padding:calc(24px + env(safe-area-inset-top,0px)) 24px calc(22px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;text-align:center;}
+.quick-onboarding-card{width:100%;max-width:480px;height:100%;min-height:0;box-sizing:border-box;overflow:hidden;padding:22px 22px 18px;display:flex;flex-direction:column;text-align:center;background:rgba(255,255,255,.96);border:2px solid rgba(255,255,255,.92);border-radius:28px;box-shadow:0 22px 55px -22px rgba(30,64,175,.42),0 0 0 1px rgba(96,165,250,.22);}
 .quick-onboarding-top{display:flex;align-items:center;justify-content:space-between;color:var(--slate);font-size:13px;font-weight:800;}
 .quick-onboarding-brand{color:var(--blue);font-size:17px;font-weight:900;}
-.quick-onboarding-content{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:0;padding:16px 0;}
+.quick-onboarding-content{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:0;padding:16px 0;will-change:transform,opacity;}
+.quick-onboarding-card.slide-from-left .quick-onboarding-content{animation:quickOnboardingFromLeft .28s ease-out both;}
+.quick-onboarding-card.slide-from-right .quick-onboarding-content{animation:quickOnboardingFromRight .28s ease-out both;}
+@keyframes quickOnboardingFromLeft{from{opacity:0;transform:translateX(-34px)}to{opacity:1;transform:translateX(0)}}
+@keyframes quickOnboardingFromRight{from{opacity:0;transform:translateX(34px)}to{opacity:1;transform:translateX(0)}}
 .quick-onboarding-visual{width:148px;height:148px;border-radius:38px;background:#fff;box-shadow:0 20px 45px -22px rgba(37,99,235,.42);display:flex;align-items:center;justify-content:center;font-size:68px;margin-bottom:28px;border:1px solid rgba(37,99,235,.10);}
 .quick-onboarding-title{margin:0 0 13px;font-size:29px;line-height:1.15;font-weight:900;color:var(--ink);}
 .quick-onboarding-text{margin:0;max-width:360px;font-size:16px;line-height:1.75;color:var(--ink-soft);white-space:pre-line;}
-.quick-onboarding-flow{display:flex;align-items:center;justify-content:center;gap:7px;flex-wrap:wrap;margin-top:22px;font-size:12px;font-weight:800;color:var(--blue-dark);}
+.quick-onboarding-flow{display:flex;direction:rtl;align-items:center;justify-content:center;gap:7px;flex-wrap:wrap;margin-top:22px;font-size:12px;font-weight:800;color:var(--blue-dark);}
 .quick-onboarding-flow span{background:#fff;border:1px solid #D6E2FB;border-radius:999px;padding:7px 10px;}
 .quick-onboarding-bottom{flex:none;}
 .quick-onboarding-dots{display:flex;direction:ltr;justify-content:center;gap:7px;margin-bottom:16px;}
@@ -1064,7 +1068,8 @@ body.mode-business #homeResidentsSection{
 .quick-onboarding-back:disabled{visibility:hidden;}
 .quick-onboarding-next{border:none;background:var(--blue);color:#fff;box-shadow:0 12px 25px -15px rgba(37,99,235,.8);}
 .quick-onboarding-swipe{margin:10px 0 0;font-size:11.5px;color:var(--slate);}
-@media(max-height:690px){.quick-onboarding-card{padding-top:14px;padding-bottom:12px}.quick-onboarding-visual{width:112px;height:112px;font-size:50px;margin-bottom:16px}.quick-onboarding-title{font-size:24px;margin-bottom:8px}.quick-onboarding-text{font-size:14px;line-height:1.55}.quick-onboarding-flow{margin-top:12px}.quick-onboarding-swipe{margin-top:5px}}
+@media(max-height:690px){.quick-onboarding{padding:8px}.quick-onboarding-card{padding:14px 18px 12px;border-radius:22px}.quick-onboarding-visual{width:112px;height:112px;font-size:50px;margin-bottom:16px}.quick-onboarding-title{font-size:24px;margin-bottom:8px}.quick-onboarding-text{font-size:14px;line-height:1.55}.quick-onboarding-flow{margin-top:12px}.quick-onboarding-swipe{margin-top:5px}}
+@media(prefers-reduced-motion:reduce){.quick-onboarding-card.slide-from-left .quick-onboarding-content,.quick-onboarding-card.slide-from-right .quick-onboarding-content{animation:none}}
 .login-google-btn:disabled{cursor:wait;background:#4F7FE8;opacity:1;}
 .login-google-btn.is-connecting svg{display:none;}
 .login-auth-spinner{display:none;width:20px;height:20px;border:2.5px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:loginAuthSpin .8s linear infinite;flex:none;}
@@ -1976,7 +1981,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '217';
+const APP_BUILD = '218';
 
 /* KABCLICK SERVICE WORKER - Build 198
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -5244,6 +5249,15 @@ function finishQuickOnboarding(){
   showHomeScreen();
 }
 
+function animateQuickOnboarding(direction){
+  const card = document.getElementById('quickOnboardingCard');
+  const className = direction==='next' ? 'slide-from-left' : 'slide-from-right';
+  card.classList.remove('slide-from-left','slide-from-right');
+  void card.offsetWidth;
+  card.classList.add(className);
+  window.setTimeout(()=>card.classList.remove(className), 320);
+}
+
 function advanceQuickOnboarding(){
   const slides = quickOnboardingAccount ? quickOnboardingSlides(quickOnboardingAccount.mode) : [];
   if(quickOnboardingIndex >= slides.length-1){
@@ -5252,12 +5266,14 @@ function advanceQuickOnboarding(){
   }
   quickOnboardingIndex++;
   renderQuickOnboarding();
+  animateQuickOnboarding('next');
 }
 
 function rewindQuickOnboarding(){
   if(quickOnboardingIndex<=0) return;
   quickOnboardingIndex--;
   renderQuickOnboarding();
+  animateQuickOnboarding('back');
 }
 
 document.getElementById('quickOnboardingNext').addEventListener('click', advanceQuickOnboarding);
