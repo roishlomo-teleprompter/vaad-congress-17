@@ -2024,7 +2024,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '222';
+const APP_BUILD = '223';
 
 /* KABCLICK SERVICE WORKER - Build 198
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -4375,7 +4375,7 @@ function paymentUsesMonthlySchedule(){
 function receiptPaymentLabel(){
   if(selectedPay==='העברה בנקאית'){
     if(selectedPaymentPlanMode==='monthly') return 'העברה בנקאית חודשית';
-    return CFG.usageMode==='business' ? 'העברה בנקאית חד-פעמית' : 'העברה בנקאית שנתית';
+    return CFG.usageMode==='business' ? 'העברה בנקאית חד-פעמית' : 'העברה בנקאית מיידית';
   }
   if(selectedPay==="צ'קים"){
     return selectedPaymentPlanMode==='monthly' ? "צ'קים דחויים" : "צ'ק מיידי";
@@ -4409,7 +4409,7 @@ function renderPaymentPlanPanel(){
   const isBiz = CFG.usageMode==='business';
   if(selectedPay==='העברה בנקאית'){
     title.textContent = 'סוג ההעברה';
-    first.textContent = isBiz ? 'העברה חד-פעמית' : 'העברה שנתית';
+    first.textContent = isBiz ? 'העברה חד-פעמית' : 'העברה מיידית';
     monthly.textContent = 'העברה חודשית';
   }else if(selectedPay==="צ'קים"){
     title.textContent = 'סוג הצ\'קים';
