@@ -2024,7 +2024,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '219';
+const APP_BUILD = '220';
 
 /* KABCLICK SERVICE WORKER - Build 198
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -7236,8 +7236,24 @@ async function cancelFutureIncomePlan(planId){
       }))
     }
   });
-  await loadAndRenderFinanceScreen();
-  showToast('יתרת התוכנית בוטלה. הכנסות שכבר נרשמו נשמרו.');
+  // The cancellation is complete as soon as the status update above succeeds.
+  // Update the local view immediately. A later refresh failure must never turn
+  // a successful cancellation into a misleading error message.
+  futureRows.forEach(r=>{ r.status='בוטל'; });
+  try{
+    const totals=renderFinanceSummary();
+    renderFinanceTxList(financeShowingAll ? undefined : 5);
+    renderFinanceDonut(totals);
+    renderFutureIncome();
+  }catch(renderErr){
+    console.warn('[קבקליק] הביטול הצליח, אך רענון התצוגה המקומית נכשל:', renderErr);
+  }
+  try{
+    await loadAndRenderFinanceScreen();
+  }catch(refreshErr){
+    console.warn('[קבקליק] הביטול הצליח, אך טעינה מחדש של מסך הכספים נכשלה:', refreshErr);
+  }
+  await showAppAlert('יתרת התוכנית בוטלה בהצלחה. הכנסות שכבר הגיע מועדן נשמרו.','✅');
 }
 
 let financeShowingAll = false;
