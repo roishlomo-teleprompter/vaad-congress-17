@@ -2024,7 +2024,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '220';
+const APP_BUILD = '221';
 
 /* KABCLICK SERVICE WORKER - Build 198
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -3728,7 +3728,7 @@ async function loadDataForCurrentAccountMode(){
   }
   if(CFG.spreadsheetId && CFG.folderId){
     await Promise.all([loadResidents(), ensureReceiptsSheet()]);
-    await Promise.all([syncSettingsFromSheet(), loadAllReceiptRows()]);
+    await Promise.all([syncSettingsFromSheet(), loadAllReceiptRows(), loadFinanceRows()]);
     await pushSettingsToSheet();
     await stampKnownYearWorkspacesSeriesIdentity();
     await discoverAnnualWorkspacesFromDrive();
@@ -7249,11 +7249,27 @@ async function cancelFutureIncomePlan(planId){
     console.warn('[קבקליק] הביטול הצליח, אך רענון התצוגה המקומית נכשל:', renderErr);
   }
   try{
-    await loadAndRenderFinanceScreen();
+    await Promise.all([
+      loadAndRenderFinanceScreen(),
+      loadAllReceiptRows()
+    ]);
   }catch(refreshErr){
-    console.warn('[קבקליק] הביטול הצליח, אך טעינה מחדש של מסך הכספים נכשלה:', refreshErr);
+    console.warn('[קבקליק] הביטול הצליח, אך טעינה מחדש של הנתונים נכשלה:', refreshErr);
   }
-  await showAppAlert('יתרת התוכנית בוטלה בהצלחה. הכנסות שכבר הגיע מועדן נשמרו.','✅');
+
+  // Recalculate the green month indicators immediately from the refreshed
+  // receipt log and the cancelled schedule rows.
+  const selectedResident=currentResident();
+  if(selectedResident){
+    paidMonthsSet=getPaidMonthsForResident(selectedResident);
+    selectedMonths.forEach(monthIndex=>{
+      if(paidMonthsSet.has(monthIndex)) selectedMonths.delete(monthIndex);
+    });
+    paintMonthsGrid();
+    refreshTotal();
+    refreshPreview();
+  }
+  await showAppAlert('יתרת התוכנית בוטלה בהצלחה. החודשים העתידיים שבוטלו זמינים שוב לבחירה.','✅');
 }
 
 let financeShowingAll = false;
@@ -8115,11 +8131,33 @@ function getPaidMonthsForResident(resident){
   const paid = new Set();
   if(!resident) return paid;
   const year = Number(CFG.activeYear) || currentCalendarYear();
+  const receiptNumberIndex = receiptSheetLayout().receiptNumIdx;
+
+  // A cancelled schedule releases only the future months that were actually
+  // cancelled. Months whose due date already arrived stay marked as paid.
+  const cancelledMonthKeys = new Set();
+  if(Array.isArray(financeRows)){
+    financeRows.forEach(financeRow=>{
+      if(
+        (financeRow.status||'פעיל')==='בוטל' &&
+        financeRow.sourceReceipt &&
+        financeRow.date &&
+        Number(financeRow.date.slice(0,4))===year
+      ){
+        const monthIndex=Number(financeRow.date.slice(5,7))-1;
+        if(monthIndex>=0 && monthIndex<12){
+          cancelledMonthKeys.add(String(financeRow.sourceReceipt)+':'+monthIndex);
+        }
+      }
+    });
+  }
+
   allReceiptRows.forEach(row=>{
     const date=row[0], name=row[1], monthsCell=row[3];
     if((name||'').trim() !== resident.name) return;
     const d = parseHebrewDate(date);
     if(!d || d.getFullYear()!==year) return;
+    const receiptNumber=String(row[receiptNumberIndex]||'');
     (monthsCell||'').split(',').map(s=>s.trim()).forEach(mn=>{
       const idx = MONTH_NAMES.findIndex(name =>
         mn===name || mn.startsWith(name+' ')
@@ -8133,7 +8171,11 @@ function getPaidMonthsForResident(resident){
         ? parseInt(yearMatch[1],10)
         : d.getFullYear();
 
-      if(idx>-1 && serviceYear===year){
+      if(
+        idx>-1 &&
+        serviceYear===year &&
+        !cancelledMonthKeys.has(receiptNumber+':'+idx)
+      ){
         paid.add(idx);
       }
     });
