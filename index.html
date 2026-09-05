@@ -1976,7 +1976,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '216';
+const APP_BUILD = '217';
 
 /* KABCLICK SERVICE WORKER - Build 198
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -4175,11 +4175,22 @@ document.getElementById('autoCreateBtn').addEventListener('click', async ()=>{
       console.warn('[קבקליק] סימון קבצי Drive נכשל, אך היצירה עצמה הצליחה:', e);
     }
 
-    CFG.pendingSeriesId =
-      createSeriesId;
+    // Commit the newly created workspace immediately. Creation already
+    // succeeded at this point, so the home checklist must not depend on a
+    // later Settings sync/load step that may fail independently.
+    CFG.spreadsheetId = spreadsheetId;
+    CFG.folderId = folderId;
+    CFG.seriesId = createSeriesId;
+    CFG.pendingSeriesId = '';
+    CFG.activeYear = createYear;
+    CFG.buildingInfo = buildingName;
+    persistCurrentAccountCfg();
 
     document.getElementById('cfg-spreadsheetId').value = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
     document.getElementById('cfg-folderId').value      = `https://drive.google.com/drive/folders/${folderId}`;
+
+    refreshWorkspaceOpenButtons();
+    updateSetupChecklist();
 
     statusEl.style.color = 'var(--good)';
     statusEl.textContent = '✅ הגיליון והתיקייה נוצרו בהצלחה. לאחר שמירת ההגדרות אפשר לפתוח אותם מהכפתורים למטה. פותח את הגיליון להזנת הדיירים…';
