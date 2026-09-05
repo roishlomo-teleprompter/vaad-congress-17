@@ -221,6 +221,7 @@ body.home-active .finance-screen{height:auto;overflow:visible;}
 .finance-tx-action-btn:hover{background:var(--app-bg);}
 .finance-tx-del-btn:hover{border-color:#e53e3e;background:#fdf1f1;}
 .finance-empty{padding:20px 4px;text-align:center;color:var(--slate);font-size:13px;}
+.finance-future-card{border-color:#CFE0FB;background:linear-gradient(135deg,#fff,#F7FAFF);}
 
 .finance-donut-row{display:flex;align-items:center;gap:18px;}
 .finance-donut{flex:none;width:96px;height:96px;border-radius:50%;background:conic-gradient(var(--slate) 0deg 360deg);}
@@ -504,6 +505,24 @@ textarea{resize:vertical;min-height:70px;}
 .pay-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
 .pay-opt{border:1.5px solid var(--card-line);border-radius:10px;padding:8px 10px;cursor:pointer;font-size:13px;text-align:center;transition:.15s;user-select:none;background:#fff;font-weight:500;}
 .pay-opt.active{border-color:var(--blue);background:var(--blue-soft);color:var(--blue-dark);font-weight:700;}
+.payment-plan-panel{display:none;margin-top:12px;padding:12px;background:var(--app-bg);border:1.5px solid #D6E2FB;border-radius:12px;}
+.payment-plan-panel.show{display:block;}
+.payment-plan-title{font-size:12.5px;font-weight:800;color:var(--ink);margin-bottom:8px;text-align:right;}
+.payment-plan-options{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.payment-plan-option{border:1.5px solid var(--card-line);border-radius:10px;background:#fff;color:var(--ink-soft);padding:10px 8px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;}
+.payment-plan-option.active{border-color:var(--blue);background:var(--blue-soft);color:var(--blue-dark);}
+.payment-plan-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;text-align:right;}
+.payment-plan-fields label{font-size:11px;color:var(--slate);font-weight:700;}
+.payment-plan-fields input{margin-top:4px;padding:9px 8px;}
+.payment-plan-note{margin:10px 0 0;padding:9px 10px;border-radius:9px;background:#fff;color:var(--slate);font-size:11.5px;line-height:1.55;text-align:right;}
+.future-income-head{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.future-income-total{font-size:19px;font-weight:900;color:var(--blue);}
+.future-income-plan{border-top:1px solid var(--card-line);padding:10px 0;display:flex;align-items:center;gap:8px;}
+.future-income-plan:first-child{border-top:none;padding-top:0;}
+.future-income-info{flex:1;min-width:0;}
+.future-income-name{font-size:13px;font-weight:800;color:var(--ink);}
+.future-income-meta{font-size:11px;color:var(--slate);line-height:1.55;margin-top:2px;}
+.future-income-cancel{flex:none;border:1px solid #F2B8B8;background:#FFF7F7;color:var(--bad);border-radius:8px;padding:7px 9px;font-family:inherit;font-size:11px;font-weight:800;cursor:pointer;}
 
 /* ── MONTHS ── */
 .months-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
@@ -1367,6 +1386,14 @@ body.mode-business #homeResidentsSection{
       </div>
     </div>
 
+    <div class="finance-card finance-future-card" id="futureIncomeCard">
+      <div class="future-income-head">
+        <div class="finance-card-title" style="margin:0;"><span>הכנסות עתידיות</span></div>
+        <div class="future-income-total" id="futureIncomeTotal">0 ₪</div>
+      </div>
+      <div id="futureIncomeList" style="margin-top:12px;"></div>
+    </div>
+
     <div class="finance-card">
       <div class="finance-card-title"><span>הוספת תנועה חדשה</span></div>
       <div class="finance-add-grid">
@@ -1491,9 +1518,25 @@ body.mode-business #homeResidentsSection{
         <label class="field-label">אמצעי תשלום</label>
         <div class="pay-grid" id="payGrid">
           <div class="pay-opt" data-val="העברה בנקאית">העברה בנקאית</div>
-          <div class="pay-opt" data-val="צ'קים דחויים">צ'קים דחויים</div>
+          <div class="pay-opt" data-val="צ'קים">צ'קים</div>
           <div class="pay-opt" data-val="הוראת קבע">הוראת קבע</div>
           <div class="pay-opt" data-val="מזומן">מזומן</div>
+        </div>
+        <div class="payment-plan-panel" id="paymentPlanPanel">
+          <div class="payment-plan-title" id="paymentPlanTitle">אופן התשלום</div>
+          <div class="payment-plan-options" id="paymentPlanOptions">
+            <button type="button" class="payment-plan-option" data-plan-mode="immediate" id="paymentImmediateOption"></button>
+            <button type="button" class="payment-plan-option" data-plan-mode="monthly" id="paymentMonthlyOption"></button>
+          </div>
+          <div class="payment-plan-fields" id="paymentPlanFields" style="display:none;">
+            <label>מספר תשלומים
+              <input type="number" id="paymentInstallmentCount" min="2" max="60" value="12">
+            </label>
+            <label>תאריך תשלום ראשון
+              <input type="date" id="paymentFirstDate" class="ltr-input">
+            </label>
+          </div>
+          <div class="payment-plan-note" id="paymentPlanNote"></div>
         </div>
       </div>
       <label class="email-check-row" id="emailCheckRow">
@@ -1981,7 +2024,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '218';
+const APP_BUILD = '219';
 
 /* KABCLICK SERVICE WORKER - Build 198
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -3732,6 +3775,7 @@ let residentsGid       = null; // sheetId (gid) of the residents tab — needed 
 let residentsCols      = {name:0, phone:1, fee:-1, email:-1, apartment:-1}; // column indices found on last load
 let selectedMonths = new Set();
 let selectedPay    = null;
+let selectedPaymentPlanMode = 'immediate';
 let isOtherPurpose = false;
 let gapiReady      = false;
 let tokenClient    = null;
@@ -4314,11 +4358,112 @@ function applyPurposeModeUI(){
 /* ═══════════════════════════════════════
    PAYMENT METHOD
 ═══════════════════════════════════════ */
+
+function currentReceiptTotal(){
+  const vatCalc = businessVatEnabled() ? calculateBusinessVat() : null;
+  return isOtherPurpose
+    ? (vatCalc ? vatCalc.total : manualAmount())
+    : selectedMonths.size * residentFee();
+}
+function paymentNeedsScheduleChoice(){
+  return selectedPay==='העברה בנקאית' || selectedPay==="צ'קים";
+}
+function paymentUsesMonthlySchedule(){
+  return selectedPaymentPlanMode==='monthly' &&
+    (paymentNeedsScheduleChoice() || selectedPay==='הוראת קבע');
+}
+function receiptPaymentLabel(){
+  if(selectedPay==='העברה בנקאית'){
+    if(selectedPaymentPlanMode==='monthly') return 'העברה בנקאית חודשית';
+    return CFG.usageMode==='business' ? 'העברה בנקאית חד-פעמית' : 'העברה בנקאית שנתית';
+  }
+  if(selectedPay==="צ'קים"){
+    return selectedPaymentPlanMode==='monthly' ? "צ'קים דחויים" : "צ'ק מיידי";
+  }
+  return selectedPay || '';
+}
+function paymentPlanIsValid(){
+  if(!selectedPay) return false;
+  if(paymentNeedsScheduleChoice() && !selectedPaymentPlanMode) return false;
+  if(paymentUsesMonthlySchedule() && CFG.usageMode==='business'){
+    const count = parseInt(document.getElementById('paymentInstallmentCount').value,10);
+    const firstDate = document.getElementById('paymentFirstDate').value;
+    return count>=2 && count<=60 && !!firstDate;
+  }
+  return true;
+}
+function renderPaymentPlanPanel(){
+  const panel = document.getElementById('paymentPlanPanel');
+  const options = document.getElementById('paymentPlanOptions');
+  const fields = document.getElementById('paymentPlanFields');
+  const title = document.getElementById('paymentPlanTitle');
+  const note = document.getElementById('paymentPlanNote');
+  const first = document.getElementById('paymentImmediateOption');
+  const monthly = document.getElementById('paymentMonthlyOption');
+  if(!panel) return;
+
+  const scheduledMethod = paymentNeedsScheduleChoice() || selectedPay==='הוראת קבע';
+  panel.classList.toggle('show', scheduledMethod);
+  if(!scheduledMethod){ wizardRefreshNextBtn(); return; }
+
+  const isBiz = CFG.usageMode==='business';
+  if(selectedPay==='העברה בנקאית'){
+    title.textContent = 'סוג ההעברה';
+    first.textContent = isBiz ? 'העברה חד-פעמית' : 'העברה שנתית';
+    monthly.textContent = 'העברה חודשית';
+  }else if(selectedPay==="צ'קים"){
+    title.textContent = 'סוג הצ\'קים';
+    first.textContent = 'צ\'ק מיידי';
+    monthly.textContent = 'צ\'קים דחויים';
+  }else{
+    title.textContent = 'פריסת הוראת קבע';
+    selectedPaymentPlanMode = 'monthly';
+  }
+  options.style.display = selectedPay==='הוראת קבע' ? 'none' : 'grid';
+  first.classList.toggle('active', selectedPaymentPlanMode==='immediate');
+  monthly.classList.toggle('active', selectedPaymentPlanMode==='monthly');
+  fields.style.display = paymentUsesMonthlySchedule() && isBiz ? 'grid' : 'none';
+
+  const total = currentReceiptTotal();
+  const count = isBiz
+    ? Math.max(0, parseInt(document.getElementById('paymentInstallmentCount').value,10)||0)
+    : selectedMonths.size;
+  if(!selectedPaymentPlanMode){
+    note.textContent = 'בחרו כיצד התשלום יירשם בהכנסות.';
+  }else if(paymentUsesMonthlySchedule()){
+    const each = count ? total/count : 0;
+    note.textContent = count
+      ? `הקבלה תופק על מלוא הסכום. בכל מועד תירשם הכנסה של כ-${each.toLocaleString('he-IL',{maximumFractionDigits:2})} ₪, והיתרה תוצג בהכנסות עתידיות.`
+      : 'בחרו תשלומים כדי ליצור פריסת הכנסה.';
+    if(selectedPay==="צ'קים"){
+      note.textContent += ' ביטול התוכנית באפליקציה אינו מבטל את הצ\'קים בבנק.';
+    }
+  }else{
+    note.textContent = 'מלוא סכום הקבלה יירשם כהכנסה במועד ההפקה.';
+  }
+  wizardRefreshNextBtn();
+  refreshPreview();
+}
+
 document.getElementById('payGrid').addEventListener('click', e=>{
   const opt=e.target.closest('.pay-opt'); if(!opt) return;
   document.querySelectorAll('.pay-opt').forEach(o=>o.classList.remove('active'));
-  opt.classList.add('active'); selectedPay=opt.dataset.val;
-  refreshPreview();
+  opt.classList.add('active');
+  selectedPay=opt.dataset.val;
+  selectedPaymentPlanMode = paymentNeedsScheduleChoice()
+    ? null
+    : (selectedPay==='הוראת קבע' ? 'monthly' : 'immediate');
+  const firstDate = document.getElementById('paymentFirstDate');
+  if(firstDate && !firstDate.value) firstDate.value = todayIsoLocal();
+  renderPaymentPlanPanel();
+});
+document.getElementById('paymentPlanOptions').addEventListener('click', e=>{
+  const btn=e.target.closest('[data-plan-mode]'); if(!btn) return;
+  selectedPaymentPlanMode=btn.dataset.planMode;
+  renderPaymentPlanPanel();
+});
+['paymentInstallmentCount','paymentFirstDate'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', renderPaymentPlanPanel);
 });
 
 /* ═══════════════════════════════════════
@@ -4381,6 +4526,8 @@ function clearResidentSelection(){
   // carrying over stale selections (months, payment method, etc.).
   selectedMonths.clear();
   selectedPay = null;
+  selectedPaymentPlanMode = 'immediate';
+  renderPaymentPlanPanel();
   document.querySelectorAll('.pay-opt').forEach(o=>o.classList.remove('active'));
   document.getElementById('purposeInput').value = '';
   document.getElementById('manualAmountInput').value = '';
@@ -4688,15 +4835,16 @@ function refreshTotal(){
   document.getElementById('totalAmt').textContent=total.toLocaleString('he-IL')+' ₪';
   document.getElementById('totalLbl').textContent=lbl;
   updateBusinessVatUI();
+  if(document.getElementById('paymentPlanPanel')) renderPaymentPlanPanel();
   validateForm();
 }
 function currentResident(){ return residents[residentSelect.value]; }
 function validateForm(){
   let ok;
   if(isOtherPurpose){
-    ok=currentResident()&&selectedPay&&document.getElementById('purposeInput').value.trim()&&manualAmount()>0&&accessToken;
+    ok=currentResident()&&paymentPlanIsValid()&&document.getElementById('purposeInput').value.trim()&&manualAmount()>0&&accessToken;
   } else {
-    ok=currentResident()&&selectedPay&&selectedMonths.size>0&&accessToken;
+    ok=currentResident()&&paymentPlanIsValid()&&selectedMonths.size>0&&accessToken;
   }
   ok = ok && isConfigured();
   const cancelBtnForValidate = document.getElementById('wizardCancelBtn');
@@ -4716,7 +4864,7 @@ function wizardStepValid(i){
     case 1: return isOtherPurpose
       ? !!(document.getElementById('purposeInput').value.trim() && manualAmount()>0)
       : selectedMonths.size>0;
-    case 2: return !!selectedPay;
+    case 2: return paymentPlanIsValid();
     default: return true;
   }
 }
@@ -4735,7 +4883,7 @@ function wizardUpdateSummary(){
   document.getElementById('wizardSummary').innerHTML = `
     <div class="wizard-summary-row"><span>${CFG.usageMode==='business' ? 'לקוח' : 'דייר'}</span><b>${r ? r.name : '—'}</b></div>
     <div class="wizard-summary-row"><span>${isOtherPurpose ? 'מטרה' : 'חודשים'}</span><b>${monthsTxt}</b></div>
-    <div class="wizard-summary-row"><span>אמצעי תשלום</span><b>${selectedPay || '—'}</b></div>
+    <div class="wizard-summary-row"><span>אמצעי תשלום</span><b>${receiptPaymentLabel() || '—'}</b></div>
   `;
 }
 
@@ -4748,7 +4896,7 @@ function wizardShowStep(i){
     stepEl.style.display = (s===wizardIndex) ? 'flex' : 'none';
     // Only the last step (confirm/preview) is allowed to scroll — every
     // other step must fit within the screen without any scrolling at all.
-    stepEl.classList.toggle('scrollable', s===wizardIndex && isLast);
+    stepEl.classList.toggle('scrollable', s===wizardIndex && (isLast || s===2));
   }
 
   document.querySelectorAll('.wizard-dot').forEach((dot,idx)=>{
@@ -4994,7 +5142,7 @@ function receiptHTML(forPdf=false, opts={}){
       </div>
       <div class="info-row">
         <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M4 21V9l8-5 8 5v12M9 21v-6h6v6"/></svg></div>
-        <div class="info"><div class="label">אמצעי תשלום</div><div class="value">${selectedPay||'—'}</div></div>
+        <div class="info"><div class="label">אמצעי תשלום</div><div class="value">${receiptPaymentLabel()||'—'}</div></div>
       </div>
       ${monthsOrPurpose}
     </section>
@@ -6498,6 +6646,49 @@ async function appendReceiptRow(row, spreadsheetId){
 ═══════════════════════════════════════ */
 const FINANCE_SHEET  = 'הוצאות והכנסות';
 const FINANCE_HEADER = ['תאריך','סוג','כותרת','קטגוריה','סכום','אמצעי תשלום','הערה','הערות ידניות'];
+const FINANCE_PLAN_HEADER = ['מזהה תוכנית','סטטוס','מספר תשלום','מספר תשלומים','מספר קבלה','סכום תוכנית'];
+
+function todayIsoLocal(){
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function addMonthsToIso(iso, months){
+  const parts=(iso||'').split('-').map(Number);
+  if(parts.length!==3 || parts.some(n=>!n)) return '';
+  const y=parts[0], m=parts[1]-1, day=parts[2];
+  const first=new Date(y,m+months,1);
+  const lastDay=new Date(first.getFullYear(),first.getMonth()+1,0).getDate();
+  return first.getFullYear()+'-'+String(first.getMonth()+1).padStart(2,'0')+'-'+String(Math.min(day,lastDay)).padStart(2,'0');
+}
+function splitInstallmentAmounts(total, count){
+  const cents=Math.round(Number(total||0)*100);
+  const base=Math.floor(cents/count);
+  const remainder=cents-(base*count);
+  return Array.from({length:count},(_,i)=>(base+(i<remainder?1:0))/100);
+}
+function buildPaymentPlanSnapshot(total, serviceYear, receiptNumber){
+  if(!paymentUsesMonthlySchedule()) return null;
+  let dates=[];
+  if(CFG.usageMode==='business'){
+    const count=parseInt(document.getElementById('paymentInstallmentCount').value,10);
+    const first=document.getElementById('paymentFirstDate').value;
+    dates=Array.from({length:count},(_,i)=>addMonthsToIso(first,i));
+  }else{
+    dates=sortedMonths().map(monthIndex=>
+      Number(serviceYear)+'-'+String(monthIndex+1).padStart(2,'0')+'-01'
+    );
+  }
+  if(!dates.length) return null;
+  return {
+    id:'KP-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8),
+    dates,
+    amounts:splitInstallmentAmounts(total,dates.length),
+    count:dates.length,
+    total:Number(total)||0,
+    payMethod:receiptPaymentLabel(),
+    sourceReceipt:String(receiptNumber||'')
+  };
+}
 const FINANCE_CATEGORIES = {
   income:  ['דמי ועד','תשלום מיוחד','הכנסה מלקוח','החזר','הכנסה אחרת'],
   expense: ['חשמל','מים','ניקיון','תחזוקה','מעלית','גינון','ביטוח','תיקונים','הוצאה אחרת']
@@ -6563,12 +6754,16 @@ async function ensureFinanceSheet({strictOpeningBalance=false}={}){
     sheetId = sheet.properties.sheetId;
   }
 
-  // Build 186 - keep a dedicated manual-notes column on old and new sheets.
-  await gapi.client.sheets.spreadsheets.values.update({
+  // Build 219 - keep manual notes and scheduled-income metadata on old and new sheets.
+  await gapi.client.sheets.spreadsheets.values.batchUpdate({
     spreadsheetId:CFG.spreadsheetId,
-    range:`'${FINANCE_SHEET}'!H1`,
-    valueInputOption:'RAW',
-    resource:{values:[['הערות ידניות']]}
+    resource:{
+      valueInputOption:'RAW',
+      data:[
+        {range:`'${FINANCE_SHEET}'!H1`, values:[['הערות ידניות']]},
+        {range:`'${FINANCE_SHEET}'!K1:P1`, values:[FINANCE_PLAN_HEADER]}
+      ]
+    }
   });
 
   // Conditional formatting (not one-time per-row coloring) so every row —
@@ -6726,7 +6921,7 @@ async function loadFinanceRows(){
       financeSheetGid = sheetMeta ? sheetMeta.properties.sheetId : null;
     }catch(e){ financeSheetGid = null; } // non-fatal — delete-row just won't be available
     const res = await gapi.client.sheets.spreadsheets.values.get({
-      spreadsheetId:CFG.spreadsheetId, range:`'${FINANCE_SHEET}'!A2:H`
+      spreadsheetId:CFG.spreadsheetId, range:`'${FINANCE_SHEET}'!A2:P`
     });
     const raw = res.result.values || [];
     // Row numbers (1-indexed, matching the actual sheet) are captured BEFORE
@@ -6746,6 +6941,12 @@ async function loadFinanceRows(){
           paymethod: (r[5]||'').toString(),
           note: (r[6]||'').toString(),
           manualNote: (r[7]||'').toString(),
+          planId: (r[10]||'').toString(),
+          status: (r[11]||'פעיל').toString(),
+          installmentNumber: parseInt(r[12],10)||0,
+          installmentCount: parseInt(r[13],10)||0,
+          sourceReceipt: (r[14]||'').toString(),
+          planTotal: parseFloat(r[15])||0,
           sheetRow: o.sheetRow
         };
       });
@@ -6793,6 +6994,53 @@ async function appendFinanceRow(entry, spreadsheetId){
     financeRows.push(entry);
   }
 }
+
+async function appendScheduledFinanceRows(plan, entry, spreadsheetId){
+  if(!navigator.onLine) throw new Error('OFFLINE_WRITE_BLOCKED');
+  const targetSpreadsheetId=spreadsheetId||CFG.spreadsheetId;
+  if(targetSpreadsheetId===CFG.spreadsheetId) await ensureFinanceSheet();
+
+  await gapi.client.sheets.spreadsheets.values.batchUpdate({
+    spreadsheetId:targetSpreadsheetId,
+    resource:{
+      valueInputOption:'RAW',
+      data:[{range:`'${FINANCE_SHEET}'!K1:P1`, values:[FINANCE_PLAN_HEADER]}]
+    }
+  });
+  const existing=await gapi.client.sheets.spreadsheets.values.get({
+    spreadsheetId:targetSpreadsheetId,
+    range:`'${FINANCE_SHEET}'!K2:K`
+  });
+  const planAlreadyExists=(existing.result.values||[]).some(r=>String(r[0]||'')===plan.id);
+  if(planAlreadyExists) return;
+
+  const rows=plan.dates.map((date,i)=>[
+    date,
+    'הכנסה',
+    entry.title,
+    entry.category,
+    plan.amounts[i],
+    plan.payMethod,
+    entry.note,
+    '',
+    '',
+    '',
+    plan.id,
+    'פעיל',
+    i+1,
+    plan.count,
+    plan.sourceReceipt,
+    plan.total
+  ]);
+  await gapi.client.sheets.spreadsheets.values.append({
+    spreadsheetId:targetSpreadsheetId,
+    range:`'${FINANCE_SHEET}'!A:P`,
+    valueInputOption:'RAW',
+    insertDataOption:'INSERT_ROWS',
+    resource:{values:rows}
+  });
+}
+
 /** Overwrites an existing row in place (by its actual sheet row number) —
  *  used for editing a transaction. Row numbers are captured at load time
  *  in loadFinanceRows, so this always targets the correct physical row. */
@@ -6861,9 +7109,17 @@ function financeCurrentMonthKey(){
   const d = new Date();
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
 }
+function financeRowActive(r){ return (r.status||'פעיל')!=='בוטל'; }
+function financeRowDue(r){ return financeRowActive(r) && (!r.date || r.date<=todayIsoLocal()); }
+function financeEffectiveRows(){ return financeRows.filter(financeRowDue); }
+function financeFutureIncomeRows(){
+  return financeRows.filter(r=>
+    r.type==='income' && r.planId && financeRowActive(r) && r.date>todayIsoLocal()
+  );
+}
 function financeRowsThisMonth(){
   const key = financeCurrentMonthKey();
-  return financeRows.filter(r=>r.date && r.date.slice(0,7)===key);
+  return financeEffectiveRows().filter(r=>r.date && r.date.slice(0,7)===key);
 }
 function financeFormatAmount(n){ return n.toLocaleString('he-IL')+' ₪'; }
 function financeFormatDate(iso){
@@ -6888,7 +7144,7 @@ function renderFinanceSummary(){
  *  plus any opening balance carried over from before the sheet started
  *  (e.g. from a previous manual tracking system). */
 function financeAllTimeBalance(){
-  const txTotal = financeRows.reduce((sum,r)=> sum + (r.type==='income' ? r.amount : -r.amount), 0);
+  const txTotal = financeEffectiveRows().reduce((sum,r)=> sum + (r.type==='income' ? r.amount : -r.amount), 0);
   return (CFG.financeOpeningBalance || 0) + txTotal;
 }
 function renderFinanceBalance(){
@@ -6900,7 +7156,7 @@ function renderFinanceBalance(){
 
 function renderFinanceTxList(limit){
   const list = document.getElementById('financeTxList');
-  const sorted = [...financeRows].sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+  const sorted = [...financeEffectiveRows()].sort((a,b)=> (b.date||'').localeCompare(a.date||''));
   const rows = typeof limit==='number' ? sorted.slice(0,limit) : sorted;
   if(!rows.length){
     list.innerHTML = '<div class="finance-empty">עדיין אין תנועות רשומות — הוסיפו הכנסה או הוצאה למעלה.</div>';
@@ -6924,6 +7180,64 @@ function renderFinanceTxList(limit){
       </div>
     </div>`;
   }).join('');
+}
+
+function renderFutureIncome(){
+  const totalEl=document.getElementById('futureIncomeTotal');
+  const list=document.getElementById('futureIncomeList');
+  if(!totalEl || !list) return;
+  const rows=financeFutureIncomeRows();
+  const total=rows.reduce((sum,r)=>sum+r.amount,0);
+  totalEl.textContent=financeFormatAmount(total);
+  if(!rows.length){
+    list.innerHTML='<div class="finance-empty" style="padding:4px 0;">אין הכנסות עתידיות מתוזמנות.</div>';
+    return;
+  }
+  const groups={};
+  rows.forEach(r=>{
+    if(!groups[r.planId]) groups[r.planId]=[];
+    groups[r.planId].push(r);
+  });
+  list.innerHTML=Object.entries(groups).map(([planId,planRows])=>{
+    planRows.sort((a,b)=>a.date.localeCompare(b.date));
+    const first=planRows[0];
+    const remaining=planRows.reduce((sum,r)=>sum+r.amount,0);
+    return `<div class="future-income-plan">
+      <div class="future-income-info">
+        <div class="future-income-name">${escapeHtml2(first.title||'תוכנית הכנסה')}</div>
+        <div class="future-income-meta">${planRows.length} תשלומים נותרו · הבא: ${financeFormatDate(first.date)} · ${escapeHtml2(first.paymethod||'')}</div>
+        <div class="future-income-meta">יתרה: ${financeFormatAmount(remaining)}</div>
+      </div>
+      <button type="button" class="future-income-cancel" data-plan-id="${escapeHtml2(planId)}">בטל יתרה</button>
+    </div>`;
+  }).join('');
+}
+
+async function cancelFutureIncomePlan(planId){
+  const futureRows=financeFutureIncomeRows().filter(r=>r.planId===planId);
+  if(!futureRows.length) return;
+  const remaining=futureRows.reduce((sum,r)=>sum+r.amount,0);
+  const checks=futureRows.some(r=>(r.paymethod||'').includes("צ'ק"));
+  const warning=checks ? '\n\nחשוב: הביטול באפליקציה אינו מבטל את הצ\'קים בבנק.' : '';
+  const ok=await showAppConfirm(
+    `לבטל ${futureRows.length} הכנסות עתידיות בסך ${financeFormatAmount(remaining)}? הכנסות שכבר הגיע מועדן יישארו בדוחות.${warning}`,
+    '⚠️',
+    'כן, בטל יתרה',
+    'חזרה'
+  );
+  if(!ok) return;
+  await gapi.client.sheets.spreadsheets.values.batchUpdate({
+    spreadsheetId:CFG.spreadsheetId,
+    resource:{
+      valueInputOption:'RAW',
+      data:futureRows.map(r=>({
+        range:`'${FINANCE_SHEET}'!L${r.sheetRow}`,
+        values:[['בוטל']]
+      }))
+    }
+  });
+  await loadAndRenderFinanceScreen();
+  showToast('יתרת התוכנית בוטלה. הכנסות שכבר נרשמו נשמרו.');
 }
 
 let financeShowingAll = false;
@@ -6962,9 +7276,18 @@ async function loadAndRenderFinanceScreen(){
   const totals = renderFinanceSummary();
   renderFinanceTxList(financeShowingAll ? undefined : 5);
   renderFinanceDonut(totals);
+  renderFutureIncome();
 }
 
 document.getElementById('financeScreen').addEventListener('click', (e)=>{
+  const cancelBtn=e.target.closest('.future-income-cancel');
+  if(cancelBtn){
+    cancelFutureIncomePlan(cancelBtn.dataset.planId).catch(err=>{
+      console.error(err);
+      showAppAlert('לא ניתן היה לבטל את יתרת התוכנית. נסו שוב.','⚠️');
+    });
+    return;
+  }
   const btn = e.target.closest('#financeShowAllBtn');
   if(!btn) return;
   financeShowingAll = !financeShowingAll;
@@ -7263,7 +7586,7 @@ function financeReportPeriodLabel(from, to, lang){
   return `${f} – ${t}`;
 }
 function financeRowsInRange(from, to){
-  return financeRows.filter(r=> r.date && r.date>=from && r.date<=to);
+  return financeEffectiveRows().filter(r=> r.date && r.date>=from && r.date<=to);
 }
 function financeCategoryBreakdownRows(rows, type){
   const byCat = {};
@@ -8069,11 +8392,11 @@ async function performGenerateReceipt(){
   const otherPurposeNow = isOtherPurpose;
   const vatNow = businessVatEnabled() ? calculateBusinessVat() : null;
   if(otherPurposeNow){
-    if(!r||!selectedPay||!purposeText||manualAmt<=0){
+    if(!r||!paymentPlanIsValid()||!purposeText||manualAmt<=0){
       showMsg('יש למלא את כל השדות.','error'); return;
     }
   } else {
-    if(!r||!selectedPay||selectedMonths.size===0){ showMsg('יש למלא את כל השדות.','error'); return; }
+    if(!r||!paymentPlanIsValid()||selectedMonths.size===0){ showMsg('יש למלא את כל השדות.','error'); return; }
   }
   const btn=document.getElementById('wizardCancelBtn');
 
@@ -8133,7 +8456,7 @@ async function performGenerateReceipt(){
   // a different resident or a new receipt by the time it finishes.
   const snap = {
     resident: r,
-    payMethod: selectedPay,
+    payMethod: receiptPaymentLabel(),
     isOtherPurpose: otherPurposeNow,
     purposeText,
     manualAmt,
@@ -8157,6 +8480,11 @@ async function performGenerateReceipt(){
     targetFolderId: CFG.folderId,
     usageMode: CFG.usageMode
   };
+  snap.paymentPlan = buildPaymentPlanSnapshot(
+    snap.totalAmount,
+    snap.serviceYear,
+    snap.receiptNumber
+  );
 
   try{
     const blob=await buildPdfBlob(
@@ -8242,18 +8570,27 @@ async function finalizeReceiptInBackground(snap, blob, filename, attempt){
     let financeLogFailed = false;
     try{
       const isBiz = snap.usageMode==='business';
-      const financeTitle = isBiz ? 'לקוח' : `${r.name} תשלום ועד`;
-      const financeCategory = isBiz ? r.name : 'דמי ועד';
+      const financeTitle = isBiz ? `${r.name} תשלום` : `${r.name} תשלום ועד`;
+      const financeCategory = isBiz ? 'הכנסה מלקוח' : 'דמי ועד';
       const financeNote = snap.isOtherPurpose ? snap.purposeText : monthsCell;
-      await appendFinanceRow({
-        date: new Date().toISOString().slice(0,10),
+      const financeEntry = {
+        date: todayIsoLocal(),
         type: 'income',
         title: financeTitle,
         category: financeCategory,
         amount: total,
         paymethod: snap.payMethod,
         note: financeNote
-      }, snap.targetSpreadsheetId);
+      };
+      if(snap.paymentPlan){
+        await appendScheduledFinanceRows(
+          snap.paymentPlan,
+          financeEntry,
+          snap.targetSpreadsheetId
+        );
+      }else{
+        await appendFinanceRow(financeEntry, snap.targetSpreadsheetId);
+      }
     }catch(financeErr){
       // Non-fatal — the receipt itself is already saved and logged; a
       // finance-tracking hiccup shouldn't ever block or alarm the person
