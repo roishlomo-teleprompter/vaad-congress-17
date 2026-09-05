@@ -1975,7 +1975,7 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '214';
+const APP_BUILD = '215';
 
 /* KABCLICK SERVICE WORKER - Build 198
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -5172,10 +5172,14 @@ function quickOnboardingSlides(mode){
       flow:['בחירה','פרטי תשלום','שמירה ושליחה']
     },
     {
-      icon:'📅',
-      title:'תמיד יודעים מה שולם',
-      text:'במסך הבית רואים קבלות אחרונות ותשלומים קרובים. בהיסטוריה ניתן לבדוק למי הופקה קבלה ועבור מה.',
-      flow:['קבלות אחרונות','תשלומים קרובים','היסטוריה']
+      icon:isBusiness ? '🗂️' : '📅',
+      title:isBusiness ? 'כל הקבלות במקום אחד' : 'תמיד יודעים מה שולם',
+      text:isBusiness
+        ? 'במסך הבית רואים קבלות אחרונות. בהיסטוריה ניתן לאתר קבלה, לבדוק לאיזה לקוח היא הופקה ולפתוח את הקובץ השמור ב-Drive.'
+        : 'במסך הבית רואים קבלות אחרונות ותשלומים קרובים. בהיסטוריה ניתן לבדוק למי הופקה קבלה ועבור מה.',
+      flow:isBusiness
+        ? ['קבלות אחרונות','היסטוריה','פתיחה מ-Drive']
+        : ['קבלות אחרונות','תשלומים קרובים','היסטוריה']
     },
     {
       icon:'📊',
