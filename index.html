@@ -2024,9 +2024,9 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '224';
+const APP_BUILD = '225';
 
-/* KABCLICK SERVICE WORKER - Build 199
+/* KABCLICK SERVICE WORKER - Build 200
    Keep the local app shell available so the installed PWA/TWA can start offline. */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -2237,7 +2237,8 @@ function extractFolderId(input){
 /* ═══════════════════════════════════════
    CONFIG & STORAGE
 ═══════════════════════════════════════ */
-const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/gmail.send';
+const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email';
+const GMAIL_SEND_SCOPE = 'https://www.googleapis.com/auth/gmail.send';
 function residentsSheetName(){ return CFG.usageMode==='business' ? 'לקוחות' : 'אנשי קשר'; }
 const RECEIPTS_SHEET  = 'קבלות';
 /**
@@ -3854,7 +3855,11 @@ let selectedPaymentPlanMode = 'immediate';
 let isOtherPurpose = false;
 let gapiReady      = false;
 let tokenClient    = null;
+let gmailTokenClient = null;
 let accessToken    = null;
+let grantedGoogleScopes = new Set();
+let gmailPermissionPromise = null;
+let gmailPermissionResolver = null;
 let lastPdfBlob    = null;
 let lastFileName   = null;
 
@@ -4593,6 +4598,82 @@ function updateEmailCheckbox(r){
   row.classList.toggle('disabled', !hasEmail);
   hint.textContent = hasEmail ? `(${r.email})` : '(לא הוגדר מייל לדייר זה)';
 }
+
+function rememberGrantedGoogleScopes(scopeText=''){
+  scopeText.toString().split(/\s+/).filter(Boolean).forEach(scope=>{
+    grantedGoogleScopes.add(scope);
+  });
+}
+
+function hasGmailSendPermission(){
+  return grantedGoogleScopes.has(GMAIL_SEND_SCOPE);
+}
+
+function gmailExplainerKey(){
+  return `kabclick_gmail_explainer_v1::${CFG.email||'unknown'}`;
+}
+
+function gmailExplainerWasShown(){
+  try{ return localStorage.getItem(gmailExplainerKey())==='1'; }
+  catch(e){ return false; }
+}
+
+function markGmailExplainerShown(){
+  try{ localStorage.setItem(gmailExplainerKey(),'1'); }catch(e){}
+}
+
+async function requestGmailSendPermission(){
+  if(hasGmailSendPermission()) return true;
+  if(gmailPermissionPromise) return gmailPermissionPromise;
+  if(!gmailTokenClient || !accessToken){
+    await showAppAlert('יש להתחבר תחילה לחשבון Google.','⚠️');
+    return false;
+  }
+
+  gmailPermissionPromise = new Promise(resolve=>{
+    gmailPermissionResolver = resolve;
+    try{
+      gmailTokenClient.requestAccessToken({prompt:''});
+    }catch(e){
+      console.error('[קבקליק] פתיחת הרשאת Gmail נכשלה:',e);
+      gmailPermissionResolver = null;
+      resolve(false);
+    }
+  }).finally(()=>{
+    gmailPermissionPromise = null;
+  });
+
+  return gmailPermissionPromise;
+}
+
+document.getElementById('emailSendCheckbox').addEventListener('change', async e=>{
+  const cb=e.currentTarget;
+  if(!cb.checked || hasGmailSendPermission()) return;
+
+  cb.checked=false;
+  const resident=currentResident();
+  if(!resident?.email) return;
+
+  if(!gmailExplainerWasShown()){
+    const approved = await showAppConfirm(
+      'כדי לשלוח את הקבלה ישירות מחשבון ה-Gmail שלך, קבקליק תבקש הרשאת שליחה בלבד. אין לקבקליק גישה לקריאת הודעות, למחיקת הודעות או לתוכן תיבת הדואר. במסך הבא של Google יש לאשר את האפשרות "שליחת הודעות אימייל בשמך".',
+      '📧',
+      'המשך לאישור Google',
+      'לא עכשיו'
+    );
+    if(!approved) return;
+    markGmailExplainerShown();
+  }
+
+  cb.disabled=true;
+  const granted=await requestGmailSendPermission();
+  updateEmailCheckbox(currentResident());
+  if(granted && currentResident()?.email){
+    cb.checked=true;
+  }else if(!granted){
+    await showAppAlert('הרשאת שליחת המייל לא אושרה. הקבלה עדיין תישמר ב-Google Drive ותוכלו לנסות שוב בהמשך.','ℹ️');
+  }
+});
 
 /* ═══════════════════════════════════════
    RESIDENT LIVE SEARCH (autocomplete over the hidden <select>)
@@ -5356,14 +5437,14 @@ function waitForGoogleLibraries(timeoutMs=15000){
   });
 }
 
-function saveTokenCache(token, expiresInSec){
+function saveTokenCache(token, expiresInSec, scopes=''){
   const expiresAt = Date.now() + ((expiresInSec||3500)*1000) - 60000; // 1-min safety buffer
-  try{ localStorage.setItem(TOKEN_CACHE_KEY, JSON.stringify({token, expiresAt})); }catch(e){}
+  try{ localStorage.setItem(TOKEN_CACHE_KEY, JSON.stringify({token, expiresAt, scopes})); }catch(e){}
 }
 function loadTokenCache(){
   try{
     const c = JSON.parse(localStorage.getItem(TOKEN_CACHE_KEY)||'null');
-    if(c && c.token && c.expiresAt > Date.now()) return c.token;
+    if(c && c.token && c.expiresAt > Date.now()) return c;
   }catch(e){}
   return null;
 }
@@ -5537,6 +5618,7 @@ document.getElementById('modeSelectVaad').addEventListener('click', ()=>chooseUs
 document.getElementById('modeSelectBusiness').addEventListener('click', ()=>chooseUsageMode('business'));
 function markDisconnected(){
   accessToken=null;
+  grantedGoogleScopes.clear();
   document.getElementById('authDot').classList.remove('on');
   document.getElementById('authLabel').textContent='התחברות עם Google';
   document.getElementById('loginGate').classList.remove('hidden');
@@ -5940,6 +6022,7 @@ function initGoogle(){
       tokenClient=google.accounts.oauth2.initTokenClient({
         client_id:APP_CLIENT_ID,
         scope:SCOPES,
+        include_granted_scopes:true,
         callback:async(resp)=>{
           if(authAttemptTimeout){
             clearTimeout(authAttemptTimeout);
@@ -5952,8 +6035,11 @@ function initGoogle(){
               return;
             }
             accessToken=resp.access_token;
+            grantedGoogleScopes.clear();
+            rememberGrantedGoogleScopes(SCOPES);
+            rememberGrantedGoogleScopes(resp.scope||'');
             gapi.client.setToken({access_token:accessToken});
-            saveTokenCache(accessToken, resp.expires_in);
+            saveTokenCache(accessToken, resp.expires_in, [...grantedGoogleScopes].join(' '));
             markConnected();
             if(!(await enforceLicense(accessToken, {trustCache:false}))) return;
             setLoginAuthProgress(true, 'כמעט סיימנו - טוענים את סביבת העבודה');
@@ -5972,11 +6058,41 @@ function initGoogle(){
           finishAuthAttempt(isClosed ? '' : 'לא ניתן היה לפתוח את חלון ההתחברות. נסה שוב.');
         }
       });
+      gmailTokenClient=google.accounts.oauth2.initTokenClient({
+        client_id:APP_CLIENT_ID,
+        scope:GMAIL_SEND_SCOPE,
+        include_granted_scopes:true,
+        callback:resp=>{
+          const resolve=gmailPermissionResolver;
+          gmailPermissionResolver=null;
+          if(resp.error){
+            console.warn('[קבקליק] הרשאת Gmail לא אושרה:',resp.error);
+            if(resolve) resolve(false);
+            return;
+          }
+
+          accessToken=resp.access_token;
+          rememberGrantedGoogleScopes(SCOPES);
+          rememberGrantedGoogleScopes(resp.scope||'');
+          rememberGrantedGoogleScopes(GMAIL_SEND_SCOPE);
+          gapi.client.setToken({access_token:accessToken});
+          saveTokenCache(accessToken, resp.expires_in, [...grantedGoogleScopes].join(' '));
+          if(resolve) resolve(true);
+        },
+        error_callback:err=>{
+          console.warn('[קבקליק] חלון הרשאת Gmail נסגר או נכשל:',err);
+          const resolve=gmailPermissionResolver;
+          gmailPermissionResolver=null;
+          if(resolve) resolve(false);
+        }
+      });
       // If a still-valid token is cached from a previous visit, reuse it immediately —
       // no popup, no network round trip, no re-login needed.
       const cached = loadTokenCache();
       if(cached){
-        accessToken = cached;
+        accessToken = cached.token;
+        grantedGoogleScopes.clear();
+        rememberGrantedGoogleScopes(cached.scopes||SCOPES);
         gapi.client.setToken({access_token:accessToken});
         markConnected();
         if(await enforceLicense(accessToken, {trustCache:true})){
@@ -8472,8 +8588,8 @@ async function uploadToDrive(blob,filename,folderId){
 }
 
 /* ═══════════════════════════════════════
-   EMAIL RECEIPT (via Apps Script, sent from Roi's Gmail — no extra
-   OAuth scope, no consent screen shown to the customer)
+   EMAIL RECEIPT (sent from the connected user's Gmail after a separate,
+   just-in-time gmail.send permission request)
 ═══════════════════════════════════════ */
 function blobToBase64(blob){
   return new Promise((resolve,reject)=>{
@@ -8569,9 +8685,15 @@ async function sendReceiptByEmail(resident, pdfBlob, filename, total){
       const data = await res.json();
       message = data?.error?.message || message;
     }catch(e){}
-    if(res.status===401 || res.status===403){
+    if(res.status===401){
       clearTokenCache();
-      throw new Error('אין הרשאת Gmail לשליחת המייל. יש להתנתק, להתחבר מחדש ולאשר את הרשאת השליחה.');
+      throw new Error('החיבור ל-Google פג. יש להתחבר מחדש ולאחר מכן לנסות שוב.');
+    }
+    if(res.status===403){
+      grantedGoogleScopes.delete(GMAIL_SEND_SCOPE);
+      const cb=document.getElementById('emailSendCheckbox');
+      if(cb) cb.checked=false;
+      throw new Error('הרשאת שליחת המייל אינה פעילה. סמנו שוב "שלח קבלה גם למייל" ואשרו את ההרשאה ב-Google.');
     }
     throw new Error(message);
   }
