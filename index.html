@@ -2024,9 +2024,9 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '223';
+const APP_BUILD = '224';
 
-/* KABCLICK SERVICE WORKER - Build 198
+/* KABCLICK SERVICE WORKER - Build 199
    Keep the local app shell available so the installed PWA/TWA can start offline. */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -2333,6 +2333,68 @@ function seriesIdFromSpreadsheetId(spreadsheetId){
     .replace(/[^A-Za-z0-9_-]/g,'');
 
   return id ? 'series_'+id : '';
+}
+
+function workspaceRootFolderName(titleBase){
+  const cleanTitle=(titleBase||'')
+    .toString()
+    .trim() || (CFG.usageMode==='business' ? 'עסק' : 'ועד בית');
+
+  return `קבקליק - ${cleanTitle}`;
+}
+
+async function ensureWorkspaceRootFolder(titleBase, seriesId){
+  if(!seriesId) throw new Error('WORKSPACE_SERIES_ID_MISSING');
+
+  gapi.client.setToken({access_token:accessToken});
+
+  const existing = await gapi.client.drive.files.list({
+    q:`trashed=false and mimeType='application/vnd.google-apps.folder' and appProperties has { key='kabclick' and value='1' } and appProperties has { key='kind' and value='workspace-root' } and appProperties has { key='mode' and value='${CFG.usageMode}' } and appProperties has { key='seriesId' and value='${seriesId}' }`,
+    fields:'files(id,name,createdTime)',
+    orderBy:'createdTime asc',
+    pageSize:10
+  });
+
+  const folder = (existing.result.files||[])[0];
+  if(folder?.id) return folder.id;
+
+  const created = await gapi.client.drive.files.create({
+    resource:{
+      name:workspaceRootFolderName(titleBase),
+      mimeType:'application/vnd.google-apps.folder',
+      appProperties:{
+        kabclick:'1',
+        kind:'workspace-root',
+        mode:CFG.usageMode,
+        seriesId
+      }
+    },
+    fields:'id'
+  });
+
+  return created.result.id;
+}
+
+async function moveDriveFileIntoFolder(fileId, parentFolderId){
+  if(!fileId || !parentFolderId) throw new Error('DRIVE_PARENT_MISSING');
+
+  const current = await gapi.client.drive.files.get({
+    fileId,
+    fields:'id,parents'
+  });
+  const parents = current.result.parents || [];
+
+  if(parents.length===1 && parents[0]===parentFolderId) return;
+
+  const request={
+    fileId,
+    addParents:parentFolderId,
+    fields:'id,parents'
+  };
+  const oldParents=parents.filter(id=>id!==parentFolderId);
+  if(oldParents.length) request.removeParents=oldParents.join(',');
+
+  await gapi.client.drive.files.update(request);
 }
 
 function ensureLocalWorkspaceSeriesId(){
@@ -3586,12 +3648,17 @@ async function ensureYearWorkspaceForWrite(targetYear){
       const titleBase =
         CFG.buildingInfo ||
         (CFG.usageMode==='business' ? 'עסק' : 'ועד בית');
+      const workspaceRootId = await ensureWorkspaceRootFolder(
+        titleBase,
+        CFG.seriesId
+      );
 
       if(!spreadsheetId){
         const created = await gapi.client.drive.files.create({
           resource:{
             name:`קבקליק - ${titleBase} - ${year}`,
             mimeType:'application/vnd.google-apps.spreadsheet',
+            parents:[workspaceRootId],
             appProperties:{
               kabclick:'1',
               kind:'sheet',
@@ -3611,6 +3678,7 @@ async function ensureYearWorkspaceForWrite(targetYear){
           resource:{
             name:`קבלות - ${titleBase} - ${year}`,
             mimeType:'application/vnd.google-apps.folder',
+            parents:[workspaceRootId],
             appProperties:{
               kabclick:'1',
               kind:'receipts-folder',
@@ -3663,6 +3731,13 @@ async function ensureYearWorkspaceForWrite(targetYear){
       if(!spreadsheetId || !folderId){
         throw new Error('YEAR_RESOURCE_CREATION_INCOMPLETE');
       }
+
+      // Also migrate a partially-created/recovered annual resource into the
+      // KabClick workspace so every resource for this year stays together.
+      await Promise.all([
+        moveDriveFileIntoFolder(spreadsheetId, workspaceRootId),
+        moveDriveFileIntoFolder(folderId, workspaceRootId)
+      ]);
 
       await prepareAnnualSpreadsheet(spreadsheetId, sourceSnapshot.contacts);
 
@@ -4195,6 +4270,14 @@ document.getElementById('autoCreateBtn').addEventListener('click', async ()=>{
       seriesIdFromSpreadsheetId(
         spreadsheetId
       );
+    const workspaceRootId = await ensureWorkspaceRootFolder(
+      buildingName,
+      createSeriesId
+    );
+
+    // Google Sheets creates a new spreadsheet in My Drive. Move it into
+    // KabClick's dedicated workspace before exposing it to the app.
+    await moveDriveFileIntoFolder(spreadsheetId, workspaceRootId);
 
     const headerRow = CFG.usageMode==='business' ? ['שם','טלפון','מייל'] : ['שם','טלפון','מחיר','מייל','דירה'];
     await gapi.client.sheets.spreadsheets.values.update({
@@ -4204,7 +4287,11 @@ document.getElementById('autoCreateBtn').addEventListener('click', async ()=>{
 
     // 2) A Drive folder for the generated receipt PDFs.
     const folderRes = await gapi.client.drive.files.create({
-      resource:{name:`קבלות - ${buildingName} - ${createYear}`, mimeType:'application/vnd.google-apps.folder'},
+      resource:{
+        name:`קבלות - ${buildingName} - ${createYear}`,
+        mimeType:'application/vnd.google-apps.folder',
+        parents:[workspaceRootId]
+      },
       fields:'id'
     });
     const folderId = folderRes.result.id;
@@ -4242,10 +4329,13 @@ document.getElementById('autoCreateBtn').addEventListener('click', async ()=>{
     updateSetupChecklist();
 
     statusEl.style.color = 'var(--good)';
-    statusEl.textContent = '✅ הגיליון והתיקייה נוצרו בהצלחה. לאחר שמירת ההגדרות אפשר לפתוח אותם מהכפתורים למטה. פותח את הגיליון להזנת הדיירים…';
+    statusEl.textContent = '✅ סביבת העבודה נוצרה בהצלחה. לאחר שמירת ההגדרות אפשר לפתוח אותה מהכפתורים למטה.';
     btn.textContent = '✅ נוצר בהצלחה';
 
-    window.open(`https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`, '_blank');
+    await showAppAlert(
+      `הגיליון ותיקיית הקבלות נוצרו בהצלחה בתוך התיקייה "${workspaceRootFolderName(buildingName)}" ב-Google Drive.`,
+      '✅'
+    );
   }catch(err){
     const code = err.status || err.result?.error?.code;
     const msg  = err.result?.error?.message || err.message || '';
