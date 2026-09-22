@@ -2006,13 +2006,12 @@ window.addEventListener('resize', ()=>{
 window.addEventListener('orientationchange', setAppViewportHeight);
 
 /* ═══════════════════════════════════════
-   SHARED APP CREDENTIALS (fixed — not per-customer)
-   These identify the *app* to Google, not any person's data. Every customer
+   GOOGLE OAUTH CLIENT
+   The OAuth client ID is a public identifier, not a password. Every customer
    authenticates with their own Google account; OAuth (drive.file scope) only
    ever grants access to files that customer opens inside this app.
 ═══════════════════════════════════════ */
 const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.googleusercontent.com';
-const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 
 /* ═══════════════════════════════════════
    LICENSE CHECK (controlled by Roi, not Google)
@@ -2024,9 +2023,9 @@ const APP_API_KEY   = 'AIzaSyCwriGsK4zlI11TV3F3HHswGHJWtmcQIj4';
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '225';
+const APP_BUILD = '226';
 
-/* KABCLICK SERVICE WORKER - Build 200
+/* KABCLICK SERVICE WORKER - Build 201
    Keep the local app shell available so the installed PWA/TWA can start offline. */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -2170,7 +2169,6 @@ window.addEventListener('load', ()=>{
 });
 
 const LICENSE_API_URL = 'https://script.google.com/macros/s/AKfycbyD9XPm10MMZDGgx7nyBhI8eYgUGiTx0Xk3I2vgNmE-YbKjci-AeMK4lyJsGlpePlFH/exec';
-const LICENSE_SECRET  = 'vaad17-Lk9mQ2xR8pT4vN6z';
 const LICENSE_CACHE_KEY = 'vaad_license_cache';
 const LICENSE_CACHE_TTL_MS = 6*60*60*1000; // recheck at most every 6 hours
 
@@ -4648,7 +4646,7 @@ async function requestGmailSendPermission(){
 
 document.getElementById('emailSendCheckbox').addEventListener('change', async e=>{
   const cb=e.currentTarget;
-  if(!cb.checked || hasGmailSendPermission()) return;
+  if(!cb.checked) return;
 
   cb.checked=false;
   const resident=currentResident();
@@ -4663,6 +4661,11 @@ document.getElementById('emailSendCheckbox').addEventListener('change', async e=
     );
     if(!approved) return;
     markGmailExplainerShown();
+  }
+
+  if(hasGmailSendPermission()){
+    cb.checked=true;
+    return;
   }
 
   cb.disabled=true;
@@ -5723,11 +5726,15 @@ async function getUserEmail(token){
   if(data.email) saveLastEmail(data.email);
   return data.email || null;
 }
-async function checkLicense(email){
+async function checkLicense(email, token=accessToken){
   const cached = loadLicenseCache(email);
   if(cached && cached.allowed) return cached;
-  const url = `${LICENSE_API_URL}?email=${encodeURIComponent(email)}&key=${encodeURIComponent(LICENSE_SECRET)}`;
-  const res = await fetch(url);
+  if(!token) throw new Error('חסר אסימון התחברות של Google');
+  const res = await fetch(LICENSE_API_URL, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify({action:'checkLicense', accessToken:token, email})
+  });
   const result = await res.json();
   console.log('[קבקליק] תגובת בדיקת רישיון עבור', email, ':', result);
   // Only cache a positive result. Caching a "not registered"/"blocked" result
@@ -5825,7 +5832,7 @@ async function enforceLicense(token, {trustCache=false}={}){
       const email = await getUserEmail(token);
       if(!email) throw new Error('לא ניתן לזהות את חשבון הגוגל');
       lastCheckedEmail = email;
-      const result = await checkLicense(email);
+      const result = await checkLicense(email, token);
       if(result.allowed){ hideLicenseBlock(); applyAccountAfterLicense(email); return true; }
       showLicenseBlock(result.message, !!result.notFound);
       return false;
@@ -5860,7 +5867,7 @@ async function verifyLicenseInBackground(token, expectedEmail){
       return;
     }
     lastCheckedEmail = email;
-    const result = await checkLicense(email);
+    const result = await checkLicense(email, token);
     if(!result.allowed){
       showLicenseBlock(result.message, !!result.notFound);
     }
@@ -5972,7 +5979,7 @@ document.getElementById('regSubmitBtn').addEventListener('click', async ()=>{
     const res = await fetch(LICENSE_API_URL, {
       method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'}, // avoids CORS preflight to Apps Script
-      body: JSON.stringify({ key: LICENSE_SECRET, action:'register', email: lastCheckedEmail, buildingName, usageMode:registrationMode })
+      body: JSON.stringify({ action:'register', accessToken, email: lastCheckedEmail, buildingName, usageMode:registrationMode })
     });
     const data = await res.json();
 
@@ -6009,7 +6016,6 @@ function initGoogle(){
         });
       });
       await gapi.client.init({
-        apiKey:APP_API_KEY,
         discoveryDocs:[
           'https://sheets.googleapis.com/$discovery/rest?version=v4',
           'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'
@@ -8710,7 +8716,7 @@ async function sendPaymentReminderEmail(residentName, email, lastPaidMonthName){
     headers:{'Content-Type':'text/plain;charset=utf-8'}, // avoids CORS preflight to Apps Script
     body: JSON.stringify({
       action:'sendReminder',
-      key: LICENSE_SECRET,
+      accessToken,
       to: email,
       residentName: residentName,
       buildingName: CFG.buildingInfo || 'קבקליק',
