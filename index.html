@@ -2023,9 +2023,9 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '227';
+const APP_BUILD = '228';
 
-/* KABCLICK SERVICE WORKER - Build 202
+/* KABCLICK SERVICE WORKER - Build 203
    Keep the local app shell available so the installed PWA/TWA can start offline. */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -8647,12 +8647,12 @@ async function sendReceiptByEmail(resident, pdfBlob, filename, total){
     : `קבלה לדמי ועד - ${senderLabel}`;
   const bodyHtml = CFG.usageMode==='business'
     ? `<div dir="rtl" lang="he" style="direction:rtl;text-align:right;font-family:Arial,sans-serif;font-size:16px;line-height:1.7;color:#202124;">` +
-      `<p>שלום ${escapeHtml2(residentName)},</p>` +
+      `<p><strong>שלום ${escapeHtml2(residentName)},</strong></p>` +
       `<p>מצורפת קבלה על תשלום בסך ${escapeHtml2(String(total))} ₪.</p>` +
       `<p>תודה רבה,<br>${escapeHtml2(senderLabel)}</p>` +
       `</div>`
     : `<div dir="rtl" lang="he" style="direction:rtl;text-align:right;font-family:Arial,sans-serif;font-size:16px;line-height:1.7;color:#202124;">` +
-      `<p>שלום ${escapeHtml2(residentName)},</p>` +
+      `<p><strong>שלום ${escapeHtml2(residentName)},</strong></p>` +
       `<p>מצורפת קבלה על תשלום דמי ועד בית בסך ${escapeHtml2(String(total))} ₪.</p>` +
       `<p>תודה רבה,<br>${escapeHtml2(senderLabel)}</p>` +
       `</div>`;
