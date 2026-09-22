@@ -2023,9 +2023,9 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '226';
+const APP_BUILD = '227';
 
-/* KABCLICK SERVICE WORKER - Build 201
+/* KABCLICK SERVICE WORKER - Build 202
    Keep the local app shell available so the installed PWA/TWA can start offline. */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -8645,9 +8645,17 @@ async function sendReceiptByEmail(resident, pdfBlob, filename, total){
   const subjectText = CFG.usageMode==='business'
     ? `קבלה - ${senderLabel}`
     : `קבלה לדמי ועד - ${senderLabel}`;
-  const bodyText = CFG.usageMode==='business'
-    ? `שלום ${residentName},\n\nמצורפת קבלה על תשלום בסך ${total} ₪.\n\nתודה רבה,\n${senderLabel}`
-    : `שלום ${residentName},\n\nמצורפת קבלה על תשלום דמי ועד בית בסך ${total} ₪.\n\nתודה רבה,\n${senderLabel}`;
+  const bodyHtml = CFG.usageMode==='business'
+    ? `<div dir="rtl" lang="he" style="direction:rtl;text-align:right;font-family:Arial,sans-serif;font-size:16px;line-height:1.7;color:#202124;">` +
+      `<p>שלום ${escapeHtml2(residentName)},</p>` +
+      `<p>מצורפת קבלה על תשלום בסך ${escapeHtml2(String(total))} ₪.</p>` +
+      `<p>תודה רבה,<br>${escapeHtml2(senderLabel)}</p>` +
+      `</div>`
+    : `<div dir="rtl" lang="he" style="direction:rtl;text-align:right;font-family:Arial,sans-serif;font-size:16px;line-height:1.7;color:#202124;">` +
+      `<p>שלום ${escapeHtml2(residentName)},</p>` +
+      `<p>מצורפת קבלה על תשלום דמי ועד בית בסך ${escapeHtml2(String(total))} ₪.</p>` +
+      `<p>תודה רבה,<br>${escapeHtml2(senderLabel)}</p>` +
+      `</div>`;
 
   const boundary = 'kabclick_' + Date.now().toString(36) + Math.random().toString(36).slice(2);
   const safeFilename = safeMailHeader(filename || 'קבלה.pdf');
@@ -8661,10 +8669,11 @@ async function sendReceiptByEmail(resident, pdfBlob, filename, total){
     'Content-Type: multipart/mixed; boundary="' + boundary + '"',
     '',
     '--' + boundary,
-    'Content-Type: text/plain; charset="UTF-8"',
+    'Content-Type: text/html; charset="UTF-8"',
     'Content-Transfer-Encoding: base64',
+    'Content-Language: he',
     '',
-    utf8ToBase64(bodyText),
+    utf8ToBase64(bodyHtml),
     '',
     '--' + boundary,
     'Content-Type: application/pdf; name="' + safeFilename.replace(/"/g,'') + '"',
