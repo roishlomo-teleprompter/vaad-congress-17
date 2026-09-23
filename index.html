@@ -2023,9 +2023,9 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '228';
+const APP_BUILD = '229';
 
-/* KABCLICK SERVICE WORKER - Build 203
+/* KABCLICK SERVICE WORKER - Build 204
    Keep the local app shell available so the installed PWA/TWA can start offline. */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -8717,24 +8717,79 @@ async function sendReceiptByEmail(resident, pdfBlob, filename, total){
 }
 
 async function sendPaymentReminderEmail(residentName, email, lastPaidMonthName){
-  if(!LICENSE_API_URL){
-    throw new Error('שליחת מייל טרם הוגדרה (LICENSE_API_URL ריק).');
+  if(!accessToken){
+    throw new Error('החיבור ל-Google פג. יש להתחבר מחדש כדי לשלוח את התזכורת מהמייל שלך.');
   }
-  const res = await fetch(LICENSE_API_URL, {
+
+  if(!hasGmailSendPermission()){
+    if(!gmailExplainerWasShown()){
+      const approved = await showAppConfirm(
+        'כדי לשלוח את התזכורת ישירות מחשבון ה-Gmail שלך, קבקליק תבקש הרשאת שליחה בלבד. אין לקבקליק גישה לקריאת הודעות, למחיקת הודעות או לתוכן תיבת הדואר. במסך הבא של Google יש לאשר את האפשרות "שליחת הודעות אימייל בשמך".',
+        '📧',
+        'המשך לאישור Google',
+        'לא עכשיו'
+      );
+      if(!approved) throw new Error('שליחת התזכורת בוטלה.');
+      markGmailExplainerShown();
+    }
+    const granted = await requestGmailSendPermission();
+    if(!granted) throw new Error('הרשאת שליחת המייל לא אושרה.');
+  }
+
+  const to = safeMailHeader(email);
+  if(!to) throw new Error('חסרה כתובת מייל לנמען.');
+
+  const safeResidentName = safeMailHeader(residentName);
+  const buildingName = safeMailHeader(CFG.buildingInfo || 'ועד הבית');
+  const subjectText = `תזכורת תשלום דמי ועד בית - ${buildingName}`;
+  const paymentStatusHtml = lastPaidMonthName
+    ? `בהתאם לרישומינו, התשלום האחרון שהתקבל ממך עבור דמי ועד הבית הוא עד לחודש ${escapeHtml2(lastPaidMonthName)} (כולל).`
+    : 'בהתאם לרישומינו, טרם התקבל ממך תשלום עבור דמי ועד הבית השנה.';
+  const bodyHtml =
+    `<div dir="rtl" lang="he" style="direction:rtl;text-align:right;font-family:Arial,sans-serif;font-size:16px;line-height:1.7;color:#202124;">` +
+      `<p><strong>שלום ${escapeHtml2(safeResidentName)},</strong></p>` +
+      `<p>${paymentStatusHtml}</p>` +
+      `<p>נבקשך להשלים את התשלום עבור החודשים העוקבים בהקדם האפשרי.</p>` +
+      `<p>לבירורים או לתיאום התשלום, ניתן לפנות לוועד הבית.</p>` +
+      `<p>תודה רבה,<br>${escapeHtml2(buildingName)}</p>` +
+    `</div>`;
+  const encodedSubject = '=?UTF-8?B?' + utf8ToBase64(subjectText) + '?=';
+  const mimeMessage = [
+    'To: ' + to,
+    'Subject: ' + encodedSubject,
+    'MIME-Version: 1.0',
+    'Content-Type: text/html; charset="UTF-8"',
+    'Content-Transfer-Encoding: base64',
+    'Content-Language: he',
+    '',
+    utf8ToBase64(bodyHtml)
+  ].join('\r\n');
+
+  const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
     method:'POST',
-    headers:{'Content-Type':'text/plain;charset=utf-8'}, // avoids CORS preflight to Apps Script
-    body: JSON.stringify({
-      action:'sendReminder',
-      accessToken,
-      to: email,
-      residentName: residentName,
-      buildingName: CFG.buildingInfo || 'קבקליק',
-      lastPaidMonth: lastPaidMonthName // e.g. "אוגוסט", or null if never paid
-    })
+    headers:{
+      Authorization:'Bearer '+accessToken,
+      'Content-Type':'application/json'
+    },
+    body:JSON.stringify({raw:utf8ToBase64Url(mimeMessage)})
   });
-  const data = await res.json();
-  if(!data.ok){ throw new Error(data.message || 'שגיאה לא ידועה בשליחת המייל.'); }
-  return data;
+  if(!res.ok){
+    let message = 'שגיאה בשליחת התזכורת דרך Gmail.';
+    try{
+      const data = await res.json();
+      message = data?.error?.message || message;
+    }catch(e){}
+    if(res.status===401){
+      clearTokenCache();
+      throw new Error('החיבור ל-Google פג. יש להתחבר מחדש ולאחר מכן לנסות שוב.');
+    }
+    if(res.status===403){
+      grantedGoogleScopes.delete(GMAIL_SEND_SCOPE);
+      throw new Error('הרשאת שליחת המייל אינה פעילה. יש לנסות שוב ולאשר את הרשאת Gmail.');
+    }
+    throw new Error(message);
+  }
+  return res.json();
 }
 
 async function performGenerateReceipt(){
