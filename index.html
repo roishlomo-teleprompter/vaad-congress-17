@@ -2051,9 +2051,9 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '232';
+const APP_BUILD = '233';
 
-/* KABCLICK SERVICE WORKER - Build 207
+/* KABCLICK SERVICE WORKER - Build 208
    Keep the local app shell available so the installed PWA/TWA can start offline. */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -5096,9 +5096,11 @@ function wizardShowStep(i){
   for(let s=0; s<WIZARD_STEP_COUNT; s++){
     const stepEl = document.getElementById('wizardStep'+s);
     stepEl.style.display = (s===wizardIndex) ? 'flex' : 'none';
-    // Only the last step (confirm/preview) is allowed to scroll — every
-    // other step must fit within the screen without any scrolling at all.
-    stepEl.classList.toggle('scrollable', s===wizardIndex && (isLast || s===2));
+    // Step 1 can exceed the available height on compact phones now that the
+    // residents manager is a full card. Let that step scroll above the fixed
+    // wizard navigation instead of clipping the card underneath it.
+    stepEl.classList.toggle('scrollable', s===wizardIndex && (s===0 || isLast || s===2));
+    if(s===wizardIndex) stepEl.scrollTop = 0;
   }
 
   document.querySelectorAll('.wizard-dot').forEach((dot,idx)=>{
