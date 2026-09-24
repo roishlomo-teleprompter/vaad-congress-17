@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kabclick-shell-209';
+const CACHE_NAME = 'kabclick-shell-210';
 
 const APP_SHELL = [
   './',
