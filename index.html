@@ -1567,6 +1567,7 @@ body.mode-business #homeResidentsSection{
 
     <div class="wizard-nav">
       <button class="wizard-back-btn" id="wizardBackBtn" style="visibility:hidden;">→ חזרה</button>
+      <button class="wizard-cancel-btn" id="receiptDoneHomeBtn" style="display:none;width:auto;flex:1;margin:0;">⌂ מסך הבית</button>
       <button class="wizard-cancel-btn generate-btn" id="wizardCancelBtn" style="display:none;width:auto;flex:1;margin:0;" disabled>🧾 הפק קבלה</button>
       <button class="wizard-next-btn" id="wizardNextBtn" disabled>המשך ←</button>
     </div>
@@ -2023,9 +2024,9 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '230';
+const APP_BUILD = '231';
 
-/* KABCLICK SERVICE WORKER - Build 205
+/* KABCLICK SERVICE WORKER - Build 206
    Keep the local app shell available so the installed PWA/TWA can start offline. */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -5136,6 +5137,7 @@ function showWizardFromHome(){
   document.getElementById('appTopbar').style.display = '';
   document.getElementById('appTopbar').classList.add('wizard-active');
   document.getElementById('wizardHomeBtn').style.display = '';
+  document.getElementById('receiptDoneHomeBtn').style.display = 'none';
   setFooterNavVisible(false);
   wizardShowStep(0);
 }
@@ -5220,11 +5222,18 @@ document.getElementById('homeHistoryBtn').addEventListener('click', ()=>document
 document.getElementById('homeTourBtn').addEventListener('click', tourStart);
 document.getElementById('successNewBtn').addEventListener('click', ()=>{
   document.getElementById('receiptSuccessModalBg').classList.remove('show');
+  document.getElementById('receiptDoneHomeBtn').style.display = 'none';
   hideMsg();
   clearResidentSelection(); // clears fields and returns to step 0 for a new receipt — wizard stays open
 });
 document.getElementById('receiptSuccessCloseBtn').addEventListener('click', ()=>{
   document.getElementById('receiptSuccessModalBg').classList.remove('show');
+});
+document.getElementById('receiptDoneHomeBtn').addEventListener('click', ()=>{
+  document.getElementById('receiptSuccessModalBg').classList.remove('show');
+  document.getElementById('receiptDoneHomeBtn').style.display = 'none';
+  clearResidentSelection();
+  showHomeScreen();
 });
 
 /* ═══════════════════════════════════════
@@ -8930,6 +8939,7 @@ async function performGenerateReceipt(){
     // The generate action's job is done — the popup (with its own
     // "another receipt" / close choice) takes over from here.
     btn.style.display = 'none';
+    document.getElementById('receiptDoneHomeBtn').style.display = '';
     spawnConfetti();
     showMsg('✅ הקבלה מוכנה! שומרים אותה עכשיו ב-Drive ברקע…','ok');
 
