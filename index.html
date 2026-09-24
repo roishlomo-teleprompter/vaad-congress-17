@@ -632,7 +632,7 @@ textarea{resize:vertical;min-height:70px;}
    JS setting .style.display in multiple places — a single source of truth
    that can't drift out of sync no matter which code path last touched it. */
 #homeBizManageBtn{
-  display:block;
+  display:flex;
   visibility:hidden;
   pointer-events:none;
 }
@@ -1366,7 +1366,18 @@ body.mode-business #homeResidentsSection{
         <div class="home-residents-loading">⏳ טוען נתונים…</div>
       </div>
     </div>
-    <button type="button" id="homeBizManageBtn" class="generate-btn" style="margin:0;">📋 ניהול רשימת לקוחות</button>
+    <button type="button" id="homeBizManageBtn" class="residents-manage-card" style="margin:0;" aria-label="ניהול והוספת לקוחות">
+      <span class="residents-manage-avatars" aria-hidden="true">
+        <span class="residents-manage-avatar"><svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z"/></svg></span>
+        <span class="residents-manage-avatar"><svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z"/></svg></span>
+        <span class="residents-manage-avatar"><svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z"/></svg></span>
+        <span class="residents-manage-plus">+</span>
+      </span>
+      <span class="residents-manage-copy">
+        <span class="residents-manage-title">ניהול והוספת לקוחות</span>
+      </span>
+      <span class="residents-manage-arrow" aria-hidden="true">←</span>
+    </button>
   </div>
 
   <!-- FINANCE SCREEN · הוצאות והכנסות -->
@@ -2049,9 +2060,9 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '234';
+const APP_BUILD = '235';
 
-/* KABCLICK SERVICE WORKER - Build 209
+/* KABCLICK SERVICE WORKER - Build 210
    Keep the local app shell available so the installed PWA/TWA can start offline. */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -3905,7 +3916,7 @@ function applyModeTerminology(){
   // class (see body.mode-business rules) so it can't drift out of sync.
   document.body.classList.toggle('mode-business', isBiz);
   const homeBizBtn = document.getElementById('homeBizManageBtn');
-  if(homeBizBtn) homeBizBtn.textContent = isBiz ? '🗂️ ניהול והוספת לקוח חדש' : '📋 ניהול והוספת דיירים';
+  if(homeBizBtn) homeBizBtn.setAttribute('aria-label','ניהול והוספת לקוחות');
   // Wizard step 1's management shortcut is vaad-only now — business mode
   // already has a clear, direct "ניהול והוספת לקוח חדש" button on the home
   // screen, so a second one here would just be redundant.
