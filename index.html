@@ -2061,9 +2061,9 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '237';
+const APP_BUILD = '238';
 
-/* KABCLICK SERVICE WORKER - Build 212
+/* KABCLICK SERVICE WORKER - Build 213
    Keep the local app shell available so the installed PWA/TWA can start offline. */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -8684,7 +8684,7 @@ function safeMailHeader(value){
   return (''+(value||'')).replace(/[\r\n]+/g,' ').trim();
 }
 
-async function sendReceiptByEmail(resident, pdfBlob, filename, total){
+async function sendReceiptByEmail(resident, pdfBlob, filename, total, receiptContext={}){
   if(!accessToken){
     throw new Error('החיבור ל-Google פג. יש להתחבר מחדש כדי לשלוח את הקבלה מהמייל שלך.');
   }
@@ -8697,18 +8697,26 @@ async function sendReceiptByEmail(resident, pdfBlob, filename, total){
   const pdfBase64 = await blobToBase64(pdfBlob);
   const senderLabel = CFG.buildingInfo || (CFG.usageMode==='business' ? 'קבקליק' : 'ועד הבית');
   const residentName = safeMailHeader(resident?.name);
-  const subjectText = CFG.usageMode==='business'
+  const purposeText = (receiptContext.purposeText || '').trim();
+  const usePurposeText = !!(receiptContext.isOtherPurpose && purposeText);
+  const subjectText = (CFG.usageMode==='business' || usePurposeText)
     ? `קבלה - ${senderLabel}`
     : `קבלה לדמי ועד - ${senderLabel}`;
+  const paymentDescription = usePurposeText
+    ? `עבור ${escapeHtml2(purposeText)}`
+    : (CFG.usageMode==='business' ? '' : 'דמי ועד בית');
+  const paymentSentence = paymentDescription
+    ? `מצורפת קבלה על תשלום ${paymentDescription}, בסך ${escapeHtml2(String(total))} ₪.`
+    : `מצורפת קבלה על תשלום בסך ${escapeHtml2(String(total))} ₪.`;
   const bodyHtml = CFG.usageMode==='business'
     ? `<div dir="rtl" lang="he" style="direction:rtl;text-align:right;font-family:Arial,sans-serif;font-size:16px;line-height:1.7;color:#202124;">` +
       `<p><strong>שלום ${escapeHtml2(residentName)},</strong></p>` +
-      `<p>מצורפת קבלה על תשלום בסך ${escapeHtml2(String(total))} ₪.</p>` +
+      `<p>${paymentSentence}</p>` +
       `<p>תודה רבה,<br>${escapeHtml2(senderLabel)}</p>` +
       `</div>`
     : `<div dir="rtl" lang="he" style="direction:rtl;text-align:right;font-family:Arial,sans-serif;font-size:16px;line-height:1.7;color:#202124;">` +
       `<p><strong>שלום ${escapeHtml2(residentName)},</strong></p>` +
-      `<p>מצורפת קבלה על תשלום דמי ועד בית בסך ${escapeHtml2(String(total))} ₪.</p>` +
+      `<p>${paymentSentence}</p>` +
       `<p>תודה רבה,<br>${escapeHtml2(senderLabel)}</p>` +
       `</div>`;
 
@@ -9076,7 +9084,10 @@ async function finalizeReceiptInBackground(snap, blob, filename, attempt){
 
     if(snap.wantsEmail){
       try{
-        await sendReceiptByEmail(r, blob, filename, total);
+        await sendReceiptByEmail(r, blob, filename, total, {
+          isOtherPurpose:snap.isOtherPurpose,
+          purposeText:snap.purposeText
+        });
         showMsg('✅ הקבלה נשמרה ב-Drive ונשלחה למייל '+snap.email+'.'+(financeLogFailed?' ⚠️ רישום אוטומטי בהוצאות/הכנסות נכשל.':''),'ok');
       }catch(emailErr){
         showMsg('הקבלה נשמרה ב-Drive, אך שליחת המייל נכשלה: '+(emailErr.message||emailErr),'error');
