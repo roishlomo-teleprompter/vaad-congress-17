@@ -2061,7 +2061,7 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '242';
+const APP_BUILD = '243';
 
 /* KABCLICK SERVICE WORKER - Build 214
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -3837,7 +3837,107 @@ async function ensureYearWorkspaceForWrite(targetYear){
   }
 }
 
+// Repair a local mode pointer that was accidentally saved with the other
+// mode's spreadsheet. Read existing Drive files only; never create, copy,
+// delete or write a spreadsheet while looking for the original workspace.
+async function restoreSharedModeConnection(){
+  const email = CFG.email, mode = CFG.usageMode, sharedId = CFG.spreadsheetId;
+  const stillCurrent = ()=>CFG.email===email && CFG.usageMode===mode && CFG.spreadsheetId===sharedId;
+  try{
+    const sharedMeta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:sharedId});
+    if(!stillCurrent()) return false;
+    const sharedTitles = (sharedMeta.result.sheets||[]).map(s=>s.properties.title);
+    const currentTab = mode==='business' ? 'לקוחות' : 'אנשי קשר';
+    const otherTab = mode==='business' ? 'אנשי קשר' : 'לקוחות';
+    if(sharedTitles.includes(currentTab) && !sharedTitles.includes(otherTab)) return true;
+    if(!sharedTitles.includes(otherTab)){
+      showMsg('לא ניתן לזהות בבטחה לאיזה מצב שייך הגיליון המקושר. הנתונים לא שונו.', 'error');
+      return false;
+    }
+
+    const matches = [];
+    const files = new Map();
+    for(const filter of [
+      "appProperties has { key='kabclick' and value='1' }",
+      "name contains 'קבקליק'"
+    ]){
+      let pageToken;
+      do{
+        const response = await gapi.client.drive.files.list({
+          q:`trashed=false and mimeType='application/vnd.google-apps.spreadsheet' and ${filter}`,
+          fields:'nextPageToken,files(id,name,appProperties)', pageSize:100,
+          ...(pageToken ? {pageToken} : {})
+        });
+        for(const file of response.result.files||[]) files.set(file.id,file);
+        pageToken=response.result.nextPageToken;
+      }while(pageToken);
+    }
+    for(const file of files.values()){
+        if(file.id===sharedId) continue;
+        const candidate = await readKabClickSettingsFromCandidate(file.id);
+        if(!stillCurrent()) return false;
+        // Prefer the physical contact tab over a mode value in the hidden
+        // settings sheet, which may itself have been overwritten.
+        const candidateMeta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:file.id});
+        if(!stillCurrent()) return false;
+        const titles = (candidateMeta.result.sheets||[]).map(s=>s.properties.title);
+        if(!candidate || !candidate.folderId || !titles.includes(currentTab) || titles.includes(otherTab)) continue;
+        const otherFolderId = loadAccountCfg(email, mode==='vaad'?'business':'vaad')?.folderId;
+        if(candidate.folderId===otherFolderId) continue;
+        const folder = await gapi.client.drive.files.get({fileId:candidate.folderId,fields:'id,trashed,mimeType'});
+        if(!stillCurrent()) return false;
+        if(folder.result.trashed || folder.result.mimeType!=='application/vnd.google-apps.folder') continue;
+        matches.push({...candidate, seriesId:file.appProperties?.seriesId||'',
+          year:parseInt(file.appProperties?.year,10)||candidate.year||currentCalendarYear()});
+    }
+
+    const groups = new Map();
+    for(const candidate of matches){
+      const key = candidate.seriesId || seriesIdFromSpreadsheetId(candidate.spreadsheetId);
+      if(!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(candidate);
+    }
+    if(groups.size!==1){
+      showMsg('לא נמצא חיבור יחיד ובטוח לגיליון הקיים של מצב זה ב-Google Drive. הנתונים לא שונו.', 'error');
+      return false;
+    }
+    const [seriesId, workspaces] = [...groups.entries()][0];
+    const years = {};
+    for(const ws of workspaces){
+      if(years[ws.year]){
+        showMsg('נמצאו כמה גיליונות לאותה שנת עבודה. הנתונים לא שונו.', 'error');
+        return false;
+      }
+      years[ws.year]={spreadsheetId:ws.spreadsheetId, folderId:ws.folderId};
+    }
+    const selected = workspaces.find(ws=>ws.year===currentCalendarYear()) ||
+      workspaces.slice().sort((a,b)=>b.year-a.year)[0];
+    if(!stillCurrent()) return false;
+    const prior = loadAccountCfg(email, mode)||{};
+    saveAccountCfg(email, mode, {...prior,
+      spreadsheetId:selected.spreadsheetId, folderId:selected.folderId,
+      activeYear:selected.year, yearWorkspaces:years, seriesId,
+      buildingInfo:selected.buildingInfo, businessNumber:selected.businessNumber,
+      nextReceiptNumber:Math.max(...workspaces.map(ws=>Number(ws.nextReceiptNumber)||1000))
+    });
+    applyAccountAndMode(email, mode);
+    return true;
+  }catch(e){
+    console.warn('[קבקליק] שחזור חיבור המצב המקורי נכשל:',e);
+    showMsg('לא ניתן לשחזר כעת את הגיליון הקיים. הנתונים ב-Google Drive לא שונו.', 'error');
+    return false;
+  }
+}
+
 async function loadDataForCurrentAccountMode(){
+  if(CFG.email && CFG.usageMode && CFG.spreadsheetId){
+    const otherMode = CFG.usageMode==='vaad' ? 'business' : 'vaad';
+    const other = loadAccountCfg(CFG.email, otherMode);
+    if(other?.spreadsheetId===CFG.spreadsheetId){
+      const resolved = await restoreSharedModeConnection();
+      if(!resolved) return;
+    }
+  }
   if((!CFG.spreadsheetId || !CFG.folderId) && CFG.email && CFG.usageMode && accessToken){
     await recoverKabClickConnectionFromDrive(CFG.email, CFG.usageMode);
   }
@@ -4151,6 +4251,15 @@ document.getElementById('modalSave').onclick = async ()=>{
   if(!CFG.email){
     await showAppAlert('יש להתחבר עם Google לפני שמירת ההגדרות.','⚠️');
     return;
+  }
+  const otherMode = CFG.usageMode==='vaad' ? 'business' : 'vaad';
+  if(CFG.spreadsheetId && loadAccountCfg(CFG.email, otherMode)?.spreadsheetId===CFG.spreadsheetId){
+    if(!(await restoreSharedModeConnection())){
+      await showAppAlert('הגיליון הזה משויך גם למצב השני. לא נשמרו בו שינויים עד לשחזור החיבור המקורי.', '⚠️');
+      return;
+    }
+    document.getElementById('cfg-spreadsheetId').value = CFG.spreadsheetId;
+    document.getElementById('cfg-folderId').value = CFG.folderId;
   }
   // Usage mode is no longer editable here — switching modes happens through
   // the account menu (sign-out icon → "מעבר בין ועד לעצמאי"), which properly
@@ -6751,8 +6860,6 @@ async function syncSettingsFromSheet(){
   const account = CFG.email, mode = CFG.usageMode, spreadsheetId = CFG.spreadsheetId;
   const stillCurrent = ()=>CFG.email===account && CFG.usageMode===mode && CFG.spreadsheetId===spreadsheetId;
   try{
-    const otherMode = mode==='vaad' ? 'business' : 'vaad';
-    if(loadAccountCfg(account, otherMode)?.spreadsheetId===spreadsheetId) return;
     const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId});
     if(!stillCurrent()) return;
     const titles = (meta.result.sheets||[]).map(s=>s.properties.title);
@@ -6825,8 +6932,6 @@ async function pushSettingsToSheet(throwOnError=false){
   const account = CFG.email, mode = CFG.usageMode, spreadsheetId = CFG.spreadsheetId;
   const stillCurrent = ()=>CFG.email===account && CFG.usageMode===mode && CFG.spreadsheetId===spreadsheetId;
   try{
-    const otherMode = mode==='vaad' ? 'business' : 'vaad';
-    if(loadAccountCfg(account, otherMode)?.spreadsheetId===spreadsheetId) throw new Error('MODE_WORKSPACE_SHARED');
     const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId});
     if(!stillCurrent()) return;
     const titles = (meta.result.sheets||[]).map(s=>s.properties.title);
