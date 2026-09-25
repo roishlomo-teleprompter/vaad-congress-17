@@ -2061,7 +2061,7 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '240';
+const APP_BUILD = '241';
 
 /* KABCLICK SERVICE WORKER - Build 214
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -6768,8 +6768,11 @@ async function syncSettingsFromSheet(){
     rows.forEach(row=>{
       const key = (row[0]||'').toString().trim();
       const val = (row[1]||'').toString().trim();
-      if(/סוג חשבון|usage.?mode/i.test(key)){ if((val==='vaad'||val==='business') && CFG.usageMode!==val){ CFG.usageMode=val; changed=true; } }
-      else if(/שנת עבודה/i.test(key)){
+      // The selected mode belongs to this account's local mode key. An older
+      // settings sheet can still contain a mode from a previous workspace;
+      // importing it here switches the active UI back after the async load.
+      if(/סוג חשבון|usage.?mode/i.test(key)) return;
+      if(/שנת עבודה/i.test(key)){
         const y=parseInt(val,10);
         if(y && CFG.activeYear!==y){ CFG.activeYear=y; changed=true; }
       }
