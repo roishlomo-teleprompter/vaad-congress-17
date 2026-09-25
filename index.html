@@ -2061,9 +2061,9 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '238';
+const APP_BUILD = '239';
 
-/* KABCLICK SERVICE WORKER - Build 213
+/* KABCLICK SERVICE WORKER - Build 214
    Keep the local app shell available so the installed PWA/TWA can start offline. */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -6246,6 +6246,14 @@ function clearDeadDataConnection(message){
   showMsg(message, 'error');
 }
 async function loadResidents(){
+  // Reloading the Google Sheet must not discard the resident/customer that
+  // was already selected in the receipt wizard.  Keep the stable sheet-row
+  // identity before replacing the in-memory list, then restore the picker
+  // from the freshly loaded data below.
+  const selectedBeforeReload = residents[residentSelect.value];
+  const selectedIdentity = selectedBeforeReload
+    ? {row:selectedBeforeReload.row, name:selectedBeforeReload.name}
+    : null;
   try{
     // A file/folder sitting in the Google Drive Trash is still fully
     // reachable through the API — Google only removes it for real once the
@@ -6376,7 +6384,18 @@ async function loadResidents(){
     const searchInput = document.getElementById('residentSearchInput');
     searchInput.disabled = false;
     searchInput.placeholder = isBiz ? 'הקלידו שם לקוח לחיפוש...' : 'הקלידו שם דייר לחיפוש...';
-    searchInput.value = '';
+    const restoredIndex = selectedIdentity
+      ? residents.findIndex(r=>r.row===selectedIdentity.row && r.name===selectedIdentity.name)
+      : -1;
+    if(restoredIndex>-1){
+      residentSelect.value = String(restoredIndex);
+      residentSelect.dispatchEvent(new Event('change'));
+      searchInput.value = residents[restoredIndex].name;
+    }else{
+      residentSelect.value = '';
+      residentSelect.dispatchEvent(new Event('change'));
+      searchInput.value = '';
+    }
     toggleResidentClearBtn();
 
     const badge = document.getElementById('residentsLoadedBadge');
