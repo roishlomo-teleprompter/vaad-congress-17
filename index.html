@@ -3850,20 +3850,29 @@ async function restoreSharedModeConnection(){
     const currentTab = mode==='business' ? 'לקוחות' : 'אנשי קשר';
     const otherTab = mode==='business' ? 'אנשי קשר' : 'לקוחות';
     if(sharedTitles.includes(currentTab) && !sharedTitles.includes(otherTab)) return true;
-    if(!sharedTitles.includes(otherTab) || sharedTitles.includes(currentTab)){
+    if(!sharedTitles.includes(otherTab)){
       showMsg('לא ניתן לזהות בבטחה לאיזה מצב שייך הגיליון המקושר. הנתונים לא שונו.', 'error');
       return false;
     }
 
     const matches = [];
-    let pageToken;
-    do{
-      const response = await gapi.client.drive.files.list({
-        q:"trashed=false and mimeType='application/vnd.google-apps.spreadsheet' and name contains 'קבקליק'",
-        fields:'nextPageToken,files(id,name,appProperties)', pageSize:100,
-        ...(pageToken ? {pageToken} : {})
-      });
-      for(const file of response.result.files||[]){
+    const files = new Map();
+    for(const filter of [
+      "appProperties has { key='kabclick' and value='1' }",
+      "name contains 'קבקליק'"
+    ]){
+      let pageToken;
+      do{
+        const response = await gapi.client.drive.files.list({
+          q:`trashed=false and mimeType='application/vnd.google-apps.spreadsheet' and ${filter}`,
+          fields:'nextPageToken,files(id,name,appProperties)', pageSize:100,
+          ...(pageToken ? {pageToken} : {})
+        });
+        for(const file of response.result.files||[]) files.set(file.id,file);
+        pageToken=response.result.nextPageToken;
+      }while(pageToken);
+    }
+    for(const file of files.values()){
         if(file.id===sharedId) continue;
         const candidate = await readKabClickSettingsFromCandidate(file.id);
         if(!stillCurrent()) return false;
@@ -3880,9 +3889,7 @@ async function restoreSharedModeConnection(){
         if(folder.result.trashed || folder.result.mimeType!=='application/vnd.google-apps.folder') continue;
         matches.push({...candidate, seriesId:file.appProperties?.seriesId||'',
           year:parseInt(file.appProperties?.year,10)||candidate.year||currentCalendarYear()});
-      }
-      pageToken=response.result.nextPageToken;
-    }while(pageToken);
+    }
 
     const groups = new Map();
     for(const candidate of matches){
