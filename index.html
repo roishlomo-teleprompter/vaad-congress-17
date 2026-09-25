@@ -1732,6 +1732,7 @@ body.setup-incomplete #homeResidentsSection{display:none !important;}
         <button type="button" id="restoreExistingSheetConfirm" class="small-btn" style="width:100%;margin-top:8px;">בדיקה וחיבור לגיליון הקיים</button>
       </div>
       <button type="button" id="resetConnectionBtn" class="small-btn" style="width:100%;margin-top:10px;">🔄 ניתוק גיליון קיים</button>
+      <p id="legacyMigrationStatus" role="status" style="font-size:12px;margin:10px 0 0;line-height:1.5;"></p>
     </div>
     </div>
 
@@ -2068,7 +2069,7 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '248';
+const APP_BUILD = '249';
 
 /* KABCLICK SERVICE WORKER - Build 214
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -2447,6 +2448,18 @@ async function moveDriveFileIntoFolder(fileId, parentFolderId){
 const legacyWorkspaceMigrationPromises = new Map();
 const legacyWorkspaceMigrationWarnings = new Set();
 const legacyWorkspaceMigrationCompleted = new Set();
+const legacyWorkspaceMigrationStatus = new Map();
+function showLegacyMigrationStatus(){
+  const el=document.getElementById('legacyMigrationStatus');
+  if(!el) return;
+  const state=legacyWorkspaceMigrationStatus.get(`${CFG.email}::${CFG.usageMode}`);
+  el.textContent=state?.message || '';
+  el.style.color=state?.error ? 'var(--bad)' : 'var(--good)';
+}
+function setLegacyMigrationStatus(account,mode,message,error=false){
+  legacyWorkspaceMigrationStatus.set(`${account}::${mode}`,{message,error});
+  if(CFG.email===account && CFG.usageMode===mode) showLegacyMigrationStatus();
+}
 async function migrateLegacyWorkspacesToRoot(){
   const account=CFG.email, mode=CFG.usageMode, seriesId=CFG.seriesId;
   if(!account || !mode || !seriesId || CFG.connectionPaused || !accessToken) return;
@@ -2477,12 +2490,27 @@ async function migrateLegacyWorkspacesToRoot(){
         const result=await gapi.client.drive.files.get({fileId:id,fields:'id,parents'});
         if(!result.result.parents?.includes(rootIdAlreadyPresent)) alreadyOrganized=false;
       }
-      if(alreadyOrganized){ legacyWorkspaceMigrationCompleted.add(key); return; }
+      if(alreadyOrganized){
+        legacyWorkspaceMigrationCompleted.add(key);
+        setLegacyMigrationStatus(account,mode,'✅ הגיליונות ותיקיות הקבלות מסודרים בתיקייה ראשית.');
+        return;
+      }
     }
 
-    const myDriveRoot=await gapi.client.drive.files.get({fileId:'root',fields:'id'});
-    const myDriveRootId=myDriveRoot.result.id;
-    if(!myDriveRootId) throw new Error('MY_DRIVE_ROOT_UNAVAILABLE');
+    // With drive.file scope the app may list its own top-level files even when
+    // it cannot read metadata for the user's My Drive root folder itself.
+    const targetIds=new Set(entries.flatMap(ws=>[ws.spreadsheetId,ws.folderId]));
+    const topLevelIds=new Set();
+    let pageToken='';
+    do{
+      const request={q:"'root' in parents and trashed=false",fields:'nextPageToken,files(id)',pageSize:1000};
+      if(pageToken) request.pageToken=pageToken;
+      const result=await gapi.client.drive.files.list(request);
+      (result.result.files||[]).forEach(file=>{
+        if(targetIds.has(file.id)) topLevelIds.add(file.id);
+      });
+      pageToken=result.result.nextPageToken || '';
+    }while(pageToken && topLevelIds.size<targetIds.size);
 
     // Validate every pair before creating a folder or moving any resource.
     for(const ws of entries){
@@ -2505,7 +2533,7 @@ async function migrateLegacyWorkspacesToRoot(){
            (file.appProperties?.kind && file.appProperties.kind!==kind) ||
            (file.appProperties?.seriesId && file.appProperties.seriesId!==seriesId) ||
            !file.parents?.length ||
-           !file.parents.every(parent=>parent===myDriveRootId || parent===rootIdAlreadyPresent))
+           !(topLevelIds.has(id) || file.parents.every(parent=>parent===rootIdAlreadyPresent)))
           throw new Error('LEGACY_WORKSPACE_MISMATCH');
       }
     }
@@ -2520,9 +2548,14 @@ async function migrateLegacyWorkspacesToRoot(){
     }
     legacyWorkspaceMigrationCompleted.add(key);
     legacyWorkspaceMigrationWarnings.delete(key);
+    setLegacyMigrationStatus(account,mode,'✅ הגיליונות ותיקיות הקבלות סודרו בתיקייה ראשית.');
   })();
   const task=job.catch(e=>{
     console.warn('[קבקליק] התאמת תיקיות ישנות ב-Drive לא הושלמה:',e);
+    const reason=e.message==='LEGACY_WORKSPACE_SHARED' ? 'אחד הקבצים משויך גם למצב השני.' :
+      e.message==='LEGACY_WORKSPACE_MISMATCH' ? 'לא ניתן לאמת את הקשר בין הגיליון, תיקיית הקבלות והמיקום שלהם ב-Drive.' :
+      'בדיקת הקבצים או העברתם ב-Google Drive נכשלה.';
+    setLegacyMigrationStatus(account,mode,`⚠️ סידור התיקיות לא הושלם: ${reason} הקבצים לא נמחקו.`,true);
     if(!legacyWorkspaceMigrationWarnings.has(key)){
       legacyWorkspaceMigrationWarnings.add(key);
       showMsg('סידור התיקיות הישנות ב-Drive לא הושלם. הקבצים לא נמחקו; האפליקציה תנסה שוב בחיבור הבא.', 'error');
@@ -4355,6 +4388,7 @@ function refreshWorkspaceOpenButtons(){
 }
 
 document.getElementById('settingsBtn').onclick = ()=>{
+  showLegacyMigrationStatus();
   document.getElementById('restoreExistingSheetPanel').style.display='none';
   document.getElementById('restoreExistingSheetUrl').value='';
   document.getElementById('autoCreateBtn').textContent='✨ יצירת גיליון ותיקייה אוטומטית';
