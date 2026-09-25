@@ -2068,7 +2068,7 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '245';
+const APP_BUILD = '246';
 
 /* KABCLICK SERVICE WORKER - Build 214
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -4206,6 +4206,7 @@ function refreshWorkspaceOpenButtons(){
   const reconnectBtn = document.getElementById('restoreExistingSheetBtn');
   reconnectBtn.disabled = !CFG.connectionPaused || !!workspace.spreadsheetId;
   if(reconnectBtn.disabled) document.getElementById('restoreExistingSheetPanel').style.display='none';
+  document.getElementById('resetConnectionBtn').disabled = CFG.connectionPaused || !workspace.spreadsheetId;
 }
 
 document.getElementById('settingsBtn').onclick = ()=>{
@@ -4261,6 +4262,7 @@ document.getElementById('openFolderBtn').addEventListener('click', ()=>{
   window.open(`https://drive.google.com/drive/folders/${workspace.folderId}`, '_blank', 'noopener');
 });
 document.getElementById('resetConnectionBtn').addEventListener('click', async ()=>{
+  if(CFG.connectionPaused || !CFG.spreadsheetId) return;
   const ok = await showAppConfirm('לנתק את הגיליון והתיקייה המחוברים במצב זה? הנתונים עצמם יישארו קיימים ב-Drive שלכם (לא נמחקים), אך האפליקציה תפסיק לקרוא/לכתוב אליהם עד שתחברו גיליון קיים.', '🔄');
   if(!ok) return;
   try{
