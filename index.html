@@ -1713,7 +1713,7 @@ body.setup-incomplete #homeResidentsSection{display:none !important;}
     <div class="settings-panel" id="settingsPanelData" role="tabpanel" aria-labelledby="settingsTabData" data-settings-panel="data" hidden>
     <div class="settings-section">
       <h4>🔗 חיבור לגיליון ולתיקייה שלך</h4>
-      <p style="font-size:11.5px;color:var(--slate);margin:0 0 10px;line-height:1.6;">קבקליק יוצרת עבורכם אוטומטית גיליון Google Sheets ותיקיית Drive ייעודיים — כדי לשמור על הרשאת גישה מצומצמת ובטוחה יותר, לא ניתן לחבר גיליון/תיקייה קיימים באמצעות הדבקת קישור.</p>
+      <p style="font-size:11.5px;color:var(--slate);margin:0 0 10px;line-height:1.6;">קבקליק יוצרת עבורכם אוטומטית גיליון Google Sheets ותיקיית Drive ייעודיים — כדי לשמור על הרשאת גישה מצומצמת ובטוחה יותר, אפשר לחבר מחדש גיליון קבקליק קיים שנוצר על ידי האפליקציה באמצעות הקישור שלו.</p>
 
       <button type="button" id="autoCreateBtn" class="generate-btn" style="margin:2px 0 14px;">✨ יצירת גיליון ותיקייה אוטומטית</button>
       <p id="autoCreateStatus" style="font-size:12.5px;margin:-8px 0 14px;text-align:center;min-height:1em;"></p>
@@ -1724,6 +1724,12 @@ body.setup-incomplete #homeResidentsSection{display:none !important;}
       <label>תיקיית Drive מחוברת</label>
       <button type="button" class="workspace-open-btn" id="openFolderBtn" aria-label="הצגת תיקיית הקבלות של שנת העבודה הפעילה">📁 הצגת תיקיית הקבלות</button>
       <input type="hidden" id="cfg-folderId">
+      <button type="button" id="restoreExistingSheetBtn" class="small-btn" style="width:100%;margin-top:10px;">🔗 חיבור לגיליון קבקליק קיים</button>
+      <div id="restoreExistingSheetPanel" style="display:none;margin-top:10px;">
+        <label for="restoreExistingSheetUrl">קישור לגיליון הקיים של מצב זה</label>
+        <input type="url" id="restoreExistingSheetUrl" placeholder="https://docs.google.com/spreadsheets/d/..." dir="ltr">
+        <button type="button" id="restoreExistingSheetConfirm" class="small-btn" style="width:100%;margin-top:8px;">בדיקה וחיבור לגיליון הקיים</button>
+      </div>
       <button type="button" id="resetConnectionBtn" class="small-btn" style="width:100%;margin-top:10px;">🔄 ניתוק וחיבור מחדש (יצירת גיליון/תיקייה חדשים)</button>
     </div>
     </div>
@@ -2061,7 +2067,7 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '243';
+const APP_BUILD = '244';
 
 /* KABCLICK SERVICE WORKER - Build 214
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -2319,6 +2325,7 @@ function saveCfg(c){ localStorage.setItem('vaad_generic_cfg', JSON.stringify(c))
    mode, keyed by email. This is what lets the same device be used with
    multiple accounts (or one account switching between vaad/business)
    without one overwriting the other's data. */
+function accountDisconnectedBackupKey(email, mode){ return `kabklik_disconnected_backup::${email}::${mode}`; }
 function accountCfgKey(email, mode){ return `kabklik_cfg::${email}::${mode}`; }
 function accountModeKey(email){ return `kabklik_lastmode::${email}`; }
 
@@ -2509,7 +2516,8 @@ function persistCurrentAccountCfg(){
     vatRate: Number.isFinite(Number(CFG.vatRate)) ? Number(CFG.vatRate) : 18,
     nextReceiptNumber: CFG.nextReceiptNumber || 1000,
     financeOpeningBalance: CFG.financeOpeningBalance || 0,
-    financeOpeningBalanceDate: CFG.financeOpeningBalanceDate || ''
+    financeOpeningBalanceDate: CFG.financeOpeningBalanceDate || '',
+    connectionPaused: !!CFG.connectionPaused
   });
 }
 /**
@@ -2564,6 +2572,7 @@ function applyAccountAndMode(email, mode){
   CFG.yearWorkspaces = workspaces;
   CFG.spreadsheetId = activeWorkspace.spreadsheetId || saved.spreadsheetId || '';
   CFG.folderId = activeWorkspace.folderId || saved.folderId || '';
+  CFG.connectionPaused = !!saved.connectionPaused;
   CFG.buildingInfo   = saved.buildingInfo   || '';
   CFG.businessNumber = saved.businessNumber || '';
   CFG.logoUrl        = saved.logoUrl        || '';
@@ -3930,6 +3939,12 @@ async function restoreSharedModeConnection(){
 }
 
 async function loadDataForCurrentAccountMode(){
+  if(CFG.connectionPaused){
+    residents=[]; allReceiptRows=[];
+    if(typeof financeRows!=='undefined') financeRows=[];
+    refreshRecentResidents(); validateForm();
+    return;
+  }
   if(CFG.email && CFG.usageMode && CFG.spreadsheetId){
     const otherMode = CFG.usageMode==='vaad' ? 'business' : 'vaad';
     const other = loadAccountCfg(CFG.email, otherMode);
@@ -4190,6 +4205,10 @@ function refreshWorkspaceOpenButtons(){
 }
 
 document.getElementById('settingsBtn').onclick = ()=>{
+  document.getElementById('restoreExistingSheetPanel').style.display='none';
+  document.getElementById('restoreExistingSheetUrl').value='';
+  document.getElementById('autoCreateBtn').textContent='✨ יצירת גיליון ותיקייה אוטומטית';
+  document.getElementById('autoCreateStatus').textContent='';
   document.getElementById('cfg-buildingInfo').value = CFG.buildingInfo||'';
   document.getElementById('cfg-defaultFee').value   = CFG.defaultFee||'';
   document.getElementById('cfg-businessNumber').value = CFG.businessNumber||'';
@@ -4245,11 +4264,100 @@ document.getElementById('resetConnectionBtn').addEventListener('click', async ()
   document.getElementById('openSheetBtn').disabled = true;
   document.getElementById('openFolderBtn').disabled = true;
 });
+document.getElementById('restoreExistingSheetBtn').addEventListener('click', ()=>{
+  const panel = document.getElementById('restoreExistingSheetPanel');
+  panel.style.display = panel.style.display==='none' ? 'block' : 'none';
+});
+document.getElementById('restoreExistingSheetConfirm').addEventListener('click', async ()=>{
+  const input = document.getElementById('restoreExistingSheetUrl');
+  const link = input.value.trim();
+  const spreadsheetId = extractSheetId(link);
+  if(!/^https:\/\/docs\.google\.com\/spreadsheets\/d\/[a-zA-Z0-9_-]+/.test(link)){
+    await showAppAlert('נא להדביק קישור מלא לגיליון קבקליק הקיים ב-Google Sheets.', '⚠️');
+    return;
+  }
+  const email = CFG.email, mode = CFG.usageMode;
+  const otherMode = mode==='vaad' ? 'business' : 'vaad';
+  if(spreadsheetId===loadAccountCfg(email,otherMode)?.spreadsheetId){
+    await showAppAlert('הגיליון הזה כבר משויך למצב השני. בחר בגיליון המקורי של המצב הנוכחי.', '⚠️');
+    return;
+  }
+  const btn = document.getElementById('restoreExistingSheetConfirm');
+  let previousCfg = null;
+  btn.disabled = true; btn.textContent = 'בודק את הגיליון הקיים...';
+  try{
+    await initGoogle();
+    const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId});
+    const titles = (meta.result.sheets||[]).map(sheet=>sheet.properties.title);
+    const contactsTab = mode==='business' ? 'לקוחות' : 'אנשי קשר';
+    if(!titles.includes(contactsTab)) throw new Error('CONTACTS_TAB_MISSING');
+    const candidate = await readKabClickSettingsFromCandidate(spreadsheetId);
+    if(!candidate?.folderId) throw new Error('RECEIPTS_FOLDER_MISSING');
+    const folder = await gapi.client.drive.files.get({fileId:candidate.folderId,fields:'id,trashed,mimeType'});
+    if(folder.result.trashed || folder.result.mimeType!=='application/vnd.google-apps.folder') throw new Error('RECEIPTS_FOLDER_MISSING');
+    if(candidate.folderId===loadAccountCfg(email,otherMode)?.folderId) throw new Error('OTHER_MODE_FOLDER');
+    if(CFG.email!==email || CFG.usageMode!==mode) return;
+    const file = await gapi.client.drive.files.get({fileId:spreadsheetId,fields:'id,appProperties'});
+    const seriesId = file.result.appProperties?.seriesId || seriesIdFromSpreadsheetId(spreadsheetId);
+    const year = parseInt(file.result.appProperties?.year,10) || candidate.year || currentCalendarYear();
+    const backup = loadAccountCfg(email,mode)||{};
+    previousCfg = backup;
+    try{
+      localStorage.setItem(`kabklik_connection_backup::${email}::${mode}`,JSON.stringify(backup));
+    }catch(e){ throw new Error('CONNECTION_BACKUP_FAILED'); }
+    saveAccountCfg(email,mode,{...backup,
+      spreadsheetId,folderId:candidate.folderId,seriesId,activeYear:year,connectionPaused:false,
+      yearWorkspaces:{[String(year)]:{spreadsheetId,folderId:candidate.folderId}},
+      buildingInfo:candidate.buildingInfo,businessNumber:candidate.businessNumber,
+      nextReceiptNumber:Math.max(Number(backup.nextReceiptNumber)||1000,Number(candidate.nextReceiptNumber)||1000)
+    });
+    applyAccountAndMode(email,mode);
+    document.getElementById('cfg-spreadsheetId').value=spreadsheetId;
+    document.getElementById('cfg-folderId').value=candidate.folderId;
+    document.getElementById('cfg-buildingInfo').value=CFG.buildingInfo;
+    refreshWorkspaceOpenButtons();
+    await loadDataForCurrentAccountMode();
+    await showAppAlert('החיבור לגיליון הקיים ולתיקיית הקבלות שוחזר. בדקו שהנתונים הישנים מופיעים לפני הפקת קבלה חדשה.', '✅');
+  }catch(e){
+    console.error('[קבקליק] חיבור לגיליון קיים נכשל:',e);
+    if(previousCfg){ saveAccountCfg(email,mode,previousCfg); applyAccountAndMode(email,mode); }
+    const message = e.message==='CONTACTS_TAB_MISSING' ? 'בגיליון שנבחר אין לשונית אנשי קשר המתאימה למצב הנוכחי.' :
+      e.message==='RECEIPTS_FOLDER_MISSING' ? 'לא נמצאה תיקיית הקבלות המקורית של הגיליון. לא בוצע חיבור.' :
+      e.message==='OTHER_MODE_FOLDER' ? 'תיקיית הקבלות משויכת למצב השני. לא בוצע חיבור.' :
+      e.message==='CONNECTION_BACKUP_FAILED' ? 'לא ניתן לשמור גיבוי לחיבור הקודם במכשיר. לא בוצע חיבור.' :
+      'לא ניתן לבדוק את הגיליון הקיים ב-Google. לא בוצע חיבור.';
+    await showAppAlert(message,'⚠️');
+  }finally{
+    btn.disabled=false; btn.textContent='בדיקה וחיבור לגיליון הקיים';
+  }
+});
 document.getElementById('modalCancel').onclick = ()=> document.getElementById('modalBg').classList.remove('show');
 
 document.getElementById('modalSave').onclick = async ()=>{
   if(!CFG.email){
     await showAppAlert('יש להתחבר עם Google לפני שמירת ההגדרות.','⚠️');
+    return;
+  }
+  const requestedSheet = extractSheetId(document.getElementById('cfg-spreadsheetId').value);
+  const requestedFolder = extractFolderId(document.getElementById('cfg-folderId').value);
+  if(!requestedSheet && !requestedFolder && CFG.connectionPaused){
+    await showAppAlert('החיבור במכשיר מנותק. כדי לשמור לגיליון, חברו את הגיליון הקיים של מצב זה.', '⚠️');
+    return;
+  }
+  if(!requestedSheet && !requestedFolder && (CFG.spreadsheetId || CFG.folderId)){
+    try{
+      localStorage.setItem(accountDisconnectedBackupKey(CFG.email,CFG.usageMode),
+        JSON.stringify(loadAccountCfg(CFG.email,CFG.usageMode)));
+    }catch(e){
+      await showAppAlert('לא ניתן לשמור גיבוי לחיבור הקיים במכשיר. החיבור לא נותק.', '⚠️');
+      return;
+    }
+    CFG.spreadsheetId=''; CFG.folderId=''; CFG.yearWorkspaces={}; CFG.seriesId='';
+    CFG.connectionPaused=true;
+    persistCurrentAccountCfg();
+    document.getElementById('modalBg').classList.remove('show');
+    await loadDataForCurrentAccountMode(); applyBranding();
+    await showAppAlert('החיבור במכשיר נותק. הגיליונות, הקבלות והתיקיות ב-Google Drive נשארו ללא שינוי. לשחזור בחרו חיבור לגיליון קבקליק קיים.', '✅');
     return;
   }
   const otherMode = CFG.usageMode==='vaad' ? 'business' : 'vaad';
@@ -4325,6 +4433,7 @@ document.getElementById('modalSave').onclick = async ()=>{
 
   CFG.folderId =
     nextFolderId;
+  if(nextSpreadsheetId && nextFolderId) CFG.connectionPaused=false;
 
   if(connectionChanged){
     CFG.seriesId =
@@ -4347,6 +4456,7 @@ document.getElementById('modalSave').onclick = async ()=>{
   const saveLabel = saveBtn.textContent;
   saveBtn.disabled = true;
   saveBtn.textContent = 'שומר...';
+  let settingsWritten = false;
 
   try{
     // Complete Google initialization first, then write in a strict sequence.
@@ -4354,15 +4464,17 @@ document.getElementById('modalSave').onclick = async ()=>{
     // the new opening balance is still being written.
     await initGoogle();
     await pushSettingsToSheet(true);
+    settingsWritten = true;
     await ensureFinanceSheet({strictOpeningBalance:true});
     await loadDataForCurrentAccountMode();
     document.getElementById('modalBg').classList.remove('show');
   }catch(e){
     console.error('[קבקליק] שמירת ההגדרות לגיליון נכשלה:', e);
-    await showAppAlert(
-      'ההגדרות נשמרו במכשיר, אך העדכון ב-Google Sheets נכשל. בדקו את החיבור לגוגל ונסו לשמור שוב.',
-      '⚠️'
-    );
+    const message = e.message==='MODE_WORKSPACE_MISMATCH' ?
+      'הגיליון המחובר שייך למצב השני. לא נכתבו בו הגדרות. השתמשו בחיבור לגיליון קבקליק קיים כדי לבחור את הגיליון המקורי של מצב זה.' :
+      settingsWritten ? 'ההגדרות נכתבו בגיליון, אך עדכון נתוני הכספים או טעינת הנתונים לא הושלמו.' :
+      'ההגדרות נשמרו במכשיר, אך העדכון ב-Google Sheets נכשל. בדקו את החיבור לגוגל ונסו לשמור שוב.';
+    await showAppAlert(message,'⚠️');
   }finally{
     saveBtn.disabled = false;
     saveBtn.textContent = saveLabel;
@@ -4472,6 +4584,7 @@ document.getElementById('autoCreateBtn').addEventListener('click', async ()=>{
     // later Settings sync/load step that may fail independently.
     CFG.spreadsheetId = spreadsheetId;
     CFG.folderId = folderId;
+    CFG.connectionPaused = false;
     CFG.seriesId = createSeriesId;
     CFG.pendingSeriesId = '';
     CFG.activeYear = createYear;
