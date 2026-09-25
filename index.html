@@ -2068,7 +2068,7 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '246';
+const APP_BUILD = '247';
 
 /* KABCLICK SERVICE WORKER - Build 214
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -2440,6 +2440,60 @@ async function moveDriveFileIntoFolder(fileId, parentFolderId){
   if(oldParents.length) request.removeParents=oldParents.join(',');
 
   await gapi.client.drive.files.update(request);
+}
+
+// Change display names only. Keep spreadsheet/folder IDs, contents and yearly links intact.
+async function renameConnectedWorkspaceFiles(titleBase, account, mode){
+  if(!titleBase || !accessToken || CFG.email!==account || CFG.usageMode!==mode || CFG.connectionPaused || !CFG.spreadsheetId){
+    throw new Error('WORKSPACE_RENAME_INCOMPLETE');
+  }
+  const other = normalizeYearWorkspaces(loadAccountCfg(account,mode==='vaad' ? 'business' : 'vaad') || {});
+  const otherIds = new Set(Object.values(other).flatMap(ws=>[ws.spreadsheetId,ws.folderId]).filter(Boolean));
+  const workspaces = normalizeYearWorkspaces(loadAccountCfg(account,mode) || {});
+  const seen = new Set(), roots = new Set(), errors = [];
+  gapi.client.setToken({access_token:accessToken});
+
+  for(const [year,workspace] of Object.entries(workspaces)){
+    for(const [kind,id,prefix] of [
+      ['sheet',workspace.spreadsheetId,'קבקליק'],
+      ['receipts-folder',workspace.folderId,'קבלות']
+    ]){
+      if(!id || seen.has(id)) continue;
+      seen.add(id);
+      try{
+        if(otherIds.has(id)) throw new Error('WORKSPACE_SHARED_WITH_OTHER_MODE');
+        const response = await gapi.client.drive.files.get({fileId:id,fields:'id,name,trashed,mimeType,parents,appProperties'});
+        const file = response.result;
+        if(file.trashed || (file.appProperties?.mode && file.appProperties.mode!==mode) ||
+           (file.appProperties?.kind && file.appProperties.kind!==kind) ||
+           (kind==='sheet' && file.mimeType!=='application/vnd.google-apps.spreadsheet') ||
+           (kind==='receipts-folder' && file.mimeType!=='application/vnd.google-apps.folder')){
+          throw new Error('WORKSPACE_IDENTITY_MISMATCH');
+        }
+        const desiredName = `${prefix} - ${titleBase} - ${year}`;
+        if(file.name!==desiredName) await gapi.client.drive.files.update({fileId:id,resource:{name:desiredName}});
+        (file.parents || []).forEach(parent=>roots.add(parent));
+      }catch(e){ errors.push({year,kind,error:e}); }
+    }
+  }
+
+  // Only KabClick's tagged root folder for this mode may be renamed.
+  for(const id of roots){
+    try{
+      if(otherIds.has(id)) continue;
+      const response = await gapi.client.drive.files.get({fileId:id,fields:'id,name,trashed,mimeType,appProperties'});
+      const root = response.result;
+      if(root.trashed || root.mimeType!=='application/vnd.google-apps.folder' ||
+         root.appProperties?.kabclick!=='1' || root.appProperties?.kind!=='workspace-root' ||
+         root.appProperties?.mode!==mode) continue;
+      const desiredName = workspaceRootFolderName(titleBase);
+      if(root.name!==desiredName) await gapi.client.drive.files.update({fileId:id,resource:{name:desiredName}});
+    }catch(e){ errors.push({kind:'workspace-root',error:e}); }
+  }
+  if(errors.length){
+    console.warn('[קבקליק] שינוי שמות קבצי סביבת העבודה לא הושלם:',errors);
+    throw new Error('WORKSPACE_RENAME_INCOMPLETE');
+  }
 }
 
 function ensureLocalWorkspaceSeriesId(){
@@ -4391,7 +4445,13 @@ document.getElementById('modalSave').onclick = async ()=>{
   // Usage mode is no longer editable here — switching modes happens through
   // the account menu (sign-out icon → "מעבר בין ועד לעצמאי"), which properly
   // loads/creates that mode's own data. Settings just edits the CURRENT mode.
+  const oldWorkspaceTitle = CFG.buildingInfo;
   CFG.buildingInfo  = document.getElementById('cfg-buildingInfo').value.trim();
+  const renameKey = `kabklik_workspace_rename_pending::${CFG.email}::${CFG.usageMode}`;
+  if(CFG.buildingInfo && CFG.buildingInfo!==oldWorkspaceTitle && CFG.spreadsheetId){
+    try{ localStorage.setItem(renameKey,CFG.buildingInfo); }
+    catch(e){ console.warn('[קבקליק] שמירת בקשת שינוי שם מקומית נכשלה:',e); }
+  }
   CFG.businessNumber= document.getElementById('cfg-businessNumber').value.trim();
   CFG.defaultFee    = parseFloat(document.getElementById('cfg-defaultFee').value)||140;
   CFG.businessDefaultAmount     = parseFloat(document.getElementById('cfg-businessDefaultAmount').value) || '';
@@ -4486,10 +4546,16 @@ document.getElementById('modalSave').onclick = async ()=>{
     settingsWritten = true;
     await ensureFinanceSheet({strictOpeningBalance:true});
     await loadDataForCurrentAccountMode();
+    if(CFG.buildingInfo && localStorage.getItem(renameKey)===CFG.buildingInfo && CFG.spreadsheetId){
+      await renameConnectedWorkspaceFiles(CFG.buildingInfo,CFG.email,CFG.usageMode);
+      localStorage.removeItem(renameKey);
+    }
     document.getElementById('modalBg').classList.remove('show');
   }catch(e){
     console.error('[קבקליק] שמירת ההגדרות לגיליון נכשלה:', e);
-    const message = e.message==='MODE_WORKSPACE_MISMATCH' ?
+    const message = e.message==='WORKSPACE_RENAME_INCOMPLETE' ?
+      'ההגדרות נשמרו, אך שינוי שמות הגיליון או התיקיות ב-Drive לא הושלם. בדקו את החיבור לגוגל ונסו לשמור שוב.' :
+      e.message==='MODE_WORKSPACE_MISMATCH' ?
       'הגיליון המחובר שייך למצב השני. לא נכתבו בו הגדרות. השתמשו בחיבור לגיליון קבקליק קיים כדי לבחור את הגיליון המקורי של מצב זה.' :
       settingsWritten ? 'ההגדרות נכתבו בגיליון, אך עדכון נתוני הכספים או טעינת הנתונים לא הושלמו.' :
       'ההגדרות נשמרו במכשיר, אך העדכון ב-Google Sheets נכשל. בדקו את החיבור לגוגל ונסו לשמור שוב.';
