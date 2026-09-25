@@ -2069,7 +2069,7 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '250';
+const APP_BUILD = '251';
 
 /* KABCLICK SERVICE WORKER - Build 214
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -2521,8 +2521,10 @@ async function migrateLegacyWorkspacesToRoot(){
       if(ws.spreadsheetId===ws.folderId || otherIds.has(ws.spreadsheetId) || otherIds.has(ws.folderId))
         throw new Error('LEGACY_WORKSPACE_SHARED');
       const candidate=await readKabClickSettingsFromCandidate(ws.spreadsheetId);
-      if(!candidate || candidate.mode!==mode || candidate.folderId!==ws.folderId)
-        throw new Error('LEGACY_WORKSPACE_MISMATCH');
+      if(!candidate || candidate.mode!==mode)
+        throw new Error('LEGACY_WORKSPACE_SHEET_MODE');
+      if(candidate.folderId!==ws.folderId)
+        throw new Error('LEGACY_WORKSPACE_FOLDER_LINK');
       for(const [id,kind,mimeType] of [
         [ws.spreadsheetId,'sheet','application/vnd.google-apps.spreadsheet'],
         [ws.folderId,'receipts-folder','application/vnd.google-apps.folder']
@@ -2534,10 +2536,11 @@ async function migrateLegacyWorkspacesToRoot(){
         if(file.trashed || file.mimeType!==mimeType ||
            (file.appProperties?.mode && file.appProperties.mode!==mode) ||
            (file.appProperties?.kind && file.appProperties.kind!==kind) ||
-           (file.appProperties?.seriesId && file.appProperties.seriesId!==seriesId) ||
-           !file.parents?.length ||
+           (file.appProperties?.seriesId && file.appProperties.seriesId!==seriesId))
+          throw new Error('LEGACY_WORKSPACE_DRIVE_IDENTITY');
+        if(!file.parents?.length ||
            !(topLevelIds.has(id) || file.parents.every(parent=>parent===rootIdAlreadyPresent)))
-          throw new Error('LEGACY_WORKSPACE_MISMATCH');
+          throw new Error('LEGACY_WORKSPACE_DRIVE_PARENT');
       }
     }
     if(!stillCurrent()) return;
@@ -2556,7 +2559,10 @@ async function migrateLegacyWorkspacesToRoot(){
   const task=job.catch(e=>{
     console.warn('[קבקליק] התאמת תיקיות ישנות ב-Drive לא הושלמה:',e);
     const reason=e.message==='LEGACY_WORKSPACE_SHARED' ? 'אחד הקבצים משויך גם למצב השני.' :
-      e.message==='LEGACY_WORKSPACE_MISMATCH' ? 'לא ניתן לאמת את הקשר בין הגיליון, תיקיית הקבלות והמיקום שלהם ב-Drive.' :
+      e.message==='LEGACY_WORKSPACE_SHEET_MODE' ? 'מצב החשבון בגיליון הקיים אינו תואם למצב שנבחר באפליקציה.' :
+      e.message==='LEGACY_WORKSPACE_FOLDER_LINK' ? 'מזהה תיקיית הקבלות בגיליון אינו תואם לתיקייה המחוברת.' :
+      e.message==='LEGACY_WORKSPACE_DRIVE_IDENTITY' ? 'פרטי הזיהוי של אחד הקבצים ב-Drive אינם תואמים לסביבת העבודה.' :
+      e.message==='LEGACY_WORKSPACE_DRIVE_PARENT' ? 'לא ניתן לאמת שהקבצים נמצאים בתיקייה הראשית של Drive או בתיקיית קבקליק קיימת.' :
       'בדיקת הקבצים או העברתם ב-Google Drive נכשלה.';
     setLegacyMigrationStatus(account,mode,`⚠️ סידור התיקיות לא הושלם: ${reason} הקבצים לא נמחקו.`,true);
     if(!legacyWorkspaceMigrationWarnings.has(key)){
