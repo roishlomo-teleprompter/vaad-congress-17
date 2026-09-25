@@ -2068,7 +2068,7 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '252';
+const APP_BUILD = '253';
 
 /* KABCLICK SERVICE WORKER - Build 214
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -4097,6 +4097,53 @@ async function restoreSharedModeConnection(){
   }
 }
 
+// Arrange KabClick's visible tabs in Hebrew reading order. The Sheets API
+// controls tab indices and each grid's direction, not the user's tab-bar UI.
+async function ensureWorkspaceTabsInHebrewOrder(spreadsheetId, mode){
+  const contacts=mode==='business' ? 'לקוחות' : 'אנשי קשר';
+  const otherContacts=mode==='business' ? 'אנשי קשר' : 'לקוחות';
+  const meta=await gapi.client.sheets.spreadsheets.get({spreadsheetId});
+  const sheets=(meta.result.sheets||[]).map(sheet=>sheet.properties);
+  const titles=new Set(sheets.map(sheet=>sheet.title));
+  if(!titles.has(contacts) || titles.has(otherContacts)) return;
+
+  const desired=[contacts,'הוצאות והכנסות','קבלות'];
+  const visible=sheets.filter(sheet=>!sheet.hidden);
+  const current=visible.map(sheet=>sheet.title);
+  const expected=desired.filter(title=>titles.has(title));
+  const requests=[];
+  for(const sheet of sheets){
+    if(expected.includes(sheet.title) && sheet.rightToLeft!==true){
+      requests.push({updateSheetProperties:{
+        properties:{sheetId:sheet.sheetId,rightToLeft:true},fields:'rightToLeft'
+      }});
+    }
+  }
+  // Preserve user-created tabs and the hidden settings sheet. Moving the
+  // requested tabs to index 0 in reverse order yields the requested order.
+  if(current.length===expected.length && current.some((title,i)=>title!==expected[i])){
+    for(const title of [...expected].reverse()){
+      const sheet=sheets.find(item=>item.title===title);
+      requests.push({updateSheetProperties:{
+        properties:{sheetId:sheet.sheetId,index:0},fields:'index'
+      }});
+    }
+  }
+  if(requests.length) await gapi.client.sheets.spreadsheets.batchUpdate({
+    spreadsheetId,resource:{requests}
+  });
+}
+
+async function updateKnownWorkspaceTabDirections(account,mode){
+  const known=normalizeYearWorkspaces(loadAccountCfg(account,mode)||{});
+  const ids=new Set(Object.values(known).map(ws=>ws.spreadsheetId).filter(Boolean));
+  for(const spreadsheetId of ids){
+    if(CFG.email!==account || CFG.usageMode!==mode || CFG.connectionPaused) return;
+    try{ await ensureWorkspaceTabsInHebrewOrder(spreadsheetId,mode); }
+    catch(e){ console.warn('[קבקליק] התאמת כיוון לשוניות הגיליון לא הושלמה:',e); }
+  }
+}
+
 async function loadDataForCurrentAccountMode(){
   if(CFG.connectionPaused){
     residents=[]; allReceiptRows=[];
@@ -4122,6 +4169,7 @@ async function loadDataForCurrentAccountMode(){
       await pushSettingsToSheet();
       await stampKnownYearWorkspacesSeriesIdentity();
       await discoverAnnualWorkspacesFromDrive();
+      await updateKnownWorkspaceTabDirections(CFG.email,CFG.usageMode);
     }finally{
       // Folder organization must still run when an unrelated data/finance
       // refresh fails. It validates the connected resources independently.
