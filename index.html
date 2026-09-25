@@ -2069,7 +2069,7 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '249';
+const APP_BUILD = '250';
 
 /* KABCLICK SERVICE WORKER - Build 214
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -2463,14 +2463,17 @@ function setLegacyMigrationStatus(account,mode,message,error=false){
 async function migrateLegacyWorkspacesToRoot(){
   const account=CFG.email, mode=CFG.usageMode, seriesId=CFG.seriesId;
   if(!account || !mode || !seriesId || CFG.connectionPaused || !accessToken) return;
-  const key=`${account}::${mode}::${seriesId}`;
+  const knownWorkspaces=normalizeYearWorkspaces(loadAccountCfg(account,mode)||{});
+  const workspaceIds=Object.values(knownWorkspaces)
+    .flatMap(ws=>[ws.spreadsheetId,ws.folderId]).filter(Boolean).sort().join('::');
+  const key=`${account}::${mode}::${seriesId}::${workspaceIds}`;
   if(legacyWorkspaceMigrationCompleted.has(key)) return;
   if(legacyWorkspaceMigrationPromises.has(key)) return legacyWorkspaceMigrationPromises.get(key);
 
   const job=(async()=>{
     const stillCurrent=()=>CFG.email===account && CFG.usageMode===mode &&
       CFG.seriesId===seriesId && !CFG.connectionPaused;
-    const workspaces=normalizeYearWorkspaces(loadAccountCfg(account,mode)||{});
+    const workspaces=knownWorkspaces;
     const other=normalizeYearWorkspaces(loadAccountCfg(account,mode==='vaad'?'business':'vaad')||{});
     const otherIds=new Set(Object.values(other).flatMap(ws=>[ws.spreadsheetId,ws.folderId]).filter(Boolean));
     const entries=Object.values(workspaces).filter(ws=>ws.spreadsheetId && ws.folderId);
@@ -4135,12 +4138,20 @@ async function loadDataForCurrentAccountMode(){
     await recoverKabClickConnectionFromDrive(CFG.email, CFG.usageMode);
   }
   if(CFG.spreadsheetId && CFG.folderId){
-    await Promise.all([loadResidents(), ensureReceiptsSheet()]);
-    await Promise.all([syncSettingsFromSheet(), loadAllReceiptRows(), loadFinanceRows(), loadCancelledScheduleRows()]);
-    await pushSettingsToSheet();
-    await stampKnownYearWorkspacesSeriesIdentity();
-    await discoverAnnualWorkspacesFromDrive();
-    await migrateLegacyWorkspacesToRoot();
+    try{
+      await Promise.all([loadResidents(), ensureReceiptsSheet()]);
+      await Promise.all([syncSettingsFromSheet(), loadAllReceiptRows(), loadFinanceRows(), loadCancelledScheduleRows()]);
+      await pushSettingsToSheet();
+      await stampKnownYearWorkspacesSeriesIdentity();
+      await discoverAnnualWorkspacesFromDrive();
+    }finally{
+      // Folder organization must still run when an unrelated data/finance
+      // refresh fails. It validates the connected resources independently.
+      if(CFG.spreadsheetId && CFG.folderId && !CFG.connectionPaused){
+        ensureLocalWorkspaceSeriesId();
+        await migrateLegacyWorkspacesToRoot();
+      }
+    }
     renderYearSelector();
     validateForm();
   } else {
