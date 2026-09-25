@@ -494,7 +494,7 @@ select:focus,input:focus,textarea:focus{outline:none;border-color:var(--blue);bo
 .rsm-list .rphone{color:var(--slate);font-size:13px;direction:ltr;}
 textarea{resize:vertical;min-height:70px;}
 .row{margin-bottom:12px;}
-.phone-box{margin-top:6px;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-soft);background:var(--app-bg);border:1px dashed var(--card-line);border-radius:9px;padding:8px 12px;}
+.phone-box{margin-top:5px;display:flex;align-items:center;gap:6px;min-height:34px;font-size:12.5px;color:var(--ink-soft);background:var(--app-bg);border:1px dashed var(--card-line);border-radius:9px;padding:6px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .resident-info-row{display:flex;gap:8px;margin-top:6px;}
 .resident-info-row .phone-box{margin-top:0;min-width:0;}
 .resident-info-row #phoneBox{flex:1.6;}
@@ -1481,8 +1481,8 @@ body.mode-business #homeResidentsSection{
         </div>
         <select id="residentSelect" style="display:none;"><option value="">— יש להתחבר ולטעון רשימת דיירים —</option></select>
         <div class="resident-info-row">
-          <div class="phone-box" id="phoneBox">טלפון יוצג לאחר בחירת דייר</div>
-          <div class="phone-box apt-box" id="aptBox">דירה תוצג לאחר בחירת דייר</div>
+          <div class="phone-box" id="phoneBox">טלפון לא הוגדר</div>
+          <div class="phone-box apt-box" id="aptBox">דירה לא הוגדרה</div>
         </div>
       </div>
       <div style="display:flex;margin-top:12px;">
@@ -2060,9 +2060,9 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '235';
+const APP_BUILD = '236';
 
-/* KABCLICK SERVICE WORKER - Build 210
+/* KABCLICK SERVICE WORKER - Build 211
    Keep the local app shell available so the installed PWA/TWA can start offline. */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -3942,7 +3942,7 @@ function applyModeTerminology(){
   // fills in the real value and this would just be overwritten anyway.
   const phoneBoxEl = document.getElementById('phoneBox');
   if(phoneBoxEl && !phoneBoxEl.textContent.startsWith('טלפון:')){
-    phoneBoxEl.textContent = isBiz ? 'טלפון יוצג לאחר בחירת לקוח' : 'טלפון יוצג לאחר בחירת דייר';
+    phoneBoxEl.textContent = 'טלפון לא הוגדר';
   }
   // Apartment number is a vaad-only concept — hide it entirely for business.
   const aptBoxEl = document.getElementById('aptBox');
@@ -4605,13 +4605,13 @@ const aptBox         = document.getElementById('aptBox');
 residentSelect.addEventListener('change',()=>{
   const r = residents[residentSelect.value];
   const isBiz = CFG.usageMode==='business';
-  phoneBox.textContent = r ? 'טלפון: '+(r.phone||'לא צויין') : (isBiz ? 'טלפון יוצג לאחר בחירת לקוח' : 'טלפון יוצג לאחר בחירת דייר');
+  phoneBox.textContent = r ? 'טלפון: '+(r.phone||'לא צוין') : 'טלפון לא הוגדר';
   if(r){
     const hasApt = !!(r.apartment && r.apartment.trim());
     aptBox.textContent = hasApt ? 'דירה: '+r.apartment : 'דירה: לא צויין';
     aptBox.classList.toggle('empty', !hasApt);
   } else {
-    aptBox.textContent = 'דירה תוצג לאחר בחירת דייר';
+    aptBox.textContent = 'דירה לא הוגדרה';
     aptBox.classList.remove('empty');
   }
   updateEmailCheckbox(r);
