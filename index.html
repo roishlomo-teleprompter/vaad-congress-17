@@ -6252,7 +6252,7 @@ async function loadResidents(){
   // from the freshly loaded data below.
   const selectedBeforeReload = residents[residentSelect.value];
   const selectedIdentity = selectedBeforeReload
-    ? {row:selectedBeforeReload.row, name:selectedBeforeReload.name}
+    ? {row:selectedBeforeReload.row, name:selectedBeforeReload.name, phone:selectedBeforeReload.phone}
     : null;
   try{
     // A file/folder sitting in the Google Drive Trash is still fully
@@ -6384,9 +6384,18 @@ async function loadResidents(){
     const searchInput = document.getElementById('residentSearchInput');
     searchInput.disabled = false;
     searchInput.placeholder = isBiz ? 'הקלידו שם לקוח לחיפוש...' : 'הקלידו שם דייר לחיפוש...';
-    const restoredIndex = selectedIdentity
+    // Rows may shift after another resident is removed. Prefer the exact row
+    // and name, then the same contact at a new row. A rename keeps the row
+    // and phone; avoid selecting an unrelated resident if the row was reused.
+    let restoredIndex = selectedIdentity
       ? residents.findIndex(r=>r.row===selectedIdentity.row && r.name===selectedIdentity.name)
       : -1;
+    if(restoredIndex<0 && selectedIdentity){
+      restoredIndex = residents.findIndex(r=>r.name===selectedIdentity.name && r.phone===selectedIdentity.phone);
+    }
+    if(restoredIndex<0 && selectedIdentity?.phone){
+      restoredIndex = residents.findIndex(r=>r.row===selectedIdentity.row && r.phone===selectedIdentity.phone);
+    }
     if(restoredIndex>-1){
       residentSelect.value = String(restoredIndex);
       residentSelect.dispatchEvent(new Event('change'));
