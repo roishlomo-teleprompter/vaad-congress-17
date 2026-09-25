@@ -1732,7 +1732,6 @@ body.setup-incomplete #homeResidentsSection{display:none !important;}
         <button type="button" id="restoreExistingSheetConfirm" class="small-btn" style="width:100%;margin-top:8px;">בדיקה וחיבור לגיליון הקיים</button>
       </div>
       <button type="button" id="resetConnectionBtn" class="small-btn" style="width:100%;margin-top:10px;">🔄 ניתוק גיליון קיים</button>
-      <p id="legacyMigrationStatus" role="status" style="font-size:12px;margin:10px 0 0;line-height:1.5;"></p>
     </div>
     </div>
 
@@ -2069,7 +2068,7 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '251';
+const APP_BUILD = '252';
 
 /* KABCLICK SERVICE WORKER - Build 214
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -2446,20 +2445,7 @@ async function moveDriveFileIntoFolder(fileId, parentFolderId){
 // Bring pre-root KabClick workspaces into the same Drive layout as new accounts.
 // This only changes parents of existing files; their IDs and contents stay intact.
 const legacyWorkspaceMigrationPromises = new Map();
-const legacyWorkspaceMigrationWarnings = new Set();
 const legacyWorkspaceMigrationCompleted = new Set();
-const legacyWorkspaceMigrationStatus = new Map();
-function showLegacyMigrationStatus(){
-  const el=document.getElementById('legacyMigrationStatus');
-  if(!el) return;
-  const state=legacyWorkspaceMigrationStatus.get(`${CFG.email}::${CFG.usageMode}`);
-  el.textContent=state?.message || '';
-  el.style.color=state?.error ? 'var(--bad)' : 'var(--good)';
-}
-function setLegacyMigrationStatus(account,mode,message,error=false){
-  legacyWorkspaceMigrationStatus.set(`${account}::${mode}`,{message,error});
-  if(CFG.email===account && CFG.usageMode===mode) showLegacyMigrationStatus();
-}
 async function migrateLegacyWorkspacesToRoot(){
   const account=CFG.email, mode=CFG.usageMode, seriesId=CFG.seriesId;
   if(!account || !mode || !seriesId || CFG.connectionPaused || !accessToken) return;
@@ -2495,7 +2481,6 @@ async function migrateLegacyWorkspacesToRoot(){
       }
       if(alreadyOrganized){
         legacyWorkspaceMigrationCompleted.add(key);
-        setLegacyMigrationStatus(account,mode,'✅ הגיליונות ותיקיות הקבלות מסודרים בתיקייה ראשית.');
         return;
       }
     }
@@ -2553,22 +2538,9 @@ async function migrateLegacyWorkspacesToRoot(){
       }
     }
     legacyWorkspaceMigrationCompleted.add(key);
-    legacyWorkspaceMigrationWarnings.delete(key);
-    setLegacyMigrationStatus(account,mode,'✅ הגיליונות ותיקיות הקבלות סודרו בתיקייה ראשית.');
   })();
   const task=job.catch(e=>{
     console.warn('[קבקליק] התאמת תיקיות ישנות ב-Drive לא הושלמה:',e);
-    const reason=e.message==='LEGACY_WORKSPACE_SHARED' ? 'אחד הקבצים משויך גם למצב השני.' :
-      e.message==='LEGACY_WORKSPACE_SHEET_MODE' ? 'מצב החשבון בגיליון הקיים אינו תואם למצב שנבחר באפליקציה.' :
-      e.message==='LEGACY_WORKSPACE_FOLDER_LINK' ? 'מזהה תיקיית הקבלות בגיליון אינו תואם לתיקייה המחוברת.' :
-      e.message==='LEGACY_WORKSPACE_DRIVE_IDENTITY' ? 'פרטי הזיהוי של אחד הקבצים ב-Drive אינם תואמים לסביבת העבודה.' :
-      e.message==='LEGACY_WORKSPACE_DRIVE_PARENT' ? 'לא ניתן לאמת שהקבצים נמצאים בתיקייה הראשית של Drive או בתיקיית קבקליק קיימת.' :
-      'בדיקת הקבצים או העברתם ב-Google Drive נכשלה.';
-    setLegacyMigrationStatus(account,mode,`⚠️ סידור התיקיות לא הושלם: ${reason} הקבצים לא נמחקו.`,true);
-    if(!legacyWorkspaceMigrationWarnings.has(key)){
-      legacyWorkspaceMigrationWarnings.add(key);
-      showMsg('סידור התיקיות הישנות ב-Drive לא הושלם. הקבצים לא נמחקו; האפליקציה תנסה שוב בחיבור הבא.', 'error');
-    }
   }).finally(()=>legacyWorkspaceMigrationPromises.delete(key));
   legacyWorkspaceMigrationPromises.set(key,task);
   return task;
@@ -4405,7 +4377,6 @@ function refreshWorkspaceOpenButtons(){
 }
 
 document.getElementById('settingsBtn').onclick = ()=>{
-  showLegacyMigrationStatus();
   document.getElementById('restoreExistingSheetPanel').style.display='none';
   document.getElementById('restoreExistingSheetUrl').value='';
   document.getElementById('autoCreateBtn').textContent='✨ יצירת גיליון ותיקייה אוטומטית';
