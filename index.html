@@ -651,6 +651,7 @@ body.mode-business #homeResidentsSection{
   margin:0 !important;
   padding:0 !important;
 }
+body.setup-incomplete #homeResidentsSection{display:none !important;}
 
 /* ACCOUNT MENU MODAL */
 :root{ --danger:#E53E3E; --danger-soft:#FFF7F7; }
@@ -2060,9 +2061,9 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '236';
+const APP_BUILD = '237';
 
-/* KABCLICK SERVICE WORKER - Build 211
+/* KABCLICK SERVICE WORKER - Build 212
    Keep the local app shell available so the installed PWA/TWA can start offline. */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -3992,6 +3993,9 @@ function updateSetupChecklist(){
 
   const banner = document.getElementById('setupBanner');
   const allOk = items.every(i=>i.ok);
+  document.body.classList.toggle('setup-incomplete', !allOk);
+  const paymentsSection = document.getElementById('homeResidentsSection');
+  if(paymentsSection) paymentsSection.style.display = allOk ? '' : 'none';
   banner.style.display = allOk ? 'none' : 'flex';
   if(!allOk){
     document.getElementById('setupChecklist').innerHTML =
@@ -8256,6 +8260,12 @@ function refreshRecentResidents(){
   const section = document.getElementById('homeResidentsSection');
   const list    = document.getElementById('homeResidentsList');
   if(!section || !list) return;
+
+  if(!isConfigured()){
+    section.style.display = 'none';
+    list.innerHTML = '';
+    return;
+  }
 
   if(!residents.length){
     // Data hasn't loaded yet — keep the section (and its title) visible with
