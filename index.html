@@ -2061,7 +2061,7 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '241';
+const APP_BUILD = '242';
 
 /* KABCLICK SERVICE WORKER - Build 214
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -2746,6 +2746,7 @@ async function readKabClickSettingsFromCandidate(spreadsheetId){
 async function recoverKabClickConnectionFromDrive(email, mode){
 
   if(!accessToken || !email || !mode) return false;
+  if(CFG.email!==email || CFG.usageMode!==mode) return false;
 
   const existing = loadAccountCfg(email, mode);
   if(existing && existing.spreadsheetId && existing.folderId) return true;
@@ -3052,6 +3053,8 @@ async function recoverKabClickConnectionFromDrive(email, mode){
       folderId:found.folderId
     };
 
+    // A previous mode's Drive lookup can finish after the user switches mode.
+    if(CFG.email!==email || CFG.usageMode!==mode) return false;
     saveAccountCfg(email, mode, {
       spreadsheetId:found.spreadsheetId,
       folderId:found.folderId,
@@ -6745,13 +6748,23 @@ async function ensureSettingsSheet(){
 
 async function syncSettingsFromSheet(){
   if(!CFG.spreadsheetId) return;
+  const account = CFG.email, mode = CFG.usageMode, spreadsheetId = CFG.spreadsheetId;
+  const stillCurrent = ()=>CFG.email===account && CFG.usageMode===mode && CFG.spreadsheetId===spreadsheetId;
   try{
+    const otherMode = mode==='vaad' ? 'business' : 'vaad';
+    if(loadAccountCfg(account, otherMode)?.spreadsheetId===spreadsheetId) return;
+    const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId});
+    if(!stillCurrent()) return;
+    const titles = (meta.result.sheets||[]).map(s=>s.properties.title);
+    if((mode==='business' && titles.includes('אנשי קשר') && !titles.includes('לקוחות')) ||
+       (mode==='vaad' && titles.includes('לקוחות') && !titles.includes('אנשי קשר'))) return;
     const existed = await ensureSettingsSheet();
+    if(!stillCurrent()) return;
     if(!existed){
       // Brand-new tab — seed it with whatever this device already has locally,
       // so the first device to connect defines the shared starting point.
       await gapi.client.sheets.spreadsheets.values.update({
-        spreadsheetId:CFG.spreadsheetId,
+        spreadsheetId,
         range:`'${SETTINGS_SHEET}'!A1:B16`,
         valueInputOption:'RAW',
         resource:{values: buildSettingsRows()}
@@ -6759,8 +6772,9 @@ async function syncSettingsFromSheet(){
       return;
     }
     const res = await gapi.client.sheets.spreadsheets.values.get({
-      spreadsheetId:CFG.spreadsheetId, range:`'${SETTINGS_SHEET}'!A:B`
+      spreadsheetId, range:`'${SETTINGS_SHEET}'!A:B`
     });
+    if(!stillCurrent()) return;
     const rows = res.result.values || [];
     if(!rows.length) return; // tab exists but is empty — keep local values as-is
 
@@ -6808,10 +6822,20 @@ async function syncSettingsFromSheet(){
 async function pushSettingsToSheet(throwOnError=false){
   if(!navigator.onLine) return;
   if(!CFG.spreadsheetId) return;
+  const account = CFG.email, mode = CFG.usageMode, spreadsheetId = CFG.spreadsheetId;
+  const stillCurrent = ()=>CFG.email===account && CFG.usageMode===mode && CFG.spreadsheetId===spreadsheetId;
   try{
+    const otherMode = mode==='vaad' ? 'business' : 'vaad';
+    if(loadAccountCfg(account, otherMode)?.spreadsheetId===spreadsheetId) throw new Error('MODE_WORKSPACE_SHARED');
+    const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId});
+    if(!stillCurrent()) return;
+    const titles = (meta.result.sheets||[]).map(s=>s.properties.title);
+    if((mode==='business' && titles.includes('אנשי קשר') && !titles.includes('לקוחות')) ||
+       (mode==='vaad' && titles.includes('לקוחות') && !titles.includes('אנשי קשר'))) throw new Error('MODE_WORKSPACE_MISMATCH');
     await ensureSettingsSheet();
+    if(!stillCurrent()) return;
     await gapi.client.sheets.spreadsheets.values.update({
-      spreadsheetId:CFG.spreadsheetId,
+      spreadsheetId,
       range:`'${SETTINGS_SHEET}'!A1:B16`,
       valueInputOption:'RAW',
       resource:{values: buildSettingsRows()}
