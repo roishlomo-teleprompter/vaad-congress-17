@@ -2103,7 +2103,7 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '259';
+const APP_BUILD = '260';
 
 /* KABCLICK SERVICE WORKER - Build 214
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -4132,6 +4132,21 @@ async function restoreSharedModeConnection(){
   }
 }
 
+// Keep the settings tab hidden in existing workspaces as well as newly created
+// ones. Its values remain readable and writable through the Sheets API.
+async function hideSettingsTabInSpreadsheet(spreadsheetId, sheets){
+  const settings=sheets.find(sheet=>sheet.title===SETTINGS_SHEET);
+  if(!settings || settings.hidden) return;
+  if(!sheets.some(sheet=>sheet.sheetId!==settings.sheetId && !sheet.hidden))
+    throw new Error('NO_VISIBLE_WORKSPACE_SHEET');
+  await gapi.client.sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    resource:{requests:[{updateSheetProperties:{
+      properties:{sheetId:settings.sheetId,hidden:true},fields:'hidden'
+    }}]}
+  });
+}
+
 // Arrange KabClick's visible tabs in Hebrew reading order. The Sheets API
 // controls tab indices and each grid's direction, not the user's tab-bar UI.
 async function ensureWorkspaceTabsInHebrewOrder(spreadsheetId, mode){
@@ -4139,6 +4154,9 @@ async function ensureWorkspaceTabsInHebrewOrder(spreadsheetId, mode){
   const otherContacts=mode==='business' ? 'אנשי קשר' : 'לקוחות';
   const meta=await gapi.client.sheets.spreadsheets.get({spreadsheetId});
   const sheets=(meta.result.sheets||[]).map(sheet=>sheet.properties);
+  await hideSettingsTabInSpreadsheet(spreadsheetId,sheets);
+  const settings=sheets.find(sheet=>sheet.title===SETTINGS_SHEET);
+  if(settings) settings.hidden=true;
   const titles=new Set(sheets.map(sheet=>sheet.title));
   if(!titles.has(contacts) || titles.has(otherContacts)) return;
 
@@ -4501,10 +4519,27 @@ document.getElementById('settingsBtn').onclick = ()=>{
   activateSettingsTab('profile');
   document.getElementById('modalBg').classList.add('show');
 };
-document.getElementById('openSheetBtn').addEventListener('click', ()=>{
+document.getElementById('openSheetBtn').addEventListener('click', async ()=>{
   const workspace = activeYearWorkspaceForLinks();
   if(!workspace.spreadsheetId) return;
-  window.open(`https://docs.google.com/spreadsheets/d/${workspace.spreadsheetId}/edit`, '_blank', 'noopener');
+  // Reserve the tab synchronously so mobile popup blockers do not discard the
+  // opening after the Google API call finishes.
+  const tab=window.open('about:blank','_blank');
+  try{
+    const meta=await gapi.client.sheets.spreadsheets.get({spreadsheetId:workspace.spreadsheetId});
+    const sheets=(meta.result.sheets||[]).map(sheet=>sheet.properties);
+    await hideSettingsTabInSpreadsheet(workspace.spreadsheetId,sheets);
+    const firstVisible=sheets.find(sheet=>sheet.title===RECEIPTS_SHEET && !sheet.hidden)
+      || sheets.find(sheet=>sheet.title!==SETTINGS_SHEET && !sheet.hidden);
+    if(!firstVisible) throw new Error('NO_VISIBLE_WORKSPACE_SHEET');
+    const url=`https://docs.google.com/spreadsheets/d/${workspace.spreadsheetId}/edit#gid=${firstVisible.sheetId}`;
+    if(tab){ tab.opener=null; tab.location.replace(url); }
+    else window.open(url,'_blank','noopener');
+  }catch(e){
+    if(tab) tab.close();
+    console.warn('[קבקליק] הסתרת לשונית ההגדרות לפני הצגת הגיליון נכשלה:',e);
+    await showAppAlert('לא ניתן לוודא כעת שלשונית ההגדרות מוסתרת. בדקו את החיבור לגוגל ונסו שוב.','⚠️');
+  }
 });
 document.getElementById('openFolderBtn').addEventListener('click', ()=>{
   const workspace = activeYearWorkspaceForLinks();
