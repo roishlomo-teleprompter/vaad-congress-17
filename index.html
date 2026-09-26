@@ -7311,8 +7311,13 @@ function sameSettingsValues(a,b){
 async function ensureSettingsStorage(spreadsheetId, mode){
   const [meta,file]=await Promise.all([
     gapi.client.sheets.spreadsheets.get({spreadsheetId}),
-    gapi.client.drive.files.get({fileId:spreadsheetId,fields:'id,appProperties'})
+    gapi.client.drive.files.get({fileId:spreadsheetId,fields:'id,appProperties,parents'})
   ]);
+  const titles=(meta.result.sheets||[]).map(sheet=>sheet.properties.title);
+  if((mode==='business' && titles.includes('אנשי קשר') && !titles.includes('לקוחות')) ||
+     (mode==='vaad' && titles.includes('לקוחות') && !titles.includes('אנשי קשר'))){
+    throw new Error('MODE_WORKSPACE_MISMATCH');
+  }
   const legacy=meta.result.sheets.find(s=>s.properties.title===SETTINGS_SHEET);
   const properties=file.result.appProperties||{};
   let settingsFileId=properties.settingsFileId||'';
@@ -7332,7 +7337,21 @@ async function ensureSettingsStorage(spreadsheetId, mode){
     const name=legacyRows.find(row=>row[0]==='שם/כתובת בניין')?.[1] ||
       (CFG.spreadsheetId===spreadsheetId ? CFG.buildingInfo : '') ||
       (mode==='business'?'עסק':'ועד בית');
-    const rootId=await ensureWorkspaceRootFolder(name,seriesId,mode);
+    let rootId='';
+    for(const parentId of (file.result.parents||[])){
+      try{
+        const parent=await gapi.client.drive.files.get({
+          fileId:parentId,fields:'id,mimeType,appProperties'
+        });
+        if(parent.result.appProperties?.kind==='workspace-root' &&
+           parent.result.appProperties?.mode===mode &&
+           parent.result.mimeType==='application/vnd.google-apps.folder'){
+          rootId=parentId;
+          break;
+        }
+      }catch(e){ /* An older folder may not be accessible through drive.file. */ }
+    }
+    if(!rootId) rootId=await ensureWorkspaceRootFolder(name,seriesId,mode);
     const created=await gapi.client.sheets.spreadsheets.create({
       resource:{properties:{title:`הגדרות - לא למחוק - ${name} - ${year}`},
         sheets:[{properties:{title:SETTINGS_SHEET,rightToLeft:true}}]}
