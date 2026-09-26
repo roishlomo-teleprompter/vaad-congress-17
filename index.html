@@ -1001,9 +1001,10 @@ body.setup-incomplete #homeResidentsSection{display:none !important;}
 .settings-section{border-top:1.5px solid var(--card-line);margin-top:20px;padding-top:16px;}
 .settings-panel>.settings-section:first-child{border-top:0;margin-top:8px;padding-top:8px;}
 .settings-section h4{font-size:13px;font-weight:700;color:var(--ink-soft);margin:0 0 12px;text-transform:uppercase;letter-spacing:.5px;}
-#settingsPanelFinance>.settings-section:first-child{margin-top:0;padding-top:2px;}
-#settingsPanelFinance .settings-section+ .settings-section{margin-top:10px;padding-top:10px;}
-#settingsPanelFinance .settings-section h4{margin-bottom:5px;}
+#settingsPanelFinance>.settings-section:first-child{margin-top:0;padding-top:7px;}
+#settingsPanelFinance .settings-section+ .settings-section{margin-top:16px;padding-top:10px;}
+#settingsPanelFinance .settings-section h4{margin-bottom:8px;line-height:1.35;}
+#settingsPanelFinance .finance-opening-subtitle{display:block;margin-top:3px;font-size:11.5px;font-weight:400;color:var(--slate);text-transform:none;letter-spacing:0;}
 #settingsPanelFinance .settings-section p{line-height:1.4!important;}
 #settingsPanelFinance .settings-section label{margin-top:8px;}
 .settings-part-label{font-size:11px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin:0 0 8px;}
@@ -1766,7 +1767,7 @@ body.setup-incomplete #homeResidentsSection{display:none !important;}
 
     <div class="settings-panel" id="settingsPanelFinance" role="tabpanel" aria-labelledby="settingsTabFinance" data-settings-panel="finance" hidden>
     <div class="settings-section">
-      <h4>🏦 יתרה מוקדמת (לפני תחילת השימוש בקבקליק)</h4>
+      <h4>🏦 יתרה מוקדמת <span class="finance-opening-subtitle">(לפני תחילת השימוש בקבקליק)</span></h4>
       <p style="font-size:11.5px;color:var(--slate);margin:0 0 10px;line-height:1.6;">אם הייתה יתרה בקופה לפני שהתחלתם לתעד הוצאות/הכנסות כאן — הזינו אותה כאן. בעת יצירת שנת עבודה חדשה, יתרת הסיום של השנה הקודמת עוברת אוטומטית כיתרת הפתיחה של השנה החדשה, בלי להעתיק את התנועות עצמן.</p>
       <label>סכום יתרת הפתיחה (₪)</label>
       <input type="number" id="cfg-financeOpeningBalance" placeholder="לדוגמה: 1199">
@@ -2097,7 +2098,7 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '256';
+const APP_BUILD = '257';
 
 /* KABCLICK SERVICE WORKER - Build 214
    Keep the local app shell available so the installed PWA/TWA can start offline. */
