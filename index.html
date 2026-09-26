@@ -2103,7 +2103,7 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '260';
+const APP_BUILD = '261';
 
 /* KABCLICK SERVICE WORKER - Build 214
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -2593,6 +2593,28 @@ async function renameConnectedWorkspaceFiles(titleBase, account, mode){
   gapi.client.setToken({access_token:accessToken});
 
   for(const [year,workspace] of Object.entries(workspaces)){
+    if(workspace.spreadsheetId){
+      try{
+        const source=await gapi.client.drive.files.get({
+          fileId:workspace.spreadsheetId,fields:'id,appProperties'
+        });
+        const settingsFileId=source.result.appProperties?.settingsFileId;
+        if(settingsFileId && !seen.has(settingsFileId)){
+          seen.add(settingsFileId);
+          const response=await gapi.client.drive.files.get({
+            fileId:settingsFileId,fields:'id,name,trashed,appProperties'
+          });
+          const file=response.result;
+          if(file.trashed || file.appProperties?.kind!=='settings' ||
+             file.appProperties?.workspaceId!==workspace.spreadsheetId ||
+             file.appProperties?.mode!==mode) throw new Error('SETTINGS_IDENTITY_MISMATCH');
+          const name=`הגדרות - לא למחוק - ${titleBase} - ${year}`;
+          if(file.name!==name) await gapi.client.drive.files.update({
+            fileId:settingsFileId,resource:{name}
+          });
+        }
+      }catch(e){ errors.push({year,kind:'settings',error:e}); }
+    }
     for(const [kind,id,prefix] of [
       ['sheet',workspace.spreadsheetId,'קבקליק'],
       ['receipts-folder',workspace.folderId,'קבלות']
@@ -2908,13 +2930,10 @@ async function readKabClickSettingsFromCandidate(spreadsheetId){
     if(!inferredMode) return null;
 
     const map = {};
-    if(titles.includes(SETTINGS_SHEET)){
+    {
       try{
-        const res = await gapi.client.sheets.spreadsheets.values.get({
-          spreadsheetId,
-          range:`'${SETTINGS_SHEET}'!A:B`
-        });
-        (res.result.values||[]).forEach(r=>{
+        const rows=await readWorkspaceSettingsRows(spreadsheetId, titles);
+        rows.forEach(r=>{
           const k=(r[0]||'').toString().trim();
           if(k) map[k]=(r[1]||'').toString().trim();
         });
@@ -3585,12 +3604,9 @@ async function readAnnualSourceSnapshot(source){
   const contacts = contactsRes.result.values || [];
 
   const settingsMap = {};
-  if(titles.includes(SETTINGS_SHEET)){
-    const settingsRes = await gapi.client.sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range:`'${SETTINGS_SHEET}'!A:B`
-    });
-    (settingsRes.result.values||[]).forEach(row=>{
+  {
+    const rows=await readWorkspaceSettingsRows(spreadsheetId,titles);
+    rows.forEach(row=>{
       const key=(row[0]||'').toString().trim();
       if(key) settingsMap[key]=(row[1]||'').toString().trim();
     });
@@ -3758,17 +3774,12 @@ async function verifyAnnualWorkspaceReady(year, spreadsheetId, folderId){
   const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId});
   const titles = (meta.result.sheets||[]).map(s=>s.properties.title);
 
-  for(const title of [residentsSheetName(),RECEIPTS_SHEET,FINANCE_SHEET,SETTINGS_SHEET]){
+  for(const title of [residentsSheetName(),RECEIPTS_SHEET,FINANCE_SHEET]){
     if(!titles.includes(title)) throw new Error('YEAR_SHEET_MISSING_'+title);
   }
 
-  const settings = await gapi.client.sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range:`'${SETTINGS_SHEET}'!A:B`
-  });
-
   const map={};
-  (settings.result.values||[]).forEach(row=>{
+  (await readWorkspaceSettingsRows(spreadsheetId,titles)).forEach(row=>{
     const key=(row[0]||'').toString().trim();
     if(key) map[key]=(row[1]||'').toString().trim();
   });
@@ -4192,7 +4203,10 @@ async function updateKnownWorkspaceTabDirections(account,mode){
   const ids=new Set(Object.values(known).map(ws=>ws.spreadsheetId).filter(Boolean));
   for(const spreadsheetId of ids){
     if(CFG.email!==account || CFG.usageMode!==mode || CFG.connectionPaused) return;
-    try{ await ensureWorkspaceTabsInHebrewOrder(spreadsheetId,mode); }
+    try{
+      await ensureWorkspaceTabsInHebrewOrder(spreadsheetId,mode);
+      await ensureSettingsStorage(spreadsheetId,mode);
+    }
     catch(e){ console.warn('[קבקליק] התאמת כיוון לשוניות הגיליון לא הושלמה:',e); }
   }
 }
@@ -4528,7 +4542,7 @@ document.getElementById('openSheetBtn').addEventListener('click', async ()=>{
   try{
     const meta=await gapi.client.sheets.spreadsheets.get({spreadsheetId:workspace.spreadsheetId});
     const sheets=(meta.result.sheets||[]).map(sheet=>sheet.properties);
-    await hideSettingsTabInSpreadsheet(workspace.spreadsheetId,sheets);
+    await ensureSettingsStorage(workspace.spreadsheetId,CFG.usageMode);
     const firstVisible=sheets.find(sheet=>sheet.title===RECEIPTS_SHEET && !sheet.hidden)
       || sheets.find(sheet=>sheet.title!==SETTINGS_SHEET && !sheet.hidden);
     if(!firstVisible) throw new Error('NO_VISIBLE_WORKSPACE_SHEET');
@@ -7233,13 +7247,8 @@ document.getElementById('rmmList').addEventListener('click', (e)=>{
 document.getElementById('remCancelBtn').addEventListener('click', closeResidentEditModal);
 document.getElementById('remSaveBtn').addEventListener('click', saveResidentEdit);
 
-/* ═══════════════════════════════════════
-   SHEETS: SETTINGS SYNC ACROSS DEVICES
-   Building name/logo/default fee are mirrored into a "הגדרות" tab inside
-   the same spreadsheet, so changing them on one device updates every other
-   device that opens the app. spreadsheetId/folderId stay local-only on
-   purpose — the app needs those *before* it can know which sheet to read.
-═══════════════════════════════════════ */
+/* Settings live in a separate spreadsheet inside the workspace root. The
+   public workbook holds only a private Drive appProperty pointing to it. */
 function buildSettingsRows(){
   return [
     ['מפתח','ערך'],
@@ -7261,27 +7270,125 @@ function buildSettingsRows(){
   ];
 }
 
-async function ensureSettingsSheet(){
-  const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:CFG.spreadsheetId});
-  const sheet = meta.result.sheets.find(s=>s.properties.title===SETTINGS_SHEET);
-  if(!sheet){
-    await gapi.client.sheets.spreadsheets.batchUpdate({
-      spreadsheetId:CFG.spreadsheetId,
-      resource:{requests:[{addSheet:{properties:{title:SETTINGS_SHEET, hidden:true}}}]}
-    });
-    return false;
+async function readSettingsFileRows(settingsFileId){
+  const result=await gapi.client.sheets.spreadsheets.values.get({
+    spreadsheetId:settingsFileId,range:`'${SETTINGS_SHEET}'!A:B`
+  });
+  return result.result.values||[];
+}
+
+async function readWorkspaceSettingsRows(spreadsheetId, knownTitles){
+  const file=await gapi.client.drive.files.get({fileId:spreadsheetId,fields:'id,appProperties'});
+  const settingsFileId=file.result.appProperties?.settingsFileId;
+  if(settingsFileId){
+    try{ return await readSettingsFileRows(settingsFileId); }
+    catch(e){
+      // An interrupted migration can still be recovered from the original tab.
+      if(!knownTitles?.includes(SETTINGS_SHEET)) throw e;
+    }
   }
-  if(!sheet.properties.hidden){
-    // Tab already existed (e.g. created before hiding was added) — hide it now.
-    await gapi.client.sheets.spreadsheets.batchUpdate({
-      spreadsheetId:CFG.spreadsheetId,
-      resource:{requests:[{updateSheetProperties:{
-        properties:{sheetId:sheet.properties.sheetId, hidden:true},
-        fields:'hidden'
-      }}]}
+  if(!knownTitles?.includes(SETTINGS_SHEET)){
+    // Recover the link if writing the workbook's pointer was interrupted.
+    const found=await gapi.client.drive.files.list({
+      q:`trashed=false and mimeType='application/vnd.google-apps.spreadsheet' and appProperties has { key='kabclick' and value='1' } and appProperties has { key='kind' and value='settings' } and appProperties has { key='workspaceId' and value='${spreadsheetId}' }`,
+      fields:'files(id,createdTime)',orderBy:'createdTime asc',pageSize:10
+    });
+    if(found.result.files?.[0]?.id) return await readSettingsFileRows(found.result.files[0].id);
+    return [];
+  }
+  return await readSettingsFileRows(spreadsheetId);
+}
+
+function sameSettingsValues(a,b){
+  const normalize=rows=>rows.map(row=>[
+    String(row[0]??'').trim(),String(row[1]??'').trim()
+  ]).filter(row=>row[0]);
+  return JSON.stringify(normalize(a))===JSON.stringify(normalize(b));
+}
+
+// Copy then verify the legacy tab before linking to the new file. This is
+// repeatable after an interrupted run and never changes the settings values.
+async function ensureSettingsStorage(spreadsheetId, mode){
+  const [meta,file]=await Promise.all([
+    gapi.client.sheets.spreadsheets.get({spreadsheetId}),
+    gapi.client.drive.files.get({fileId:spreadsheetId,fields:'id,appProperties,parents'})
+  ]);
+  const titles=(meta.result.sheets||[]).map(sheet=>sheet.properties.title);
+  if((mode==='business' && titles.includes('אנשי קשר') && !titles.includes('לקוחות')) ||
+     (mode==='vaad' && titles.includes('לקוחות') && !titles.includes('אנשי קשר'))){
+    throw new Error('MODE_WORKSPACE_MISMATCH');
+  }
+  const legacy=meta.result.sheets.find(s=>s.properties.title===SETTINGS_SHEET);
+  const properties=file.result.appProperties||{};
+  let settingsFileId=properties.settingsFileId||'';
+  const legacyRows=legacy ? await readSettingsFileRows(spreadsheetId) : [];
+  const seriesId=properties.seriesId||seriesIdFromSpreadsheetId(spreadsheetId);
+  const year=properties.year ||
+    String(legacyRows.find(row=>row[0]==='שנת עבודה')?.[1] || CFG.activeYear || currentCalendarYear());
+
+  if(!settingsFileId){
+    const found=await gapi.client.drive.files.list({
+      q:`trashed=false and mimeType='application/vnd.google-apps.spreadsheet' and appProperties has { key='kabclick' and value='1' } and appProperties has { key='kind' and value='settings' } and appProperties has { key='workspaceId' and value='${spreadsheetId}' }`,
+      fields:'files(id,createdTime)',orderBy:'createdTime asc',pageSize:10
+    });
+    settingsFileId=found.result.files?.[0]?.id||'';
+  }
+  if(!settingsFileId){
+    const name=legacyRows.find(row=>row[0]==='שם/כתובת בניין')?.[1] ||
+      (CFG.spreadsheetId===spreadsheetId ? CFG.buildingInfo : '') ||
+      (mode==='business'?'עסק':'ועד בית');
+    let rootId='';
+    for(const parentId of (file.result.parents||[])){
+      try{
+        const parent=await gapi.client.drive.files.get({
+          fileId:parentId,fields:'id,mimeType,appProperties'
+        });
+        if(parent.result.appProperties?.kind==='workspace-root' &&
+           parent.result.appProperties?.mode===mode &&
+           parent.result.mimeType==='application/vnd.google-apps.folder'){
+          rootId=parentId;
+          break;
+        }
+      }catch(e){ /* An older folder may not be accessible through drive.file. */ }
+    }
+    if(!rootId) rootId=await ensureWorkspaceRootFolder(name,seriesId,mode);
+    const created=await gapi.client.sheets.spreadsheets.create({
+      resource:{properties:{title:`הגדרות - לא למחוק - ${name} - ${year}`},
+        sheets:[{properties:{title:SETTINGS_SHEET,rightToLeft:true}}]}
+    });
+    settingsFileId=created.result.spreadsheetId;
+    await moveDriveFileIntoFolder(settingsFileId,rootId);
+    await gapi.client.drive.files.update({
+      fileId:settingsFileId,
+      resource:{appProperties:{kabclick:'1',kind:'settings',mode,year,
+        seriesId,workspaceId:spreadsheetId}}
     });
   }
-  return true;
+
+  let rows=await readSettingsFileRows(settingsFileId);
+  const seed=legacyRows.length ? legacyRows :
+    (CFG.spreadsheetId===spreadsheetId ? buildSettingsRows() : []);
+  if(!rows.length && seed.length){
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId:settingsFileId,range:`'${SETTINGS_SHEET}'!A1:B${seed.length}`,
+      valueInputOption:'RAW',resource:{values:seed}
+    });
+    rows=await readSettingsFileRows(settingsFileId);
+  }
+  if(!rows.length || (legacyRows.length && !sameSettingsValues(rows,legacyRows))){
+    throw new Error('SETTINGS_MIGRATION_VERIFICATION_FAILED');
+  }
+  if(properties.settingsFileId!==settingsFileId){
+    await gapi.client.drive.files.update({
+      fileId:spreadsheetId,resource:{appProperties:{settingsFileId}}
+    });
+  }
+  if(legacy){
+    await gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId,resource:{requests:[{deleteSheet:{sheetId:legacy.properties.sheetId}}]}
+    });
+  }
+  return {settingsFileId,rows};
 }
 
 async function syncSettingsFromSheet(){
@@ -7294,21 +7401,10 @@ async function syncSettingsFromSheet(){
     const titles = (meta.result.sheets||[]).map(s=>s.properties.title);
     if((mode==='business' && titles.includes('אנשי קשר') && !titles.includes('לקוחות')) ||
        (mode==='vaad' && titles.includes('לקוחות') && !titles.includes('אנשי קשר'))) return;
-    const existed = await ensureSettingsSheet();
+    const storage = await ensureSettingsStorage(spreadsheetId,mode);
     if(!stillCurrent()) return;
-    if(!existed){
-      // Brand-new tab — seed it with whatever this device already has locally,
-      // so the first device to connect defines the shared starting point.
-      await gapi.client.sheets.spreadsheets.values.update({
-        spreadsheetId,
-        range:`'${SETTINGS_SHEET}'!A1:B16`,
-        valueInputOption:'RAW',
-        resource:{values: buildSettingsRows()}
-      });
-      return;
-    }
     const res = await gapi.client.sheets.spreadsheets.values.get({
-      spreadsheetId, range:`'${SETTINGS_SHEET}'!A:B`
+      spreadsheetId:storage.settingsFileId, range:`'${SETTINGS_SHEET}'!A:B`
     });
     if(!stillCurrent()) return;
     const rows = res.result.values || [];
@@ -7366,10 +7462,10 @@ async function pushSettingsToSheet(throwOnError=false){
     const titles = (meta.result.sheets||[]).map(s=>s.properties.title);
     if((mode==='business' && titles.includes('אנשי קשר') && !titles.includes('לקוחות')) ||
        (mode==='vaad' && titles.includes('לקוחות') && !titles.includes('אנשי קשר'))) throw new Error('MODE_WORKSPACE_MISMATCH');
-    await ensureSettingsSheet();
+    const storage=await ensureSettingsStorage(spreadsheetId,mode);
     if(!stillCurrent()) return;
     await gapi.client.sheets.spreadsheets.values.update({
-      spreadsheetId,
+      spreadsheetId:storage.settingsFileId,
       range:`'${SETTINGS_SHEET}'!A1:B16`,
       valueInputOption:'RAW',
       resource:{values: buildSettingsRows()}
