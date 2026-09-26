@@ -1001,6 +1001,11 @@ body.setup-incomplete #homeResidentsSection{display:none !important;}
 .settings-section{border-top:1.5px solid var(--card-line);margin-top:20px;padding-top:16px;}
 .settings-panel>.settings-section:first-child{border-top:0;margin-top:8px;padding-top:8px;}
 .settings-section h4{font-size:13px;font-weight:700;color:var(--ink-soft);margin:0 0 12px;text-transform:uppercase;letter-spacing:.5px;}
+#settingsPanelFinance>.settings-section:first-child{margin-top:0;padding-top:2px;}
+#settingsPanelFinance .settings-section+ .settings-section{margin-top:10px;padding-top:10px;}
+#settingsPanelFinance .settings-section h4{margin-bottom:5px;}
+#settingsPanelFinance .settings-section p{line-height:1.4!important;}
+#settingsPanelFinance .settings-section label{margin-top:8px;}
 .settings-part-label{font-size:11px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin:0 0 8px;}
 @media(max-width:600px){
   .settings-tabs{top:-22px;margin-left:-4px;margin-right:-4px;}
@@ -2092,7 +2097,7 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '255';
+const APP_BUILD = '256';
 
 /* KABCLICK SERVICE WORKER - Build 214
    Keep the local app shell available so the installed PWA/TWA can start offline. */
