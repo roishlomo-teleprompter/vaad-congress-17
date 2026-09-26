@@ -327,6 +327,18 @@ body.home-active .finance-screen{height:auto;overflow:visible;}
 .workspace-open-btn{width:100%;min-height:44px;border:1.5px solid var(--blue);border-radius:12px;background:var(--blue-soft);color:var(--blue-dark);font-family:inherit;font-size:14px;font-weight:800;cursor:pointer;transition:.15s;}
 .workspace-open-btn:hover:not(:disabled){background:var(--blue);color:#fff;}
 .workspace-open-btn:disabled{border-color:var(--card-line);background:var(--app-bg);color:var(--slate);cursor:not-allowed;opacity:.72;}
+#settingsPanelData .workspace-button-group{margin:0 0 12px;}
+#settingsPanelData .workspace-button-heading{display:block;margin:0 0 7px;font-size:13px;font-weight:800;color:var(--ink);}
+#settingsPanelData .workspace-button-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;}
+#settingsPanelData .workspace-tile{position:relative;width:100%;min-width:0;min-height:82px;padding:12px 6px 8px;border:1.5px solid #bfd0ea;border-radius:13px;background:#f8fbff;color:var(--blue-dark);font:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:5px;text-align:center;transition:background .15s,border-color .15s;}
+#settingsPanelData .workspace-tile:hover:not(:disabled){background:#e8f0ff;border-color:var(--blue);}
+#settingsPanelData .workspace-tile:focus-visible{outline:3px solid var(--blue);outline-offset:2px;}
+#settingsPanelData .workspace-tile svg{position:absolute;right:9px;top:9px;width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+#settingsPanelData .workspace-tile-label{font-size:12px;font-weight:800;line-height:1.25;}
+#settingsPanelData .workspace-tile-subtitle{font-size:10px;font-weight:400;color:var(--slate);line-height:1.2;padding-right:22px;}
+#settingsPanelData .workspace-tile-connect{background:#fff;color:var(--ink);}
+#settingsPanelData .workspace-tile:disabled{background:#eef1f5;border-color:#dfe5ec;color:#96a0af;cursor:not-allowed;}
+#settingsPanelData .workspace-tile:disabled .workspace-tile-subtitle{color:#96a0af;}
 .locked-field-edit-btn{flex:none;width:38px;height:38px;border-radius:10px;border:1.5px solid var(--card-line);background:#fff;cursor:pointer;font-size:14px;transition:.15s;}
 .locked-field-edit-btn:hover{background:var(--blue-soft);border-color:var(--blue);}
 .mode-select-gate{position:fixed;top:0;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#fff;z-index:510;display:none;align-items:center;justify-content:center;padding:24px;overflow-y:auto;}
@@ -1719,19 +1731,27 @@ body.setup-incomplete #homeResidentsSection{display:none !important;}
       <button type="button" id="autoCreateBtn" class="generate-btn" style="margin:2px 0 14px;">✨ יצירת גיליון ותיקייה אוטומטית</button>
       <p id="autoCreateStatus" style="font-size:12.5px;margin:-8px 0 14px;text-align:center;min-height:1em;"></p>
 
-      <label>גיליון Google Sheets מחובר</label>
-      <button type="button" class="workspace-open-btn" id="openSheetBtn" aria-label="הצגת הגיליון של שנת העבודה הפעילה">📊 הצגת הגיליון</button>
+      <div class="workspace-button-group">
+        <span class="workspace-button-heading">פתיחת הקבצים</span>
+        <div class="workspace-button-row">
+          <button type="button" class="workspace-tile" id="openSheetBtn" aria-label="הצגת הגיליון של שנת העבודה הפעילה"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="2" width="18" height="20" rx="2"/><path d="M3 9h18M3 15h18M11 9v13"/></svg><span class="workspace-tile-subtitle">גיליון Google Sheets</span><span class="workspace-tile-label">הצגת הגיליון</span></button>
+          <button type="button" class="workspace-tile" id="openFolderBtn" aria-label="הצגת תיקיית הקבלות של שנת העבודה הפעילה"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 6a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2Z"/></svg><span class="workspace-tile-subtitle">תיקיית קבלות ב-Drive</span><span class="workspace-tile-label">הצגת תיקיית הקבלות</span></button>
+        </div>
+      </div>
       <input type="hidden" id="cfg-spreadsheetId">
-      <label>תיקיית Drive מחוברת</label>
-      <button type="button" class="workspace-open-btn" id="openFolderBtn" aria-label="הצגת תיקיית הקבלות של שנת העבודה הפעילה">📁 הצגת תיקיית הקבלות</button>
       <input type="hidden" id="cfg-folderId">
-      <button type="button" id="restoreExistingSheetBtn" class="small-btn" style="width:100%;margin-top:10px;" disabled>🔗 חיבור גיליון קיים</button>
+      <div class="workspace-button-group">
+        <span class="workspace-button-heading">ניהול החיבור</span>
+        <div class="workspace-button-row">
+          <button type="button" id="restoreExistingSheetBtn" class="workspace-tile workspace-tile-connect" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 13 4-4M8 16l-2 2a4 4 0 0 1-6-6l4-4a4 4 0 0 1 6 0M16 8l2-2a4 4 0 0 1 6 6l-4 4a4 4 0 0 1-6 0" transform="translate(1 0) scale(.92)"/></svg><span class="workspace-tile-label">חיבור גיליון קיים</span></button>
+          <button type="button" id="resetConnectionBtn" class="workspace-tile workspace-tile-connect"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 3 18 18M10 7l1-1a4 4 0 0 1 6 0l1 1a4 4 0 0 1 0 6l-1 1M14 17l-1 1a4 4 0 0 1-6 0l-1-1a4 4 0 0 1 0-6l1-1"/></svg><span class="workspace-tile-label">ניתוק גיליון קיים</span></button>
+        </div>
+      </div>
       <div id="restoreExistingSheetPanel" style="display:none;margin-top:10px;">
         <label for="restoreExistingSheetUrl">קישור לגיליון הקיים של מצב זה</label>
         <input type="url" id="restoreExistingSheetUrl" placeholder="https://docs.google.com/spreadsheets/d/..." dir="ltr">
         <button type="button" id="restoreExistingSheetConfirm" class="small-btn" style="width:100%;margin-top:8px;">בדיקה וחיבור לגיליון הקיים</button>
       </div>
-      <button type="button" id="resetConnectionBtn" class="small-btn" style="width:100%;margin-top:10px;">🔄 ניתוק גיליון קיים</button>
     </div>
     </div>
 
@@ -2068,7 +2088,7 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '253';
+const APP_BUILD = '254';
 
 /* KABCLICK SERVICE WORKER - Build 214
    Keep the local app shell available so the installed PWA/TWA can start offline. */
