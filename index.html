@@ -2103,7 +2103,7 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '261';
+const APP_BUILD = '262';
 
 /* KABCLICK SERVICE WORKER - Build 214
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -7096,11 +7096,11 @@ function openResidentEditModal(index, prefillName){
   const r = rmmEditingIndex>-1 ? residents[rmmEditingIndex] : {name:prefillName||'',phone:'',fee:'',email:'',apartment:''};
   const nameInput = document.getElementById('rem-name');
   nameInput.value = r.name||'';
-  nameInput.readOnly = rmmEditingIndex > -1;
-  nameInput.setAttribute('aria-readonly', rmmEditingIndex > -1 ? 'true' : 'false');
-  nameInput.style.background = rmmEditingIndex > -1 ? '#F1F5F9' : '';
-  nameInput.style.color = rmmEditingIndex > -1 ? '#64748B' : '';
-  nameInput.style.cursor = rmmEditingIndex > -1 ? 'not-allowed' : '';
+  nameInput.readOnly = false;
+  nameInput.setAttribute('aria-readonly', 'false');
+  nameInput.style.background = '';
+  nameInput.style.color = '';
+  nameInput.style.cursor = '';
   document.getElementById('rem-phone').value = r.phone||'';
   document.getElementById('rem-fee').value   = r.fee||'';
   document.getElementById('rem-apt').value   = r.apartment||'';
@@ -7138,15 +7138,75 @@ function selectResidentByName(name){
   toggleResidentClearBtn();
 }
 
+// Build 262: change only name/title cells in the active year's workbook.
+function contactRenameTitle(title, oldName, newName){
+  const text = String(title || '');
+  const suffixes = ['', ' תשלום', ' תשלום ועד'];
+  const suffix = suffixes.find(s=>text===oldName+s);
+  return suffix===undefined ? null : newName+suffix;
+}
+
+function contactRenameUpdates(contact, newName, contacts, receipts, finance){
+  const oldName = String(contact.name || '');
+  const norm = v=>String(v || '').trim();
+  const nameCol = residentsCols.name;
+  if(nameCol<0 || norm(contacts[contact.row-1]?.[nameCol])!==oldName){
+    throw new Error('פרטי איש הקשר השתנו בגיליון. רענן את הרשימה ונסה שוב.');
+  }
+  const names = contacts.slice(1).map(row=>norm(row[nameCol]));
+  if(names.filter(n=>n===oldName).length!==1 || names.includes(newName)){
+    throw new Error('קיים שם כפול. לא ניתן לשייך בבטחה את הקבלות והתנועות. יש להגדיר שמות ייחודיים לפני שינוי השם.');
+  }
+  const data = [];
+  if(receipts.length){
+    const header = receipts[0].map(norm);
+    const col = header.findIndex(h=>h==='שם דייר' || h==='שם לקוח');
+    if(col<0) throw new Error('לא זוהתה עמודת השם בלשונית קבלות. לא בוצע שינוי.');
+    if(receipts.slice(1).some(row=>norm(row[col])===newName)){
+      throw new Error('השם החדש כבר מופיע בקבלות. יש לבחור שם ייחודי כדי למנוע ערבוב היסטוריה.');
+    }
+    receipts.slice(1).forEach((row,i)=>{
+      if(norm(row[col])===oldName){
+        data.push({range:`'${RECEIPTS_SHEET}'!${colLetter(col)}${i+2}`,values:[[newName]]});
+      }
+    });
+  }
+  if(finance.length){
+    const header = finance[0].map(norm);
+    const col = header.indexOf('כותרת');
+    if(col<0) throw new Error('לא זוהתה עמודת הכותרת בלשונית הוצאות והכנסות. לא בוצע שינוי.');
+    if(finance.slice(1).some(row=>contactRenameTitle(row[col],newName,oldName)!==null)){
+      throw new Error('השם החדש כבר מופיע בתנועות. יש לבחור שם ייחודי כדי למנוע ערבוב היסטוריה.');
+    }
+    finance.slice(1).forEach((row,i)=>{
+      const title = contactRenameTitle(row[col],oldName,newName);
+      if(title!==null){
+        data.push({range:`'${FINANCE_SHEET}'!${colLetter(col)}${i+2}`,values:[[title]]});
+      }
+    });
+  }
+  return data;
+}
+
+async function prepareContactRename(contact, newName, spreadsheetId){
+  const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId,fields:'sheets.properties.title'});
+  const titles = (meta.result.sheets || []).map(s=>s.properties.title);
+  const sheets = [residentsSheetName(),RECEIPTS_SHEET,FINANCE_SHEET].filter(t=>titles.includes(t));
+  if(!sheets.includes(residentsSheetName())) throw new Error('לשונית אנשי הקשר לא נמצאה.');
+  const response = await gapi.client.sheets.spreadsheets.values.batchGet({
+    spreadsheetId,ranges:sheets.map(t=>`'${t}'!A:Z`),valueRenderOption:'FORMULA'
+  });
+  const grids = Object.fromEntries(sheets.map((t,i)=>[t,response.result.valueRanges?.[i]?.values || []]));
+  return contactRenameUpdates(contact,newName,grids[residentsSheetName()],grids[RECEIPTS_SHEET] || [],grids[FINANCE_SHEET] || []);
+}
+
 async function saveResidentEdit(){
   if(!navigator.onLine){
     await showOfflineReadOnlyMessage();
     return;
   }
   const nameInput = document.getElementById('rem-name');
-  const name = rmmEditingIndex > -1
-    ? (residents[rmmEditingIndex]?.name || '')
-    : nameInput.value.trim();
+  const name = nameInput.value.trim();
   const phone = document.getElementById('rem-phone').value.trim();
   const fee   = document.getElementById('rem-fee').value.trim();
   const apt   = document.getElementById('rem-apt').value.trim();
@@ -7176,7 +7236,7 @@ async function saveResidentEdit(){
       });
     } else {
       const r = residents[rmmEditingIndex];
-      const updates = [];
+      const updates = [{field:residentsCols.name, val:name}];
       if(residentsCols.phone>-1)     updates.push({field:residentsCols.phone, val:phone});
       if(residentsCols.fee>-1)       updates.push({field:residentsCols.fee,   val:fee});
       if(residentsCols.email>-1)     updates.push({field:residentsCols.email, val:email});
@@ -7185,10 +7245,30 @@ async function saveResidentEdit(){
         range:`'${sheetName}'!${colLetter(u.field)}${r.row}`,
         values:[[u.val]]
       }));
+      const spreadsheetId = CFG.spreadsheetId;
+      const oldName = r.name;
+      if(name!==oldName){
+        data.push(...await prepareContactRename(r,name,spreadsheetId));
+      }
+      if(CFG.spreadsheetId!==spreadsheetId || residentsSheetName()!==sheetName){
+        throw new Error('סביבת העבודה השתנתה. פתח מחדש את איש הקשר ונסה שוב.');
+      }
       await gapi.client.sheets.spreadsheets.values.batchUpdate({
-        spreadsheetId:CFG.spreadsheetId,
+        spreadsheetId,
         resource:{valueInputOption:'RAW', data}
       });
+      // Update caches only after the combined write succeeds, before reload.
+      if(name!==oldName){
+        r.name = name;
+        allReceiptRows.forEach(row=>{if(String(row[1]||'').trim()===oldName) row[1]=name;});
+        financeRows.forEach(row=>{
+          const title=contactRenameTitle(row.title,oldName,name);
+          if(title!==null) row.title=title;
+        });
+        saveOfflineDataSnapshot();
+        renderFinanceSummary();
+        renderFinanceTxList(financeShowingAll ? undefined : 5);
+      }
     }
     const wasWizardAdd = rmmAddContext==='wizard';
     closeResidentEditModal(); // also resets rmmAddContext back to 'management'
