@@ -2103,7 +2103,7 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '262';
+const APP_BUILD = '263';
 
 /* KABCLICK SERVICE WORKER - Build 214
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -5127,6 +5127,9 @@ function renderPaymentPlanPanel(){
     if(selectedPay==="צ'קים"){
       note.textContent += ' ביטול התוכנית באפליקציה אינו מבטל את הצ\'קים בבנק.';
     }
+    if(!isBiz){
+      note.textContent += ' התשלום הראשון ייכנס ליתרה היום, והבאים ב-1 בכל חודש עוקב, ללא קשר לחודשי דמי הוועד שנבחרו.';
+    }
   }else{
     note.textContent = 'מלוא סכום הקבלה יירשם כהכנסה במועד ההפקה.';
   }
@@ -7750,8 +7753,13 @@ function buildPaymentPlanSnapshot(total, serviceYear, receiptNumber){
     const first=document.getElementById('paymentFirstDate').value;
     dates=Array.from({length:count},(_,i)=>addMonthsToIso(first,i));
   }else{
-    dates=sortedMonths().map(monthIndex=>
-      Number(serviceYear)+'-'+String(monthIndex+1).padStart(2,'0')+'-01'
+    // Service months describe what the receipt covers, not when money is due.
+    // Recognize the first installment today; subsequent installments are due
+    // on the first day of each following month, including across year changes.
+    const today=todayIsoLocal();
+    const monthStart=today.slice(0,7)+'-01';
+    dates=sortedMonths().map((monthIndex,i)=>
+      i===0 ? today : addMonthsToIso(monthStart,i)
     );
   }
   if(!dates.length) return null;
