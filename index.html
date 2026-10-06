@@ -1411,6 +1411,14 @@ body.setup-incomplete #homeResidentsSection{display:none !important;}
 
   <!-- FINANCE SCREEN · הוצאות והכנסות -->
   <div class="card finance-screen" id="financeScreen" style="display:none;">
+    <div id="pendingFinanceNotice" role="status" style="display:none;padding:12px;margin-bottom:14px;background:var(--warn-bg,#fff4d6);border-radius:12px"></div>
+    <button type="button" id="retryPendingFinanceBtn" class="small-btn" style="display:none;margin-bottom:12px">השלמת רישומים חסרים</button>
+    <details style="margin-bottom:16px"><summary>השלמת הכנסות לקבלה קיימת</summary>
+      <label for="repairReceiptNumber">מספר הקבלה משנת העבודה הפעילה</label>
+      <input id="repairReceiptNumber" type="number" min="1" step="1" placeholder="מספר קבלה">
+      <button type="button" id="repairReceiptIncomeBtn" class="small-btn">בדיקה והשלמת הכנסות</button>
+      <p style="font-size:12px">מיועד לקבלות ועד בית עם פריסת תשלומים וחודשי שירות הכוללים שנה. הקבלה וה-PDF לא יופקו שוב.</p>
+    </details>
     <div class="finance-header">
       <button type="button" class="finance-header-btn" id="financeBackBtn" aria-label="חזרה">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
@@ -2109,7 +2117,7 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '264';
+const APP_BUILD = '265';
 
 /* KABCLICK SERVICE WORKER - Build 214
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -8255,6 +8263,14 @@ async function appendFinanceRow(entry, spreadsheetId){
 
 async function appendScheduledFinanceRows(plan, entry, spreadsheetId, yearTargets=null){
   if(yearTargets){
+    // A cancelled remainder must not be recreated by a previously queued retry.
+    for(const target of Object.values(yearTargets)){
+      const state=await gapi.client.sheets.spreadsheets.values.get({spreadsheetId:target.spreadsheetId,range:`'${FINANCE_SHEET}'!K2:P`});
+      if((state.result.values||[]).some(r=>String(r[0])===plan.id && r[1]==='בוטל')){
+        const error=new Error('יתרת התוכנית בוטלה. השלמה אוטומטית נעצרה כדי לא להחזיר תשלומים שבוטלו.');
+        error.cancelledPlan=true;throw error;
+      }
+    }
     for(const year of [...new Set(plan.dates.map(d=>Number(d.slice(0,4))))]){
       const indices=plan.dates.map((d,i)=>Number(d.slice(0,4))===year?i:-1).filter(i=>i>=0);
       const target=yearTargets[year];
@@ -8276,10 +8292,9 @@ async function appendScheduledFinanceRows(plan, entry, spreadsheetId, yearTarget
   });
   const existing=await gapi.client.sheets.spreadsheets.values.get({
     spreadsheetId:targetSpreadsheetId,
-    range:`'${FINANCE_SHEET}'!K2:K`
+    range:`'${FINANCE_SHEET}'!K2:P`
   });
-  const planAlreadyExists=(existing.result.values||[]).some(r=>String(r[0]||'')===plan.id);
-  if(planAlreadyExists) return;
+  const written=new Set((existing.result.values||[]).filter(r=>String(r[0]||'')===plan.id).map(r=>Number(r[2])));
 
   const rows=plan.dates.map((date,i)=>[
     date,
@@ -8299,7 +8314,8 @@ async function appendScheduledFinanceRows(plan, entry, spreadsheetId, yearTarget
     plan.sourceReceipt,
     plan.total,
     plan.serviceMonths?.[i]?.key || ''
-  ]);
+  ]).filter(row=>!written.has(Number(row[12])));
+  if(!rows.length) return;
   await gapi.client.sheets.spreadsheets.values.append({
     spreadsheetId:targetSpreadsheetId,
     range:`'${FINANCE_SHEET}'!A:Q`,
@@ -8577,6 +8593,7 @@ async function loadAndRenderFinanceScreen(){
   renderFinanceTxList(financeShowingAll ? undefined : 5);
   renderFinanceDonut(totals);
   renderFutureIncome();
+  renderPendingReceiptIncome();
 }
 
 document.getElementById('financeScreen').addEventListener('click', (e)=>{
@@ -9872,6 +9889,8 @@ async function performGenerateReceipt(){
   // background save is correct even if the person has already moved on to
   // a different resident or a new receipt by the time it finishes.
   const snap = {
+    account:CFG.email,
+    seriesId:ensureLocalWorkspaceSeriesId(),
     resident: r,
     payMethod: receiptPaymentLabel(),
     isOtherPurpose: otherPurposeNow,
@@ -9892,6 +9911,7 @@ async function performGenerateReceipt(){
     email: r.email,
     receiptNumber: CFG.nextReceiptNumber || 1000,
 
+    issueDate:todayIsoLocal(),
     serviceYear,
     receiptYear,
     targetSpreadsheetId: CFG.spreadsheetId,
@@ -9958,6 +9978,150 @@ async function performGenerateReceipt(){
  * short backoff for other transient errors — rather than losing the record
  * or interrupting whatever the person is doing next.
  */
+const RECEIPT_INCOME_QUEUE_KEY='kabclick_receipt_income_queue_v1';
+const receiptIncomeRuns=new Map();
+function readReceiptIncomeQueue(){
+  const raw=localStorage.getItem(RECEIPT_INCOME_QUEUE_KEY);
+  if(!raw) return [];
+  const jobs=JSON.parse(raw);
+  if(!Array.isArray(jobs)) throw new Error('רשימת הרישומים הממתינים אינה תקינה.');
+  return jobs;
+}
+function saveReceiptIncomeJob(job){
+  const jobs=readReceiptIncomeQueue().filter(j=>j.id!==job.id);
+  if(!job.financeDone || !job.allocationsDone) jobs.push(job);
+  localStorage.setItem(RECEIPT_INCOME_QUEUE_KEY,JSON.stringify(jobs));
+}
+function receiptIncomeJobMatchesAccount(job){
+  return job.account===CFG.email && job.mode===CFG.usageMode && job.seriesId===ensureLocalWorkspaceSeriesId();
+}
+function receiptIncomeError(stage,error){
+  const detail=error?.result?.error?.message || error?.message || String(error?.status||'שגיאה לא מזוהה');
+  return stage+': '+detail;
+}
+function queueReceiptIncome(snap,monthsCell){
+  const id=snap.receiptYear+':'+snap.targetSpreadsheetId+':'+snap.receiptNumber;
+  const existing=readReceiptIncomeQueue().find(j=>j.id===id);
+  if(existing) return existing;
+  const date=snap.issueDate||todayIsoLocal();
+  const plan=snap.paymentPlan || {id:'KR-'+id,dates:[date],amounts:[snap.totalAmount],count:1,total:snap.totalAmount,payMethod:snap.payMethod,sourceReceipt:String(snap.receiptNumber)};
+  const job={id,account:snap.account||CFG.email,mode:snap.usageMode,seriesId:snap.seriesId||ensureLocalWorkspaceSeriesId(),snap,plan,
+    entry:{date,type:'income',title:snap.resident.name+(snap.usageMode==='business'?' תשלום':' תשלום ועד'),category:snap.usageMode==='business'?'הכנסה מלקוח':'דמי ועד',amount:snap.totalAmount,paymethod:snap.payMethod,note:snap.isOtherPurpose?snap.purposeText:monthsCell},
+    financeDone:false,allocationsDone:!snap.yearTargets,errors:[]};
+  saveReceiptIncomeJob(job);
+  return job;
+}
+async function completeReceiptIncome(job){
+  if(receiptIncomeRuns.has(job.id)) return await receiptIncomeRuns.get(job.id);
+  const running=(async()=>{
+    if(!receiptIncomeJobMatchesAccount(job) || !navigator.onLine || !accessToken) return {ok:false,errors:['יש להתחבר לחשבון ולסוג החשבון שבהם הופקה הקבלה כדי להשלים את הרישום.']};
+    job.errors=[];
+    if(!job.financeDone){
+      try{
+        await appendScheduledFinanceRows(job.plan,job.entry,job.snap.targetSpreadsheetId,job.snap.yearTargets);
+        job.financeDone=true;saveReceiptIncomeJob(job);
+      }catch(e){job.errors.push(receiptIncomeError('רישום הכנסות',e));if(e.cancelledPlan) job.cancelledPlan=true;}
+    }
+    if(!job.allocationsDone && !job.cancelledPlan && receiptIncomeJobMatchesAccount(job)){
+      try{await appendServiceAllocations(job.snap);job.allocationsDone=true;saveReceiptIncomeJob(job);}
+      catch(e){job.errors.push(receiptIncomeError('רישום חודשי שירות',e));}
+    }
+    saveReceiptIncomeJob(job);
+    renderPendingReceiptIncome();
+    return {ok:job.financeDone && job.allocationsDone,errors:job.errors};
+  })();
+  receiptIncomeRuns.set(job.id,running);
+  try{return await running;}finally{receiptIncomeRuns.delete(job.id);}
+}
+function renderPendingReceiptIncome(){
+  const notice=document.getElementById('pendingFinanceNotice');
+  const button=document.getElementById('retryPendingFinanceBtn');
+  if(!notice || !button) return;
+  const jobs=readReceiptIncomeQueue().filter(receiptIncomeJobMatchesAccount);
+  notice.style.display=button.style.display=jobs.length?'block':'none';
+  notice.textContent=jobs.map(j=>'קבלה '+j.snap.receiptNumber+': '+(j.errors?.join(' | ')||'ממתינה להשלמת רישום')).join('\n');
+}
+async function retryPendingReceiptIncome(){
+  const jobs=readReceiptIncomeQueue().filter(receiptIncomeJobMatchesAccount);
+  for(const job of jobs) await completeReceiptIncome(job);
+  await loadAndRenderFinanceScreen();
+  await loadServiceAllocations();
+  const left=readReceiptIncomeQueue().filter(receiptIncomeJobMatchesAccount);
+  if(!left.length) showMsg('הרישומים החסרים הושלמו. הקבלות המקוריות לא הופקו שוב.','ok');
+}
+document.getElementById('retryPendingFinanceBtn').addEventListener('click',async e=>{
+  e.target.disabled=true;
+  try{await retryPendingReceiptIncome();}catch(err){showMsg(receiptIncomeError('השלמת רישום',err),'error');}
+  finally{e.target.disabled=false;}
+});
+
+async function repairExistingReceiptIncome(number){
+  if(CFG.usageMode!=='vaad') throw new Error('השלמה לקבלה קיימת זמינה כרגע במצב ועד בית בלבד.');
+  if(!navigator.onLine || !accessToken) throw new Error('יש להתחבר ל-Google לפני השלמת רישום.');
+  await loadAllReceiptRows();
+  const matches=allReceiptRows.filter(r=>String(r[7]||'')===String(number));
+  if(matches.length!==1) throw new Error('לא נמצאה קבלה יחידה עם המספר הזה בשנת העבודה הפעילה.');
+  const row=matches[0], issued=parseHebrewDate(row[0]);
+  const method=String(row[6]||'');
+  if(!issued || !["צ'קים דחויים",'העברה בנקאית חודשית','הוראת קבע'].includes(method)) throw new Error('נדרשת קבלה עם פריסת תשלומים חודשית.');
+  const issueDate=issued.getFullYear()+'-'+String(issued.getMonth()+1).padStart(2,'0')+'-'+String(issued.getDate()).padStart(2,'0');
+  if(issueDate<'2026-10-06') throw new Error('לקבלה זו נדרשת בדיקה ידנית של מועדי התשלום המקוריים. לא בוצע שינוי.');
+  const serviceMonths=String(row[3]||'').split(',').map(label=>{
+    const match=label.trim().match(/^(.*?) (20\d{2})$/);
+    const monthIndex=match?MONTH_NAMES.indexOf(match[1]):-1;
+    if(monthIndex<0) throw new Error('חודשי השירות אינם כוללים שנה מפורשת. נדרשת בדיקה ידנית.');
+    return {year:Number(match[2]),monthIndex,key:match[2]+'-'+String(monthIndex+1).padStart(2,'0')};
+  });
+  const count=serviceMonths.length,total=Number(row[5]);
+  if(!count || count>60 || Number(row[4])!==count || !(total>0)) throw new Error('פרטי הסכום ומספר החודשים בקבלה אינם תואמים.');
+  const resident=residents.find(r=>r.name===String(row[1]) && (r.phone||'')===String(row[2]||''));
+  if(!resident) throw new Error('הדייר שבקבלה אינו תואם לרשימת הדיירים הנוכחית. לא בוצע שינוי.');
+  const dates=Array.from({length:count},(_,i)=>i===0?issueDate:addMonthsToIso(issueDate.slice(0,7)+'-01',i));
+  const amounts=splitInstallmentAmounts(total,count);
+  const ids=new Set(),existingRows=[];
+  await discoverAnnualWorkspacesFromDrive();
+  for(const workspace of Object.values(CFG.yearWorkspaces||{})){
+    const spreadsheetId=workspace.spreadsheetId;
+    const meta=await gapi.client.sheets.spreadsheets.get({spreadsheetId,fields:'sheets(properties)'});
+    const titles=(meta.result.sheets||[]).map(s=>s.properties.title);
+    if(titles.includes(FINANCE_SHEET)){
+      const res=await gapi.client.sheets.spreadsheets.values.get({spreadsheetId,range:`'${FINANCE_SHEET}'!A2:Q`});
+      (res.result.values||[]).forEach(r=>{
+        if(String(r[14]||'')===String(number) && r[10]){ids.add(String(r[10]));existingRows.push(r);}
+        else if(!r[10] && r[1]==='הכנסה' && String(r[2])===resident.name+' תשלום ועד' && String(r[6])===String(row[3])) throw new Error('נמצא רישום הכנסה ללא מזהה תוכנית. נדרשת בדיקה ידנית כדי למנוע כפילות.');
+      });
+    }
+    if(titles.includes(SERVICE_ALLOCATIONS_SHEET)){
+      const res=await gapi.client.sheets.spreadsheets.values.get({spreadsheetId,range:`'${SERVICE_ALLOCATIONS_SHEET}'!A2:J`});
+      (res.result.values||[]).filter(r=>String(r[6])===String(number) && Number(r[7])===issued.getFullYear() && r[8]).forEach(r=>ids.add(String(r[8])));
+    }
+  }
+  if(ids.size>1) throw new Error('נמצאו כמה תוכניות לאותה קבלה. נדרשת בדיקה ידנית.');
+  if(existingRows.some(r=>r[11]==='בוטל')) throw new Error('יתרת התוכנית בוטלה. נדרשת בדיקה ידנית לפני השלמת רישום.');
+  for(const r of existingRows){
+    const i=Number(r[12])-1;
+    if(i<0 || i>=count || String(r[0])!==dates[i] || Number(r[4])!==amounts[i] || Number(r[13])!==count || Number(r[15])!==total) throw new Error('מועדי התוכנית הקיימת אינם תואמים לשחזור. לא בוצע שינוי.');
+  }
+  const plan={id:[...ids][0]||'KR-'+issued.getFullYear()+':'+CFG.spreadsheetId+':'+number,dates,amounts,count,total,payMethod:method,sourceReceipt:String(number),serviceMonths};
+  const ok=await showAppConfirm(`להשלים את רישום ההכנסות לקבלה ${number} של ${resident.name}, בסך ${total.toLocaleString('he-IL')} ₪?\n${count} תשלומים, החל מ-${issueDate}. רק תשלומים חסרים יתווספו. הקבלה לא תופק שוב.`,'📋','השלם רישום','ביטול');
+  if(!ok) return;
+  const snap={account:CFG.email,seriesId:ensureLocalWorkspaceSeriesId(),usageMode:CFG.usageMode,resident:{...resident},receiptNumber:Number(number),receiptYear:issued.getFullYear(),issueDate,totalAmount:total,payMethod:method,isOtherPurpose:false,serviceMonths,months:serviceMonths.map(m=>m.monthIndex),paymentPlan:plan,targetSpreadsheetId:CFG.spreadsheetId,targetFolderId:CFG.folderId};
+  snap.yearTargets=await prepareReceiptYearTargets(serviceMonths,plan,snap.receiptYear);
+  const result=await completeReceiptIncome(queueReceiptIncome(snap,String(row[3])));
+  if(!result.ok) throw new Error(result.errors.join(' | '));
+  await loadAndRenderFinanceScreen();await loadServiceAllocations();
+  showMsg('רישום ההכנסות הושלם לקבלה '+number+'. הקבלה המקורית נשמרה ללא שינוי.','ok');
+}
+document.getElementById('repairReceiptIncomeBtn').addEventListener('click',async e=>{
+  e.target.disabled=true;
+  try{
+    const number=Number(document.getElementById('repairReceiptNumber').value);
+    if(!Number.isInteger(number) || number<1) throw new Error('יש להזין מספר קבלה תקין.');
+    await repairExistingReceiptIncome(number);
+  }catch(err){showMsg(receiptIncomeError('השלמת קבלה קיימת',err),'error');}
+  finally{e.target.disabled=false;}
+});
+
 async function finalizeReceiptInBackground(snap, blob, filename, attempt){
   attempt = attempt || 0;
   try{
@@ -9987,49 +10151,11 @@ async function finalizeReceiptInBackground(snap, blob, filename, attempt){
       paintMonthsGrid();
     }
 
-    let financeLogFailed = false;
-    try{
-      if(snap.yearTargets){
-        await appendServiceAllocations(snap);await loadServiceAllocations();
-        if(currentResident()?.name===r.name && (currentResident()?.phone||'')===(r.phone||'')){paidMonthsSet=getPaidMonthsForResident(currentResident());paintMonthsGrid();}
-      }
-    }catch(allocationErr){
-      financeLogFailed=true;
-      console.error('רישום חודשי השירות נכשל:',allocationErr);
-    }
-    try{
-      const isBiz = snap.usageMode==='business';
-      const financeTitle = isBiz ? `${r.name} תשלום` : `${r.name} תשלום ועד`;
-      const financeCategory = isBiz ? 'הכנסה מלקוח' : 'דמי ועד';
-      const financeNote = snap.isOtherPurpose ? snap.purposeText : monthsCell;
-      const financeEntry = {
-        date: todayIsoLocal(),
-        type: 'income',
-        title: financeTitle,
-        category: financeCategory,
-        amount: total,
-        paymethod: snap.payMethod,
-        note: financeNote
-      };
-      if(snap.paymentPlan){
-        await appendScheduledFinanceRows(
-          snap.paymentPlan,
-          financeEntry,
-          snap.targetSpreadsheetId,
-          snap.yearTargets
-        );
-      }else{
-        await appendFinanceRow(financeEntry, snap.targetSpreadsheetId);
-      }
-    }catch(financeErr){
-      // Non-fatal — the receipt itself is already saved and logged; a
-      // finance-tracking hiccup shouldn't ever block or alarm the person
-      // over a receipt that succeeded. Surfaced in the in-app message below
-      // (not just devtools console) so this is visible without opening
-      // DevTools.
-      financeLogFailed = true;
-      console.error('[קבקליק] רישום אוטומטי בהוצאות/הכנסות נכשל (לא חוסם, אבל בדקו למה):', financeErr);
-    }
+    let incomeResult;
+    try{incomeResult=await completeReceiptIncome(queueReceiptIncome(snap,monthsCell));}
+    catch(e){incomeResult={ok:false,errors:[receiptIncomeError('שמירת רישום להשלמה',e)]};}
+    const financeLogFailed=!incomeResult.ok;
+    const incomeWarning=incomeResult.errors.length ? ' ⚠️ '+incomeResult.errors.join(' | ') : '';
 
     if(snap.wantsEmail){
       try{
@@ -10037,12 +10163,12 @@ async function finalizeReceiptInBackground(snap, blob, filename, attempt){
           isOtherPurpose:snap.isOtherPurpose,
           purposeText:snap.purposeText
         });
-        showMsg('✅ הקבלה נשמרה ב-Drive ונשלחה למייל '+snap.email+'.'+(financeLogFailed?' ⚠️ רישום אוטומטי בהוצאות/הכנסות נכשל.':''),'ok');
+        showMsg('✅ הקבלה נשמרה ב-Drive ונשלחה למייל '+snap.email+'.'+incomeWarning,'ok');
       }catch(emailErr){
         showMsg('הקבלה נשמרה ב-Drive, אך שליחת המייל נכשלה: '+(emailErr.message||emailErr),'error');
       }
     } else {
-      showMsg('✅ הקבלה נשמרה ב-Drive ותועדה בגיליון "קבלות".'+(financeLogFailed?' ⚠️ רישום אוטומטי בהוצאות/הכנסות נכשל — פרטי השגיאה במסוף (F12 → Console).':''), financeLogFailed?'error':'ok');
+      showMsg('✅ הקבלה נשמרה ב-Drive ותועדה בגיליון "קבלות".'+incomeWarning, financeLogFailed?'error':'ok');
     }
   }catch(e){
     console.warn('[קבקליק] שמירת קבלה ברקע נכשלה:', e);
