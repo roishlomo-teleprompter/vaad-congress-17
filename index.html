@@ -1232,6 +1232,7 @@ body.setup-incomplete #homeResidentsSection{display:none !important;}
 .service-period-summary>span{display:block;}
 .service-period-count{margin-top:3px;color:var(--slate);font-size:13px;}
 
+.receipt-progress-spinner{display:inline-block;width:16px;height:16px;border:2px solid #bfdbfe;border-top-color:#2563eb;border-radius:50%;animation:loginAuthSpin .8s linear infinite;vertical-align:middle;margin-left:8px;}
 </style>
 </head>
 <body class="home-active">
@@ -1654,6 +1655,11 @@ body.setup-incomplete #homeResidentsSection{display:none !important;}
       <div class="wizard-preview-label">תצוגה מקדימה</div>
       <div class="receipt-preview-wrap" id="receiptPaper">
         <div class="empty-hint">בחרו דייר, אמצעי תשלום וחודשים — התצוגה המקדימה תופיע כאן.</div>
+      </div>
+      <div id="receiptProgress" role="status" aria-live="polite" hidden style="padding:14px;margin:12px 0;border:1px solid #bfdbfe;border-radius:12px;background:#eff6ff;color:#1e40af;">
+        <span class="receipt-progress-spinner" aria-hidden="true"></span>
+        <span id="receiptProgressText"></span>
+        <div id="receiptProgressElapsed" style="font-size:12px;margin-top:6px;"></div>
       </div>
       <div class="msg" id="msgBox"></div>
     </div>
@@ -2131,7 +2137,11 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '266';
+const APP_BUILD = '267';
+let receiptGenerationBusy=false;
+let receiptProgressTimer=null;
+let receiptProgressStarted=0;
+
 
 /* KABCLICK SERVICE WORKER - Build 214
    Keep the local app shell available so the installed PWA/TWA can start offline. */
@@ -3545,7 +3555,10 @@ async function activateYearWorkspace(year, workspace, loadData){
   applyBranding();
   refreshWorkspaceOpenButtons();
 
-  if(loadData){
+  if(loadData==='receipt'){
+    await syncSettingsFromSheet({strict:true});
+    await loadResidents();
+  }else if(loadData){
     await loadDataForCurrentAccountMode();
   }
 
@@ -3760,6 +3773,12 @@ async function prepareAnnualSpreadsheet(spreadsheetId, contacts){
   });
 }
 
+async function receiptWorkspaceTabsReady(spreadsheetId){
+  const meta=await gapi.client.sheets.spreadsheets.get({spreadsheetId,fields:'sheets(properties(title))'});
+  const titles=new Set((meta.result.sheets||[]).map(s=>s.properties.title));
+  return [residentsSheetName(),RECEIPTS_SHEET,FINANCE_SHEET].every(title=>titles.has(title));
+}
+
 async function yearWorkspaceIsHealthy(workspace){
   if(!workspace?.spreadsheetId || !workspace?.folderId) return false;
   try{
@@ -3845,7 +3864,8 @@ async function verifyAnnualWorkspaceReady(year, spreadsheetId, folderId){
   }
 }
 
-async function ensureYearWorkspaceForWrite(targetYear, {automatic=false}={}){
+async function ensureYearWorkspaceForWrite(targetYear, {automatic=false,onProgress=()=>{}}={}){
+  onProgress('בודק את שנת העבודה '+targetYear+'…');
   const year = parseInt(targetYear,10);
   if(!year){
     await showAppAlert('לא ניתן לזהות את שנת הפעולה.','⚠️');
@@ -3864,6 +3884,10 @@ async function ensureYearWorkspaceForWrite(targetYear, {automatic=false}={}){
     return false;
   }
 
+  const current=Number(CFG.activeYear)===year && CFG.spreadsheetId && CFG.folderId
+    ? {spreadsheetId:CFG.spreadsheetId,folderId:CFG.folderId} : null;
+  if(automatic && current && await yearWorkspaceIsHealthy(current) && await receiptWorkspaceTabsReady(current.spreadsheetId)) return true;
+
   // Migration step: stamp every year already known locally before
   // searching Drive for the requested year.
   await stampKnownYearWorkspacesSeriesIdentity();
@@ -3881,21 +3905,21 @@ async function ensureYearWorkspaceForWrite(targetYear, {automatic=false}={}){
     await discoverAnnualWorkspacesFromDrive();
 
     let existing = (CFG.yearWorkspaces || {})[String(year)];
-    if(existing && await yearWorkspaceIsHealthy(existing)){
+    if(existing && await yearWorkspaceIsHealthy(existing) && (!automatic || await receiptWorkspaceTabsReady(existing.spreadsheetId))){
       if(Number(CFG.activeYear)!==year){
-        await activateYearWorkspace(year, existing, true);
+        await activateYearWorkspace(year, existing, automatic?false:true);
       }
-      await refreshAnnualCarryForwardIfPristine(year);
+      if(!automatic) await refreshAnnualCarryForwardIfPristine(year);
       return true;
     }
 
     // Required re-check in Drive before offering creation.
     let driveWorkspace = await findYearWorkspaceOnDrive(year);
-    if(driveWorkspace.spreadsheetId && driveWorkspace.folderId){
+    if(driveWorkspace.spreadsheetId && driveWorkspace.folderId && (!automatic || await receiptWorkspaceTabsReady(driveWorkspace.spreadsheetId))){
       registerYearWorkspace(year, driveWorkspace.spreadsheetId, driveWorkspace.folderId);
       persistCurrentAccountCfg();
-      await activateYearWorkspace(year, CFG.yearWorkspaces[String(year)], true);
-      await refreshAnnualCarryForwardIfPristine(year);
+      await activateYearWorkspace(year, CFG.yearWorkspaces[String(year)], automatic?false:true);
+      if(!automatic) await refreshAnnualCarryForwardIfPristine(year);
       return true;
     }
 
@@ -3912,11 +3936,11 @@ async function ensureYearWorkspaceForWrite(targetYear, {automatic=false}={}){
 
     // Re-check again after confirmation to avoid duplicates.
     driveWorkspace = await findYearWorkspaceOnDrive(year);
-    if(driveWorkspace.spreadsheetId && driveWorkspace.folderId){
+    if(driveWorkspace.spreadsheetId && driveWorkspace.folderId && (!automatic || await receiptWorkspaceTabsReady(driveWorkspace.spreadsheetId))){
       registerYearWorkspace(year, driveWorkspace.spreadsheetId, driveWorkspace.folderId);
       persistCurrentAccountCfg();
-      await activateYearWorkspace(year, CFG.yearWorkspaces[String(year)], true);
-      await refreshAnnualCarryForwardIfPristine(year);
+      await activateYearWorkspace(year, CFG.yearWorkspaces[String(year)], automatic?false:true);
+      if(!automatic) await refreshAnnualCarryForwardIfPristine(year);
       return true;
     }
 
@@ -3926,11 +3950,13 @@ async function ensureYearWorkspaceForWrite(targetYear, {automatic=false}={}){
       return false;
     }
 
+    onProgress('יוצר סביבת עבודה חדשה לשנת '+year+' - קורא את נתוני השנה הקודמת…');
     let sourceSnapshot;
     try{
       sourceSnapshot = await readAnnualSourceSnapshot(source);
     }catch(e){
       console.error('[קבקליק] קריאת השנה הקודמת נכשלה:', e);
+      if(automatic) throw e;
       await showAppAlert('לא ניתן היה לקרוא באופן מלא את נתוני השנה הקודמת. לא נוצרה שנת עבודה חדשה.','⚠️');
       return false;
     }
@@ -3961,6 +3987,7 @@ async function ensureYearWorkspaceForWrite(targetYear, {automatic=false}={}){
       );
 
       if(!spreadsheetId){
+        onProgress('יוצר גיליון חדש לשנת '+year+'…');
         const created = await gapi.client.drive.files.create({
           resource:{
             name:`קבקליק - ${titleBase} - ${year}`,
@@ -3981,6 +4008,7 @@ async function ensureYearWorkspaceForWrite(targetYear, {automatic=false}={}){
       }
 
       if(!folderId){
+        onProgress('יוצר תיקיית קבלות לשנת '+year+'…');
         const created = await gapi.client.drive.files.create({
           resource:{
             name:`קבלות - ${titleBase} - ${year}`,
@@ -4046,6 +4074,7 @@ async function ensureYearWorkspaceForWrite(targetYear, {automatic=false}={}){
         moveDriveFileIntoFolder(folderId, workspaceRootId)
       ]);
 
+      onProgress('מכין את הלשוניות ומעתיק אנשי קשר לשנת '+year+'…');
       await prepareAnnualSpreadsheet(spreadsheetId, sourceSnapshot.contacts);
 
       CFG.activeYear = year;
@@ -4061,6 +4090,7 @@ async function ensureYearWorkspaceForWrite(targetYear, {automatic=false}={}){
       await ensureReceiptsSheet();
       await ensureFinanceSheet();
       await pushSettingsToSheet();
+      onProgress('מוודא שהגיליון לשנת '+year+' מוכן…');
       await verifyAnnualWorkspaceReady(year, spreadsheetId, folderId);
 
       if(automatic && year>currentCalendarYear()){
@@ -4068,7 +4098,7 @@ async function ensureYearWorkspaceForWrite(targetYear, {automatic=false}={}){
       }
       registerYearWorkspace(year, spreadsheetId, folderId);
       persistCurrentAccountCfg();
-      await loadDataForCurrentAccountMode();
+      if(!automatic) await loadDataForCurrentAccountMode();
 
       if(!automatic) await showAppAlert(
         `סביבת העבודה לשנת ${year} נוצרה בהצלחה.\n\n` +
@@ -4090,6 +4120,7 @@ async function ensureYearWorkspaceForWrite(targetYear, {automatic=false}={}){
       persistCurrentAccountCfg();
       applyBranding();
 
+      if(automatic) throw e;
       await showAppAlert(
         `יצירת סביבת העבודה לשנת ${year} לא הושלמה.\n` +
         `לא הופקה קבלה ולא נשמרה תנועה.\n` +
@@ -5685,7 +5716,7 @@ function validateForm(){
   }
   ok = ok && isConfigured();
   const cancelBtnForValidate = document.getElementById('wizardCancelBtn');
-  if(cancelBtnForValidate) cancelBtnForValidate.disabled=!ok;
+  if(cancelBtnForValidate) cancelBtnForValidate.disabled=!ok || receiptGenerationBusy;
   wizardRefreshNextBtn();
 }
 
@@ -5776,6 +5807,7 @@ function wizardBack(){
 document.getElementById('wizardNextBtn').addEventListener('click', wizardNext);
 document.getElementById('wizardBackBtn').addEventListener('click', wizardBack);
 document.getElementById('wizardCancelBtn').addEventListener('click', async ()=>{
+  if(receiptGenerationBusy) return;
   const ok = await showAppConfirm('להפיק את הקבלה?', '🧾');
   if(ok) performGenerateReceipt();
 });
@@ -5941,12 +5973,19 @@ async function prepareReceiptYearTargets(serviceMonths, paymentPlan, receiptYear
   if(years.size===1 && years.has(originalYear)) return {[originalYear]:original};
   try{
     for(const year of [...years].sort((a,b)=>a-b)){
-      if(!await ensureYearWorkspaceForWrite(year,{automatic:true})) throw new Error('לא ניתן להכין את שנת העבודה '+year);
+      setReceiptProgress('בודק את הגיליון לשנת '+year+'…');
+      if(year===originalYear){ targets[year]=original; continue; }
+      const known=CFG.yearWorkspaces?.[String(year)];
+      if(known && await yearWorkspaceIsHealthy(known) && await receiptWorkspaceTabsReady(known.spreadsheetId)){ targets[year]={spreadsheetId:known.spreadsheetId,folderId:known.folderId}; continue; }
+      if(!await ensureYearWorkspaceForWrite(year,{automatic:true,onProgress:setReceiptProgress})) throw new Error('לא ניתן להכין את שנת העבודה '+year);
       targets[year]={spreadsheetId:CFG.spreadsheetId,folderId:CFG.folderId};
     }
   }finally{
     try{
-      await activateYearWorkspace(originalYear,original,true);
+      if(CFG.spreadsheetId!==original.spreadsheetId || Number(CFG.activeYear)!==originalYear){
+        setReceiptProgress('חוזר לשנת ההפקה '+originalYear+'…');
+        await activateYearWorkspace(originalYear,original,'receipt');
+      }
     }finally{
       if(originalResident) restoreReceiptResidentSelection(originalResident);
     }
@@ -6777,10 +6816,11 @@ function initGoogle(){
           'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'
         ]
       });
-      gapiReady=true;
       if(!gapi.client.sheets || !gapi.client.drive?.files){
         throw new Error('שירותי Sheets או Drive לא הושלמו');
       }
+      installSheetsReadGuard();
+      gapiReady=true;
       tokenClient=google.accounts.oauth2.initTokenClient({
         client_id:APP_CLIENT_ID,
         scope:SCOPES,
@@ -7634,7 +7674,7 @@ async function ensureSettingsStorage(spreadsheetId, mode){
   return {settingsFileId,rows};
 }
 
-async function syncSettingsFromSheet(){
+async function syncSettingsFromSheet({strict=false}={}){
   if(!CFG.spreadsheetId) return;
   const account = CFG.email, mode = CFG.usageMode, spreadsheetId = CFG.spreadsheetId;
   const stillCurrent = ()=>CFG.email===account && CFG.usageMode===mode && CFG.spreadsheetId===spreadsheetId;
@@ -7690,6 +7730,7 @@ async function syncSettingsFromSheet(){
     }
   }catch(e){
     // Non-fatal — the app keeps working with whatever settings are already local.
+    if(strict) throw e;
     console.warn('שגיאה בסנכרון הגדרות מהגיליון:', e);
   }
 }
@@ -9190,7 +9231,7 @@ function loadOfflineDataSnapshot(){
     return false;
   }
 }
-async function loadAllReceiptRows(){
+async function loadAllReceiptRows({strict=false}={}){
   try{
     const layout = receiptSheetLayout();
     const res = await gapi.client.sheets.spreadsheets.values.get({
@@ -9201,6 +9242,7 @@ async function loadAllReceiptRows(){
     // Keep the latest successful receipts data available offline.
     saveOfflineDataSnapshot();
   }catch(e){
+    if(strict) throw e;
     console.warn('[קבקליק] Receipt load failed - trying offline snapshot.', e);
 
     // Preserve the last known data when the network is unavailable.
@@ -9842,7 +9884,84 @@ async function sendPaymentReminderEmail(residentName, email, lastPaidMonthName){
   return res.json();
 }
 
+function setReceiptProgress(text){
+  if(!receiptGenerationBusy) return;
+  document.getElementById('receiptProgressText').textContent=text;
+  document.getElementById('receiptProgress').hidden=false;
+  const button=document.getElementById('wizardCancelBtn');
+  button.disabled=true;
+  button.textContent='מפיק קבלה…';
+}
+function startReceiptProgress(){
+  receiptGenerationBusy=true;
+  receiptProgressStarted=Date.now();
+  setReceiptProgress('בודק את שנת ההפקה…');
+  const back=document.getElementById('wizardBackBtn');
+  if(back) back.disabled=true;
+  receiptProgressTimer=setInterval(()=>{
+    document.getElementById('receiptProgressElapsed').textContent='חלפו '+Math.floor((Date.now()-receiptProgressStarted)/1000)+' שניות. הפעולה נמשכת, אין צורך ללחוץ שוב.';
+  },1000);
+}
+function stopReceiptProgress(){
+  receiptGenerationBusy=false;
+  clearInterval(receiptProgressTimer);
+  document.getElementById('receiptProgress').hidden=true;
+  document.getElementById('receiptProgressElapsed').textContent='';
+  const back=document.getElementById('wizardBackBtn');
+  if(back) back.disabled=false;
+  const button=document.getElementById('wizardCancelBtn');
+  button.textContent='🧾 הפק קבלה';
+  validateForm();
+}
+function isSheetsReadQuotaError(error){
+  const detail=error?.result?.error||{};
+  const status=Number(error?.status||detail.code);
+  const message=String(detail.message||error?.message||'');
+  return status===429 || (status===403 && /quota exceeded|rate.?limit exceeded/i.test(message));
+}
+function installSheetsReadGuard(){
+  const spreadsheets=gapi.client.sheets.spreadsheets;
+  if(spreadsheets.__kabReadGuard) return;
+  spreadsheets.__kabReadGuard=true;
+  let tail=Promise.resolve(),nextReadAt=0;
+  const pending=new Map();
+  const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+  for(const [object,name] of [[spreadsheets,'get'],[spreadsheets.values,'get'],[spreadsheets.values,'batchGet']]){
+    if(typeof object[name]!=='function') continue;
+    const original=object[name].bind(object);
+    object[name]=args=>{
+      const account=CFG.email,mode=CFG.usageMode;
+      const key=account+':'+mode+':'+(object===spreadsheets?'metadata:':'values:')+name+':'+JSON.stringify(args);
+      if(pending.has(key)) return pending.get(key);
+      const task=tail.catch(()=>{}).then(async()=>{
+        for(let attempt=0;;attempt++){
+          const wait=Math.max(0,nextReadAt-Date.now());
+          if(wait) await delay(wait);
+          if(CFG.email!==account || CFG.usageMode!==mode) throw new Error('החשבון או סוג החשבון השתנה בזמן הפעולה. יש לנסות שוב.');
+          nextReadAt=Date.now()+1500;
+          try{return await original(args);}catch(error){
+            if(!isSheetsReadQuotaError(error) || attempt>=4) throw error;
+            const seconds=Math.min(64,8*(2**attempt))+Math.floor(Math.random()*3);
+            const resumeAt=Date.now()+seconds*1000;
+            nextReadAt=Math.max(nextReadAt,resumeAt);
+            while(Date.now()<resumeAt){
+              setReceiptProgress('Google הגביל זמנית את הקריאות לגיליונות. ממתין '+Math.ceil((resumeAt-Date.now())/1000)+' שניות וממשיך אוטומטית…');
+              await delay(Math.min(1000,resumeAt-Date.now()));
+            }
+            setReceiptProgress('ממשיך בהכנת הקבלה לאחר ההמתנה ל-Google…');
+          }
+        }
+      });
+      pending.set(key,task);
+      tail=task.catch(()=>{});
+      task.then(()=>pending.delete(key),()=>pending.delete(key));
+      return task;
+    };
+  }
+}
+
 async function performGenerateReceipt(){
+  if(receiptGenerationBusy) return;
 
   // KABCLICK OFFLINE RECEIPT BLOCK - Build 176
   if(!navigator.onLine){
@@ -9871,9 +9990,8 @@ async function performGenerateReceipt(){
 
   // Build 188: resolve the receipt year before allocating a number,
   // creating the PDF, writing Sheets or uploading to Drive.
-  btn.disabled=true;
-  btn.textContent='בודק שנת עבודה…';
-
+  startReceiptProgress();
+  try{
   const originalResident = r;
 
   // If the user is viewing 2026 and receives the money in 2027,
@@ -9886,7 +10004,7 @@ async function performGenerateReceipt(){
     currentCalendarYear();
 
   const yearReady =
-    await ensureYearWorkspaceForWrite(receiptYear);
+    await ensureYearWorkspaceForWrite(receiptYear,{automatic:true,onProgress:setReceiptProgress});
 
   if(!yearReady){
     btn.disabled=false;
@@ -9915,8 +10033,9 @@ async function performGenerateReceipt(){
   btn.textContent='📄 הקבלה שלך בהכנה…';
 
   // Final numbering refresh against the selected year's shared sheet.
-  await loadAllReceiptRows();
-  await syncSettingsFromSheet();
+  setReceiptProgress('בודק את מספר הקבלה וההגדרות…');
+  await loadAllReceiptRows({strict:true});
+  await syncSettingsFromSheet({strict:true});
 
   // Snapshot everything the background save step will need. PDF generation
   // itself is instant/local, but Drive+Sheets are network calls — capturing
@@ -9960,15 +10079,16 @@ async function performGenerateReceipt(){
   );
   if(snap.paymentPlan) snap.paymentPlan.serviceMonths=snap.serviceMonths;
 
-  try{
     snap.yearTargets = !snap.isOtherPurpose && snap.usageMode!=='business'
       ? await prepareReceiptYearTargets(snap.serviceMonths,snap.paymentPlan,snap.receiptYear)
       : null;
+    setReceiptProgress('בודק שאין תשלום כפול עבור החודשים שנבחרו…');
     if(snap.yearTargets) await validateServiceMonthAvailability(snap);
     // Restoring the original workspace reloads residents; retain this selection.
     const restoredIndex=residents.findIndex(x=>x.name===snap.resident.name && (x.phone||'')===(snap.resident.phone||'') && (x.apartment||'')===(snap.resident.apartment||''));
     if(restoredIndex<0) throw new Error('הדייר או הלקוח לא נמצא לאחר הכנת שנות העבודה. לא הופקה קבלה.');
     restoreReceiptResidentSelection(snap.resident);
+    setReceiptProgress('יוצר את קובץ הקבלה…');
     const blob=await buildPdfBlob(
       receiptHTML(true,{
         serviceYear:snap.serviceYear,
@@ -10001,8 +10121,10 @@ async function performGenerateReceipt(){
 
     finalizeReceiptInBackground(snap, blob, filename);
   }catch(e){
-    showMsg('שגיאה בהפקת הקבלה: '+(e.result?.error?.message||e.message||e),'error');
+    showMsg(isSheetsReadQuotaError(e)?'Google עדיין מגביל את הקריאות לגיליונות. לא הופקה קבלה. יש להמתין דקה ולנסות שוב.':'שגיאה בהפקת הקבלה: '+(e.result?.error?.message||e.message||e),'error');
     btn.disabled=false; btn.textContent='🧾 הפק קבלה';
+  }finally{
+    stopReceiptProgress();
   }
 }
 
