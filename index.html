@@ -8454,12 +8454,27 @@ async function appendScheduledFinanceRows(plan, entry, spreadsheetId, yearTarget
 /** Overwrites an existing row in place (by its actual sheet row number) —
  *  used for editing a transaction. Row numbers are captured at load time
  *  in loadFinanceRows, so this always targets the correct physical row. */
+async function verifyFinanceRowForWrite(sheetRow,expected){
+  if(!expected) throw new Error('הרשומה אינה זמינה. רעננו את הנתונים ונסו שוב.');
+  const key=workspaceDisplayIdentity(),spreadsheetId=CFG.spreadsheetId;
+  const result=await gapi.client.sheets.spreadsheets.values.get({spreadsheetId,range:`'${FINANCE_SHEET}'!A${sheetRow}:Q${sheetRow}`});
+  const row=result.result.values?.[0];
+  if(key!==workspaceDisplayIdentity()) throw new Error('החשבון או השנה השתנו. פתחו את הרשומה מחדש.');
+  if(!row || String(row[0]||'')!==String(expected.date||'') ||
+    (row[1]==='הכנסה'?'income':'expense')!==expected.type ||
+    String(row[2]||'').trim()!==String(expected.title||'').trim() ||
+    (Number(row[4])||0)!==Number(expected.amount)){
+    throw new Error('הרשומה השתנתה בגיליון. רעננו את הנתונים ופתחו אותה מחדש לפני עריכה או מחיקה.');
+  }
+}
+
 async function updateFinanceRow(sheetRow, entry){
   if(!navigator.onLine){
     throw new Error('OFFLINE_WRITE_BLOCKED');
   }
 
   await ensureFinanceSheet();
+  await verifyFinanceRowForWrite(sheetRow,entry);
 
   await gapi.client.sheets.spreadsheets.values.batchUpdate({
     spreadsheetId:CFG.spreadsheetId,
@@ -8504,6 +8519,8 @@ async function deleteFinanceRow(sheetRow){
   if(financeSheetGid==null){
     throw new Error('לא ניתן לזהות את הלשונית למחיקה. נסו לרענן ולנסות שוב.');
   }
+  const expected=financeRows.find(row=>row.sheetRow===sheetRow);
+  await verifyFinanceRowForWrite(sheetRow,expected);
   await gapi.client.sheets.spreadsheets.batchUpdate({
     spreadsheetId: CFG.spreadsheetId,
     resource:{ requests:[{ deleteDimension:{ range:{ sheetId:financeSheetGid, dimension:'ROWS', startIndex:sheetRow-1, endIndex:sheetRow } } }] }
