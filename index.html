@@ -3514,7 +3514,20 @@ async function discoverAnnualWorkspacesFromDrive(){
   }
 }
 
+function restoreReceiptResidentSelection(identity){
+  if(!identity) return false;
+  const index=residents.findIndex(r=>r.name===identity.name && (r.phone||'')===(identity.phone||'') && (CFG.usageMode==='business' || (r.apartment||'')===(identity.apartment||'')));
+  residentSelect.value=index>=0?String(index):'';
+  const search=document.getElementById('residentSearchInput');
+  if(search) search.value=index>=0?residents[index].name:'';
+  residentSelect.dispatchEvent(new Event('change'));
+  toggleResidentClearBtn();
+  wizardUpdateSummary();
+  return index>=0;
+}
+
 async function activateYearWorkspace(year, workspace, loadData){
+  const receiptResident=currentResident();
   if(!workspace || !workspace.spreadsheetId || !workspace.folderId){
     throw new Error('YEAR_WORKSPACE_INCOMPLETE');
   }
@@ -3536,6 +3549,7 @@ async function activateYearWorkspace(year, workspace, loadData){
     await loadDataForCurrentAccountMode();
   }
 
+  if(loadData && receiptResident) restoreReceiptResidentSelection(receiptResident);
   renderYearSelector();
 }
 
@@ -5920,6 +5934,7 @@ async function validateServiceMonthAvailability(snap){
 
 async function prepareReceiptYearTargets(serviceMonths, paymentPlan, receiptYear){
   const originalYear=Number(CFG.activeYear);
+  const originalResident=currentResident();
   const original={spreadsheetId:CFG.spreadsheetId,folderId:CFG.folderId};
   const years=new Set([receiptYear,...serviceMonths.map(m=>m.year),...(paymentPlan?.dates||[]).map(d=>Number(d.slice(0,4)))]);
   const targets={};
@@ -5930,7 +5945,11 @@ async function prepareReceiptYearTargets(serviceMonths, paymentPlan, receiptYear
       targets[year]={spreadsheetId:CFG.spreadsheetId,folderId:CFG.folderId};
     }
   }finally{
-    await activateYearWorkspace(originalYear,original,true);
+    try{
+      await activateYearWorkspace(originalYear,original,true);
+    }finally{
+      if(originalResident) restoreReceiptResidentSelection(originalResident);
+    }
   }
   return targets;
 }
@@ -9844,7 +9863,9 @@ async function performGenerateReceipt(){
       showMsg('יש למלא את כל השדות.','error'); return;
     }
   } else {
-    if(!r||!paymentPlanIsValid()||selectedServiceMonths().length===0){ showMsg('יש למלא את כל השדות.','error'); return; }
+    if(!r){ wizardShowStep(0); showMsg('בחירת הדייר או הלקוח חסרה. יש לבחור אותו מחדש לפני הפקת הקבלה.','error'); return; }
+    if(selectedServiceMonths().length===0){ wizardShowStep(1); showMsg('יש לבחור תקופת תשלום תקינה.','error'); return; }
+    if(!paymentPlanIsValid()){ wizardShowStep(2); showMsg('יש להשלים את פרטי אמצעי התשלום.','error'); return; }
   }
   const btn=document.getElementById('wizardCancelBtn');
 
@@ -9946,7 +9967,8 @@ async function performGenerateReceipt(){
     if(snap.yearTargets) await validateServiceMonthAvailability(snap);
     // Restoring the original workspace reloads residents; retain this selection.
     const restoredIndex=residents.findIndex(x=>x.name===snap.resident.name && (x.phone||'')===(snap.resident.phone||'') && (x.apartment||'')===(snap.resident.apartment||''));
-    if(restoredIndex>=0) residentSelect.value=String(restoredIndex);
+    if(restoredIndex<0) throw new Error('הדייר או הלקוח לא נמצא לאחר הכנת שנות העבודה. לא הופקה קבלה.');
+    restoreReceiptResidentSelection(snap.resident);
     const blob=await buildPdfBlob(
       receiptHTML(true,{
         serviceYear:snap.serviceYear,
