@@ -1,6 +1,6 @@
 const fs=require('fs'),vm=require('vm'),assert=require('assert/strict');
 const html=fs.readFileSync(require('path').join(__dirname,'../index.html'),'utf8');
-const names=['servicePeriodEnabled','selectedServiceMonths','sortedMonths','addMonthsToIso','splitInstallmentAmounts','buildPaymentPlanSnapshot','appendScheduledFinanceRows','prepareReceiptYearTargets','readAnnualSourceSnapshot','validateServiceMonthAvailability'];
+const names=['servicePeriodEnabled','selectedServiceMonths','sortedMonths','addMonthsToIso','splitInstallmentAmounts','buildPaymentPlanSnapshot','appendScheduledFinanceRows','prepareReceiptYearTargets','readAnnualSourceSnapshot','validateServiceMonthAvailability','serviceAllocationFromRow','verifyServiceAllocationSources'];
 const code=names.map(n=>{const m=html.match(new RegExp('^(?:async )?function '+n+'\\([^]*?^\\}', 'm'));assert(m,n);const first=m[0].split('\n')[0];return first.endsWith('}')?first:m[0]}).join('\n');
 const inputs={servicePeriodEnabled:{checked:true},servicePeriodStart:{value:'2026-09'},servicePeriodCount:{value:'12'},paymentInstallmentCount:{value:'12'},paymentFirstDate:{value:'2026-09-05'}};
 const ctx={setReceiptProgress:()=>{},yearWorkspaceIsHealthy:async()=>false,currentResident:()=>null,restoreReceiptResidentSelection:()=>{},console,Set,Map,Date,Number,String,Math,JSON,Array,document:{getElementById:id=>inputs[id]},CFG:{usageMode:'vaad',activeYear:2026,spreadsheetId:'s26',folderId:'f26',nextReceiptNumber:1000,yearWorkspaces:{}},isOtherPurpose:false,selectedMonths:new Set([0,1]),todayIsoLocal:()=> '2026-10-06',currentCalendarYear:()=>2026,paymentUsesMonthlySchedule:()=>true,receiptPaymentLabel:()=>"צ'קים דחויים",navigator:{onLine:true},FINANCE_SHEET:'finance',FINANCE_PLAN_HEADER:['id'],RECEIPTS_SHEET:'receipts',SERVICE_ALLOCATIONS_SHEET:'alloc',residentsSheetName:()=> 'contacts',readWorkspaceSettingsRows:async()=>[['יתרת פתיחה (הוצאות/הכנסות)',100]],receiptSheetLayout:()=>({receiptNumIdx:7}),serviceMonthLabel:m=>m.key,MONTH_NAMES:['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'],parseHebrewDate:()=>new Date(2026,0,1)};
@@ -34,13 +34,13 @@ assert.equal((await ctx.readAnnualSourceSnapshot({year:2026,spreadsheetId:'s26'}
 ctx.todayIsoLocal=()=> '2027-01-05';assert.equal((await ctx.readAnnualSourceSnapshot({year:2026,spreadsheetId:'s26'})).closingBalance,330);
 // Duplicate service months block issuance, while cancelled service allocations are released.
 ctx.CFG.usageMode='vaad';
-let receiptRows=[];let allocationRows=[['id','Tenant','050','5',2027,0,1000,2026,'plan','']];
+let receiptRows=[['date','Tenant','050','jan 2027',1,140,'checks',1000]];let allocationRows=[['id','Tenant','050','5',2027,0,1000,2026,'plan','']];
 let finance=[];
 ctx.gapi.client.sheets.spreadsheets.get=async()=>({result:{sheets:[{properties:{title:'alloc'}}]}});
 ctx.gapi.client.sheets.spreadsheets.values.get=async a=>({result:{values:a.range.includes('finance')?finance:a.range.includes('alloc')?allocationRows:receiptRows}});
 const snap={resident:{name:'Tenant',phone:'050',apartment:'5'},serviceMonths:[{year:2027,monthIndex:0,key:'2027-01'}],yearTargets:{2027:{spreadsheetId:'s27'}}};
 await assert.rejects(ctx.validateServiceMonthAvailability(snap),/2027/);
-allocationRows[0][9]='בוטל';await ctx.validateServiceMonthAvailability(snap);
+allocationRows[0][9]='בוטל';receiptRows=[];await ctx.validateServiceMonthAvailability(snap);
 receiptRows=[['date','Tenant','050','jan 2027',1,140,'checks',1000],['date','Tenant','050','jan 2027',1,140,'checks',1001]];
 finance=[['2027-01-01','הכנסה','','',140,'','','','','','plan','בוטל',1,12,1000,1680,'2027-01']];
 await assert.rejects(ctx.validateServiceMonthAvailability(snap),/2027/); // Second receipt still owns the month.
