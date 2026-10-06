@@ -2137,7 +2137,7 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '269';
+const APP_BUILD = '270';
 let yearSwitchBusy=false;
 let receiptGenerationBusy=false;
 let receiptProgressTimer=null;
@@ -2531,6 +2531,24 @@ async function ensureAnnualWorkspaceFolder(year,titleBase,seriesId,mode=CFG.usag
     if(CFG.email!==account || CFG.usageMode!==mode) throw new Error('ACCOUNT_CHANGED');
     let folder=found.result.files?.[0];
     if(!folder){
+      // Reuse a year folder already created under this exact KabClick root.
+      // Never adopt a folder owned by another mode/series or an ambiguous pair.
+      const existing=await gapi.client.drive.files.list({
+        q:`trashed=false and mimeType='application/vnd.google-apps.folder' and '${parent}' in parents and name='קבקליק - ${year}'`,
+        fields:'files(id,name,parents,appProperties)',pageSize:100
+      });
+      const candidates=(existing.result.files||[]).filter(f=>{
+        const properties=f.appProperties||{};
+        return (!properties.kind || properties.kind==='year-folder') && (!properties.mode || properties.mode===mode) && (!properties.seriesId || properties.seriesId===seriesId) && (!properties.year || Number(properties.year)===Number(year));
+      });
+      if(candidates.length>1) throw new Error('נמצאו כמה תיקיות לאותה שנה. נדרשת בדיקה לפני שינוי התיקיות.');
+      if(CFG.email!==account || CFG.usageMode!==mode) throw new Error('ACCOUNT_CHANGED');
+      if(candidates.length===1){
+        folder=candidates[0];
+        await gapi.client.drive.files.update({fileId:folder.id,resource:{appProperties:{...folder.appProperties,kabclick:'1',kind:'year-folder',mode,seriesId,year:String(year)}}});
+      }
+    }
+    if(!folder){
       const created=await gapi.client.drive.files.create({resource:{name:'קבקליק - '+year,mimeType:'application/vnd.google-apps.folder',parents:[parent],appProperties:{kabclick:'1',kind:'year-folder',mode,seriesId,year:String(year)}},fields:'id,name,parents'});
       folder=created.result;
     }
@@ -2600,7 +2618,7 @@ async function migrateLegacyWorkspacesToRoot({force=false,strict=false}={}){
   })().catch(error=>{
     console.warn('[קבקליק] התאמת מבנה התיקיות השנתי לא הושלמה:',error);
     if(strict) throw error;
-    if(CFG.email===account && CFG.usageMode===mode) showMsg('התאמת תיקיות Drive למבנה השנתי לא הושלמה. אפשר להתחבר שוב להמשך הפעולה. הקבצים הקיימים נשמרו.','error');
+    if(CFG.email===account && CFG.usageMode===mode) showMsg('התאמת תיקיות Drive לא הושלמה: '+(error.result?.error?.message||error.message||error)+'. הקבצים הקיימים נשמרו.','error');
   }).finally(()=>legacyWorkspaceMigrationPromises.delete(key));
   legacyWorkspaceMigrationPromises.set(key,task);
   return task;
