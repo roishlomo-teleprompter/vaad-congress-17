@@ -2137,7 +2137,7 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '268';
+const APP_BUILD = '269';
 let yearSwitchBusy=false;
 let receiptGenerationBusy=false;
 let receiptProgressTimer=null;
@@ -2516,184 +2516,98 @@ async function moveDriveFileIntoFolder(fileId, parentFolderId){
   await gapi.client.drive.files.update(request);
 }
 
-// Bring pre-root KabClick workspaces into the same Drive layout as new accounts.
-// This only changes parents of existing files; their IDs and contents stay intact.
-const legacyWorkspaceMigrationPromises = new Map();
-const legacyWorkspaceMigrationCompleted = new Set();
-async function migrateLegacyWorkspacesToRoot(){
-  const account=CFG.email, mode=CFG.usageMode, seriesId=CFG.seriesId;
-  if(!account || !mode || !seriesId || CFG.connectionPaused || !accessToken) return;
-  const knownWorkspaces=normalizeYearWorkspaces(loadAccountCfg(account,mode)||{});
-  const workspaceIds=Object.values(knownWorkspaces)
-    .flatMap(ws=>[ws.spreadsheetId,ws.folderId]).filter(Boolean).sort().join('::');
-  const key=`${account}::${mode}::${seriesId}::${workspaceIds}`;
-  if(legacyWorkspaceMigrationCompleted.has(key)) return;
-  if(legacyWorkspaceMigrationPromises.has(key)) return legacyWorkspaceMigrationPromises.get(key);
-
-  const job=(async()=>{
-    const stillCurrent=()=>CFG.email===account && CFG.usageMode===mode &&
-      CFG.seriesId===seriesId && !CFG.connectionPaused;
-    const workspaces=knownWorkspaces;
-    const other=normalizeYearWorkspaces(loadAccountCfg(account,mode==='vaad'?'business':'vaad')||{});
-    const otherIds=new Set(Object.values(other).flatMap(ws=>[ws.spreadsheetId,ws.folderId]).filter(Boolean));
-    const entries=Object.values(workspaces).filter(ws=>ws.spreadsheetId && ws.folderId);
-    if(!entries.length) return;
-    const seen=new Set();
-    gapi.client.setToken({access_token:accessToken});
-
-    const knownRoots=await gapi.client.drive.files.list({
-      q:`trashed=false and mimeType='application/vnd.google-apps.folder' and appProperties has { key='kabclick' and value='1' } and appProperties has { key='kind' and value='workspace-root' } and appProperties has { key='mode' and value='${mode}' } and appProperties has { key='seriesId' and value='${seriesId}' }`,
-      fields:'files(id)',pageSize:10
+const annualFolderPromises=new Map();
+async function ensureAnnualWorkspaceFolder(year,titleBase,seriesId,mode=CFG.usageMode,rootId=null){
+  if(!/^20\d{2}$/.test(String(year)) || !seriesId) throw new Error('ANNUAL_FOLDER_IDENTITY_MISSING');
+  const account=CFG.email;
+  const key=account+':'+mode+':'+seriesId+':'+year;
+  if(annualFolderPromises.has(key)) return annualFolderPromises.get(key);
+  const task=(async()=>{
+    const parent=rootId || await ensureWorkspaceRootFolder(titleBase,seriesId,mode);
+    const found=await gapi.client.drive.files.list({
+      q:`trashed=false and mimeType='application/vnd.google-apps.folder' and appProperties has { key='kabclick' and value='1' } and appProperties has { key='kind' and value='year-folder' } and appProperties has { key='mode' and value='${mode}' } and appProperties has { key='seriesId' and value='${seriesId}' } and appProperties has { key='year' and value='${year}' }`,
+      fields:'files(id,name,parents,createdTime)',orderBy:'createdTime asc',pageSize:100
     });
-    const rootIdAlreadyPresent=knownRoots.result.files?.[0]?.id;
-    if(rootIdAlreadyPresent){
-      let alreadyOrganized=true;
-      for(const id of new Set(entries.flatMap(ws=>[ws.spreadsheetId,ws.folderId]))){
-        if(!stillCurrent()) return;
-        const result=await gapi.client.drive.files.get({fileId:id,fields:'id,parents'});
-        if(!result.result.parents?.includes(rootIdAlreadyPresent)) alreadyOrganized=false;
-      }
-      if(alreadyOrganized){
-        legacyWorkspaceMigrationCompleted.add(key);
-        return;
-      }
+    if(CFG.email!==account || CFG.usageMode!==mode) throw new Error('ACCOUNT_CHANGED');
+    let folder=found.result.files?.[0];
+    if(!folder){
+      const created=await gapi.client.drive.files.create({resource:{name:'קבקליק - '+year,mimeType:'application/vnd.google-apps.folder',parents:[parent],appProperties:{kabclick:'1',kind:'year-folder',mode,seriesId,year:String(year)}},fields:'id,name,parents'});
+      folder=created.result;
     }
-
-    // With drive.file scope the app may list its own top-level files even when
-    // it cannot read metadata for the user's My Drive root folder itself.
-    const targetIds=new Set(entries.flatMap(ws=>[ws.spreadsheetId,ws.folderId]));
-    const topLevelIds=new Set();
-    let pageToken='';
-    do{
-      const request={q:"'root' in parents and trashed=false",fields:'nextPageToken,files(id)',pageSize:1000};
-      if(pageToken) request.pageToken=pageToken;
-      const result=await gapi.client.drive.files.list(request);
-      (result.result.files||[]).forEach(file=>{
-        if(targetIds.has(file.id)) topLevelIds.add(file.id);
-      });
-      pageToken=result.result.nextPageToken || '';
-    }while(pageToken && topLevelIds.size<targetIds.size);
-
-    // Validate every pair before creating a folder or moving any resource.
-    for(const ws of entries){
-      if(!stillCurrent()) return;
-      if(ws.spreadsheetId===ws.folderId || otherIds.has(ws.spreadsheetId) || otherIds.has(ws.folderId))
-        throw new Error('LEGACY_WORKSPACE_SHARED');
-      const candidate=await readKabClickSettingsFromCandidate(ws.spreadsheetId);
-      if(!candidate || candidate.mode!==mode)
-        throw new Error('LEGACY_WORKSPACE_SHEET_MODE');
-      if(candidate.folderId!==ws.folderId)
-        throw new Error('LEGACY_WORKSPACE_FOLDER_LINK');
-      for(const [id,kind,mimeType] of [
-        [ws.spreadsheetId,'sheet','application/vnd.google-apps.spreadsheet'],
-        [ws.folderId,'receipts-folder','application/vnd.google-apps.folder']
-      ]){
-        if(seen.has(id)) continue;
-        seen.add(id);
-        const result=await gapi.client.drive.files.get({fileId:id,fields:'id,trashed,mimeType,parents,appProperties'});
-        const file=result.result;
-        if(file.trashed || file.mimeType!==mimeType ||
-           (file.appProperties?.mode && file.appProperties.mode!==mode) ||
-           (file.appProperties?.kind && file.appProperties.kind!==kind) ||
-           (file.appProperties?.seriesId && file.appProperties.seriesId!==seriesId))
-          throw new Error('LEGACY_WORKSPACE_DRIVE_IDENTITY');
-        if(!file.parents?.length ||
-           !(topLevelIds.has(id) || file.parents.every(parent=>parent===rootIdAlreadyPresent)))
-          throw new Error('LEGACY_WORKSPACE_DRIVE_PARENT');
-      }
-    }
-    if(!stillCurrent()) return;
-    const titleBase=CFG.buildingInfo || (mode==='business' ? 'עסק' : 'ועד בית');
-    const rootId=await ensureWorkspaceRootFolder(titleBase,seriesId,mode);
-    for(const ws of entries){
-      for(const id of [ws.spreadsheetId,ws.folderId]){
-        if(!stillCurrent()) return;
-        await moveDriveFileIntoFolder(id,rootId);
-      }
-    }
-    legacyWorkspaceMigrationCompleted.add(key);
+    if(folder.name!=='קבקליק - '+year) await gapi.client.drive.files.update({fileId:folder.id,resource:{name:'קבקליק - '+year}});
+    await moveDriveFileIntoFolder(folder.id,parent);
+    return folder.id;
   })();
-  const task=job.catch(e=>{
-    console.warn('[קבקליק] התאמת תיקיות ישנות ב-Drive לא הושלמה:',e);
+  annualFolderPromises.set(key,task);
+  try{return await task;}finally{annualFolderPromises.delete(key);}
+}
+async function organizeAnnualWorkspace(year,workspace,titleBase,seriesId,mode=CFG.usageMode){
+  const account=CFG.email;
+  const current=()=>{if(CFG.email!==account || CFG.usageMode!==mode || CFG.seriesId!==seriesId || CFG.connectionPaused) throw new Error('ACCOUNT_CHANGED');};
+  const other=normalizeYearWorkspaces(loadAccountCfg(account,mode==='vaad'?'business':'vaad')||{});
+  const otherIds=new Set(Object.values(other).flatMap(ws=>[ws.spreadsheetId,ws.folderId]).filter(Boolean));
+  const read=async id=>(await gapi.client.drive.files.get({fileId:id,fields:'id,name,parents,mimeType,trashed,appProperties'})).result;
+  const sheet=await read(workspace.spreadsheetId),receipts=await read(workspace.folderId);
+  current();
+  for(const [file,kind,mime] of [[sheet,'sheet','application/vnd.google-apps.spreadsheet'],[receipts,'receipts-folder','application/vnd.google-apps.folder']]){
+    if(otherIds.has(file.id) || file.trashed || file.mimeType!==mime || (file.appProperties?.mode && file.appProperties.mode!==mode) || (file.appProperties?.seriesId && file.appProperties.seriesId!==seriesId) || (file.appProperties?.kind && file.appProperties.kind!==kind) || (file.appProperties?.year && Number(file.appProperties.year)!==Number(year))) throw new Error('ANNUAL_WORKSPACE_IDENTITY_MISMATCH');
+  }
+  // Strong app tags establish ownership. Untagged legacy pairs need their
+  // stored mode and receipts-folder link checked before any moves.
+  if(sheet.appProperties?.kind!=='sheet' || receipts.appProperties?.kind!=='receipts-folder'){
+    const candidate=await readKabClickSettingsFromCandidate(sheet.id);
+    if(!candidate || candidate.mode!==mode || candidate.folderId!==receipts.id || (candidate.year && Number(candidate.year)!==Number(year))) throw new Error('LEGACY_WORKSPACE_LINK_MISMATCH');
+  }
+  let settingsId=sheet.appProperties?.settingsFileId;
+  if(!settingsId){current();settingsId=(await ensureSettingsStorage(sheet.id,mode)).settingsFileId;}
+  const settings=await read(settingsId);
+  current();
+  if(settings.trashed || settings.mimeType!=='application/vnd.google-apps.spreadsheet' || settings.appProperties?.kind!=='settings' || settings.appProperties?.workspaceId!==sheet.id || settings.appProperties?.mode!==mode || (settings.appProperties?.seriesId && settings.appProperties.seriesId!==seriesId)) throw new Error('SETTINGS_IDENTITY_MISMATCH');
+  const rootId=await ensureWorkspaceRootFolder(titleBase,seriesId,mode);
+  const annualId=await ensureAnnualWorkspaceFolder(year,titleBase,seriesId,mode,rootId);
+  for(const [file,name] of [[sheet,'קבקליק - '+year],[receipts,'קבלות - '+year],[settings,'הגדרות - לא למחוק - '+year]]){
+    current();
+    if(file.name!==name) await gapi.client.drive.files.update({fileId:file.id,resource:{name}});
+    current();await moveDriveFileIntoFolder(file.id,annualId);
+    const verified=await read(file.id);
+    if(verified.name!==name || !verified.parents?.includes(annualId)) throw new Error('ANNUAL_LAYOUT_VERIFICATION_FAILED');
+  }
+  return {rootId,annualId};
+}
+
+const legacyWorkspaceMigrationPromises=new Map();
+const legacyWorkspaceMigrationCompleted=new Set();
+async function migrateLegacyWorkspacesToRoot({force=false,strict=false}={}){
+  const account=CFG.email,mode=CFG.usageMode,seriesId=CFG.seriesId;
+  if(!account || !mode || !seriesId || CFG.connectionPaused || !accessToken) return;
+  const workspaces=normalizeYearWorkspaces(loadAccountCfg(account,mode)||{});
+  const titleBase=CFG.buildingInfo || (mode==='business'?'עסק':'ועד בית');
+  const key=account+':'+mode+':'+seriesId+':269:'+titleBase+':'+JSON.stringify(workspaces);
+  if(!force && legacyWorkspaceMigrationCompleted.has(key)) return;
+  if(legacyWorkspaceMigrationPromises.has(key)) return legacyWorkspaceMigrationPromises.get(key);
+  const task=(async()=>{
+    for(const [year,workspace] of Object.entries(workspaces)){
+      if(!workspace.spreadsheetId || !workspace.folderId) continue;
+      if(CFG.email!==account || CFG.usageMode!==mode || CFG.seriesId!==seriesId) throw new Error('ACCOUNT_CHANGED');
+      await organizeAnnualWorkspace(year,workspace,titleBase,seriesId,mode);
+    }
+    if(CFG.email!==account || CFG.usageMode!==mode || CFG.seriesId!==seriesId) throw new Error('ACCOUNT_CHANGED');
+    const rootId=await ensureWorkspaceRootFolder(titleBase,seriesId,mode);
+    const root=await gapi.client.drive.files.get({fileId:rootId,fields:'id,name'});
+    const name=workspaceRootFolderName(titleBase);
+    if(root.result.name!==name) await gapi.client.drive.files.update({fileId:rootId,resource:{name}});
+    legacyWorkspaceMigrationCompleted.add(key);
+  })().catch(error=>{
+    console.warn('[קבקליק] התאמת מבנה התיקיות השנתי לא הושלמה:',error);
+    if(strict) throw error;
+    if(CFG.email===account && CFG.usageMode===mode) showMsg('התאמת תיקיות Drive למבנה השנתי לא הושלמה. אפשר להתחבר שוב להמשך הפעולה. הקבצים הקיימים נשמרו.','error');
   }).finally(()=>legacyWorkspaceMigrationPromises.delete(key));
   legacyWorkspaceMigrationPromises.set(key,task);
   return task;
 }
-
-// Change display names only. Keep spreadsheet/folder IDs, contents and yearly links intact.
-async function renameConnectedWorkspaceFiles(titleBase, account, mode){
-  if(!titleBase || !accessToken || CFG.email!==account || CFG.usageMode!==mode || CFG.connectionPaused || !CFG.spreadsheetId){
-    throw new Error('WORKSPACE_RENAME_INCOMPLETE');
-  }
-  const other = normalizeYearWorkspaces(loadAccountCfg(account,mode==='vaad' ? 'business' : 'vaad') || {});
-  const otherIds = new Set(Object.values(other).flatMap(ws=>[ws.spreadsheetId,ws.folderId]).filter(Boolean));
-  const workspaces = normalizeYearWorkspaces(loadAccountCfg(account,mode) || {});
-  const seen = new Set(), roots = new Set(), errors = [];
-  gapi.client.setToken({access_token:accessToken});
-
-  for(const [year,workspace] of Object.entries(workspaces)){
-    if(workspace.spreadsheetId){
-      try{
-        const source=await gapi.client.drive.files.get({
-          fileId:workspace.spreadsheetId,fields:'id,appProperties'
-        });
-        const settingsFileId=source.result.appProperties?.settingsFileId;
-        if(settingsFileId && !seen.has(settingsFileId)){
-          seen.add(settingsFileId);
-          const response=await gapi.client.drive.files.get({
-            fileId:settingsFileId,fields:'id,name,trashed,appProperties'
-          });
-          const file=response.result;
-          if(file.trashed || file.appProperties?.kind!=='settings' ||
-             file.appProperties?.workspaceId!==workspace.spreadsheetId ||
-             file.appProperties?.mode!==mode) throw new Error('SETTINGS_IDENTITY_MISMATCH');
-          const name=`הגדרות - לא למחוק - ${titleBase} - ${year}`;
-          if(file.name!==name) await gapi.client.drive.files.update({
-            fileId:settingsFileId,resource:{name}
-          });
-        }
-      }catch(e){ errors.push({year,kind:'settings',error:e}); }
-    }
-    for(const [kind,id,prefix] of [
-      ['sheet',workspace.spreadsheetId,'קבקליק'],
-      ['receipts-folder',workspace.folderId,'קבלות']
-    ]){
-      if(!id || seen.has(id)) continue;
-      seen.add(id);
-      try{
-        if(otherIds.has(id)) throw new Error('WORKSPACE_SHARED_WITH_OTHER_MODE');
-        const response = await gapi.client.drive.files.get({fileId:id,fields:'id,name,trashed,mimeType,parents,appProperties'});
-        const file = response.result;
-        if(file.trashed || (file.appProperties?.mode && file.appProperties.mode!==mode) ||
-           (file.appProperties?.kind && file.appProperties.kind!==kind) ||
-           (kind==='sheet' && file.mimeType!=='application/vnd.google-apps.spreadsheet') ||
-           (kind==='receipts-folder' && file.mimeType!=='application/vnd.google-apps.folder')){
-          throw new Error('WORKSPACE_IDENTITY_MISMATCH');
-        }
-        const desiredName = `${prefix} - ${titleBase} - ${year}`;
-        if(file.name!==desiredName) await gapi.client.drive.files.update({fileId:id,resource:{name:desiredName}});
-        (file.parents || []).forEach(parent=>roots.add(parent));
-      }catch(e){ errors.push({year,kind,error:e}); }
-    }
-  }
-
-  // Only KabClick's tagged root folder for this mode may be renamed.
-  for(const id of roots){
-    try{
-      if(otherIds.has(id)) continue;
-      const response = await gapi.client.drive.files.get({fileId:id,fields:'id,name,trashed,mimeType,appProperties'});
-      const root = response.result;
-      if(root.trashed || root.mimeType!=='application/vnd.google-apps.folder' ||
-         root.appProperties?.kabclick!=='1' || root.appProperties?.kind!=='workspace-root' ||
-         root.appProperties?.mode!==mode) continue;
-      const desiredName = workspaceRootFolderName(titleBase);
-      if(root.name!==desiredName) await gapi.client.drive.files.update({fileId:id,resource:{name:desiredName}});
-    }catch(e){ errors.push({kind:'workspace-root',error:e}); }
-  }
-  if(errors.length){
-    console.warn('[קבקליק] שינוי שמות קבצי סביבת העבודה לא הושלם:',errors);
-    throw new Error('WORKSPACE_RENAME_INCOMPLETE');
-  }
+async function renameConnectedWorkspaceFiles(titleBase,account,mode){
+  if(!titleBase || !accessToken || CFG.email!==account || CFG.usageMode!==mode || CFG.connectionPaused) throw new Error('WORKSPACE_RENAME_INCOMPLETE');
+  await migrateLegacyWorkspacesToRoot({force:true,strict:true});
 }
 
 function ensureLocalWorkspaceSeriesId(){
@@ -3491,7 +3405,7 @@ async function discoverAnnualWorkspacesFromDrive(){
 
     const res =
       await gapi.client.drive.files.list({
-        q:`trashed=false and mimeType='application/vnd.google-apps.spreadsheet' and appProperties has { key='kabclick' and value='1' } and appProperties has { key='mode' and value='${CFG.usageMode}' } and appProperties has { key='seriesId' and value='${seriesId}' }`,
+        q:`trashed=false and mimeType='application/vnd.google-apps.spreadsheet' and appProperties has { key='kind' and value='sheet' } and appProperties has { key='kabclick' and value='1' } and appProperties has { key='mode' and value='${CFG.usageMode}' } and appProperties has { key='seriesId' and value='${seriesId}' }`,
         fields:'files(id,name,appProperties,modifiedTime)',
         orderBy:'modifiedTime desc',
         pageSize:100
@@ -3642,14 +3556,14 @@ async function findYearWorkspaceOnDrive(year){
     await Promise.all([
 
       gapi.client.drive.files.list({
-        q:`trashed=false and mimeType='application/vnd.google-apps.spreadsheet' and appProperties has { key='kabclick' and value='1' } and appProperties has { key='mode' and value='${CFG.usageMode}' } and appProperties has { key='year' and value='${y}' } and appProperties has { key='seriesId' and value='${seriesId}' }`,
+        q:`trashed=false and mimeType='application/vnd.google-apps.spreadsheet' and appProperties has { key='kind' and value='sheet' } and appProperties has { key='kabclick' and value='1' } and appProperties has { key='mode' and value='${CFG.usageMode}' } and appProperties has { key='year' and value='${y}' } and appProperties has { key='seriesId' and value='${seriesId}' }`,
         fields:'files(id,name,createdTime)',
         orderBy:'createdTime asc',
         pageSize:20
       }),
 
       gapi.client.drive.files.list({
-        q:`trashed=false and mimeType='application/vnd.google-apps.folder' and appProperties has { key='kabclick' and value='1' } and appProperties has { key='mode' and value='${CFG.usageMode}' } and appProperties has { key='year' and value='${y}' } and appProperties has { key='seriesId' and value='${seriesId}' }`,
+        q:`trashed=false and mimeType='application/vnd.google-apps.folder' and appProperties has { key='kind' and value='receipts-folder' } and appProperties has { key='kabclick' and value='1' } and appProperties has { key='mode' and value='${CFG.usageMode}' } and appProperties has { key='year' and value='${y}' } and appProperties has { key='seriesId' and value='${seriesId}' }`,
         fields:'files(id,name,createdTime)',
         orderBy:'createdTime asc',
         pageSize:20
@@ -4041,13 +3955,14 @@ async function ensureYearWorkspaceForWrite(targetYear, {automatic=false,onProgre
         CFG.seriesId
       );
 
+      const annualFolderId=await ensureAnnualWorkspaceFolder(year,titleBase,CFG.seriesId,CFG.usageMode,workspaceRootId);
       if(!spreadsheetId){
         onProgress('יוצר גיליון חדש לשנת '+year+'…');
         const created = await gapi.client.drive.files.create({
           resource:{
-            name:`קבקליק - ${titleBase} - ${year}`,
+            name:`קבקליק - ${year}`,
             mimeType:'application/vnd.google-apps.spreadsheet',
-            parents:[workspaceRootId],
+            parents:[annualFolderId],
             appProperties:{
               kabclick:'1',
               kind:'sheet',
@@ -4066,9 +3981,9 @@ async function ensureYearWorkspaceForWrite(targetYear, {automatic=false,onProgre
         onProgress('יוצר תיקיית קבלות לשנת '+year+'…');
         const created = await gapi.client.drive.files.create({
           resource:{
-            name:`קבלות - ${titleBase} - ${year}`,
+            name:`קבלות - ${year}`,
             mimeType:'application/vnd.google-apps.folder',
-            parents:[workspaceRootId],
+            parents:[annualFolderId],
             appProperties:{
               kabclick:'1',
               kind:'receipts-folder',
@@ -4125,8 +4040,8 @@ async function ensureYearWorkspaceForWrite(targetYear, {automatic=false,onProgre
       // Also migrate a partially-created/recovered annual resource into the
       // KabClick workspace so every resource for this year stays together.
       await Promise.all([
-        moveDriveFileIntoFolder(spreadsheetId, workspaceRootId),
-        moveDriveFileIntoFolder(folderId, workspaceRootId)
+        moveDriveFileIntoFolder(spreadsheetId, annualFolderId),
+        moveDriveFileIntoFolder(folderId, annualFolderId)
       ]);
 
       onProgress('מכין את הלשוניות ומעתיק אנשי קשר לשנת '+year+'…');
@@ -5004,7 +4919,7 @@ document.getElementById('autoCreateBtn').addEventListener('click', async ()=>{
     //    "אנשי קשר", with the expected header row pre-filled.
     const sheetRes = await gapi.client.sheets.spreadsheets.create({
       resource:{
-        properties:{title:`קבקליק - ${buildingName} - ${createYear}`},
+        properties:{title:`קבקליק - ${createYear}`},
         sheets:[{properties:{title:residentsSheetName(), rightToLeft:true}}]
       }
     });
@@ -5018,9 +4933,10 @@ document.getElementById('autoCreateBtn').addEventListener('click', async ()=>{
       createSeriesId
     );
 
+    const annualFolderId=await ensureAnnualWorkspaceFolder(createYear,buildingName,createSeriesId,CFG.usageMode,workspaceRootId);
     // Google Sheets creates a new spreadsheet in My Drive. Move it into
     // KabClick's dedicated workspace before exposing it to the app.
-    await moveDriveFileIntoFolder(spreadsheetId, workspaceRootId);
+    await moveDriveFileIntoFolder(spreadsheetId, annualFolderId);
 
     const headerRow = CFG.usageMode==='business' ? ['שם','טלפון','מייל'] : ['שם','טלפון','מחיר','מייל','דירה'];
     await gapi.client.sheets.spreadsheets.values.update({
@@ -5031,9 +4947,9 @@ document.getElementById('autoCreateBtn').addEventListener('click', async ()=>{
     // 2) A Drive folder for the generated receipt PDFs.
     const folderRes = await gapi.client.drive.files.create({
       resource:{
-        name:`קבלות - ${buildingName} - ${createYear}`,
+        name:`קבלות - ${createYear}`,
         mimeType:'application/vnd.google-apps.folder',
-        parents:[workspaceRootId]
+        parents:[annualFolderId]
       },
       fields:'id'
     });
@@ -7686,27 +7602,13 @@ async function ensureSettingsStorage(spreadsheetId, mode){
     const name=legacyRows.find(row=>row[0]==='שם/כתובת בניין')?.[1] ||
       (CFG.spreadsheetId===spreadsheetId ? CFG.buildingInfo : '') ||
       (mode==='business'?'עסק':'ועד בית');
-    let rootId='';
-    for(const parentId of (file.result.parents||[])){
-      try{
-        const parent=await gapi.client.drive.files.get({
-          fileId:parentId,fields:'id,mimeType,appProperties'
-        });
-        if(parent.result.appProperties?.kind==='workspace-root' &&
-           parent.result.appProperties?.mode===mode &&
-           parent.result.mimeType==='application/vnd.google-apps.folder'){
-          rootId=parentId;
-          break;
-        }
-      }catch(e){ /* An older folder may not be accessible through drive.file. */ }
-    }
-    if(!rootId) rootId=await ensureWorkspaceRootFolder(name,seriesId,mode);
+    const annualFolderId=await ensureAnnualWorkspaceFolder(year,name,seriesId,mode);
     const created=await gapi.client.sheets.spreadsheets.create({
-      resource:{properties:{title:`הגדרות - לא למחוק - ${name} - ${year}`},
+      resource:{properties:{title:`הגדרות - לא למחוק - ${year}`},
         sheets:[{properties:{title:SETTINGS_SHEET,rightToLeft:true}}]}
     });
     settingsFileId=created.result.spreadsheetId;
-    await moveDriveFileIntoFolder(settingsFileId,rootId);
+    await moveDriveFileIntoFolder(settingsFileId,annualFolderId);
     await gapi.client.drive.files.update({
       fileId:settingsFileId,
       resource:{appProperties:{kabclick:'1',kind:'settings',mode,year,
