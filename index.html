@@ -1218,6 +1218,20 @@ body.setup-incomplete #homeResidentsSection{display:none !important;}
   padding-bottom:120px !important;
 }
 
+
+/* Service period controls and month-step scrolling. */
+#wizardStep1.scrollable{padding-bottom:14px;scroll-padding-bottom:14px;-webkit-overflow-scrolling:touch;}
+.service-period-toggle{display:flex;align-items:center;gap:10px;padding:12px 14px;margin:0 0 12px;background:var(--app-bg);border:1.5px solid var(--card-line);border-radius:12px;cursor:pointer;font-size:14px;line-height:1.5;}
+.service-period-toggle:has(input:checked){background:var(--blue-soft,#eef4ff);border-color:var(--blue);}
+.service-period-toggle input{width:18px;height:18px;margin:0;flex:none;accent-color:var(--blue);}
+.service-period-fields label{display:block;margin-bottom:7px;font-size:13px;font-weight:700;color:var(--ink-soft);}
+.service-period-fields input[type=month]{display:block;width:100%;min-width:0;min-height:48px;box-sizing:border-box;padding:12px 14px;border:1.5px solid var(--card-line);border-radius:12px;background:#fff;color:var(--ink);font:inherit;font-size:15px;direction:rtl;cursor:pointer;}
+.service-period-fields input[type=month]:focus{outline:2px solid var(--blue);outline-offset:2px;border-color:var(--blue);}
+.service-period-fields input[type=month]::-webkit-calendar-picker-indicator{cursor:pointer;padding:4px;opacity:.75;}
+.service-period-summary{margin:12px 0 4px;padding:12px 14px;border-radius:12px;background:var(--app-bg);text-align:center;font-size:14px;line-height:1.6;}
+.service-period-summary>span{display:block;}
+.service-period-count{margin-top:3px;color:var(--slate);font-size:13px;}
+
 </style>
 </head>
 <body class="home-active">
@@ -1551,11 +1565,11 @@ body.setup-incomplete #homeResidentsSection{display:none !important;}
       <div id="monthsSection">
         <div class="row">
           <label class="field-label">חודשי תשלום</label>
-          <label style="display:block;margin-bottom:12px"><input type="checkbox" id="servicePeriodEnabled"> בחירת תקופה לפי חודש ושנה</label>
-          <div id="servicePeriodFields" style="display:none">
+          <label class="service-period-toggle"><input type="checkbox" id="servicePeriodEnabled"><span>בחירת תקופה לפי חודש ושנה</span></label>
+          <div id="servicePeriodFields" class="service-period-fields" style="display:none">
             <div class="row"><label for="servicePeriodStart">חודש ושנת התחלה</label><input type="month" id="servicePeriodStart"></div>
             <div class="row"><label for="servicePeriodCount">מספר חודשים</label><input type="number" id="servicePeriodCount" min="1" max="60" step="1" value="12"></div>
-            <div id="servicePeriodSummary" aria-live="polite" style="margin:10px 0"></div>
+            <div id="servicePeriodSummary" class="service-period-summary" aria-live="polite"></div>
           </div>
           <div class="months-grid" id="monthsGrid"></div>
           <div class="month-legend">
@@ -5704,7 +5718,7 @@ function wizardShowStep(i){
     const stepEl = document.getElementById('wizardStep'+s);
     stepEl.style.display = (s===wizardIndex) ? 'flex' : 'none';
     // Only the longer payment and preview steps need internal scrolling.
-    stepEl.classList.toggle('scrollable', s===wizardIndex && (isLast || s===2));
+    stepEl.classList.toggle('scrollable', s===wizardIndex && (isLast || s===1 || s===2));
     if(s===wizardIndex) stepEl.scrollTop = 0;
   }
 
@@ -5946,8 +5960,8 @@ function renderServicePeriod(){
   document.querySelector('#monthsSection .month-actions').style.display=enabled?'none':'';
   document.querySelector('#monthsSection .month-legend').style.display=enabled?'none':'';
   const months=selectedServiceMonths();
-  document.getElementById('servicePeriodSummary').textContent=months.length
-    ? serviceMonthLabel(months[0])+' עד '+serviceMonthLabel(months[months.length-1])+' ('+months.length+' חודשים)'
+  document.getElementById('servicePeriodSummary').innerHTML=months.length
+    ? `<span>${escapeHtml2(serviceMonthLabel(months[0]))} עד ${escapeHtml2(serviceMonthLabel(months[months.length-1]))}</span><span class="service-period-count">(${months.length} חודשים)</span>`
     : 'יש לבחור חודש התחלה ומספר שלם של חודשים בין 1 ל-60.';
   refreshTotal(); refreshPreview(); wizardRefreshNextBtn();
 }
