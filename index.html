@@ -2137,7 +2137,8 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '267';
+const APP_BUILD = '268';
+let yearSwitchBusy=false;
 let receiptGenerationBusy=false;
 let receiptProgressTimer=null;
 let receiptProgressStarted=0;
@@ -3384,38 +3385,90 @@ function renderYearSelector(){
   select.innerHTML = years.map(y=>`<option value="${y}">${y}</option>`).join('');
   select.value = String(parseInt(CFG.activeYear,10) || years[0]);
 
+  select.disabled=yearSwitchBusy;
   if(select.dataset.bound) return;
   select.dataset.bound = '1';
 
-  select.addEventListener('change', async ()=>{
-    const year = parseInt(select.value,10);
-    const workspace = (CFG.yearWorkspaces || {})[String(year)];
+  select.addEventListener('change',()=>switchDataYear(Number(select.value)));
 
-    if(!year || !workspace){
-      renderYearSelector();
-      return;
-    }
+}
 
-    if(year===Number(CFG.activeYear)) return;
+async function switchDataYear(year){
+  if(yearSwitchBusy || receiptGenerationBusy) return;
+  const workspace=CFG.yearWorkspaces?.[String(year)];
+  if(!workspace || year===Number(CFG.activeYear)){renderYearSelector();return;}
+  if(!navigator.onLine || !accessToken){
+    await showAppAlert('כדי לעבור בין שנות נתונים יש להתחבר ל-Google ולהיות מחוברים לאינטרנט.','⚠️');
+    renderYearSelector();return;
+  }
+  const previous={cfg:{...CFG},residents,allReceiptRows,financeRows,serviceAllocations,remoteFutureIncomeRows,cancelledScheduleRows,resident:currentResident()};
+  yearSwitchBusy=true;
+  renderYearSelector();
+  const status=document.getElementById('homeRefreshStatus');
+  if(status) status.textContent='טוען נתונים לשנת '+year+'…';
+  try{
+    await activateYearWorkspace(year,workspace,'year');
+    refreshRecentResidents();
+    showMsg('מציג נתונים לשנת '+year+'.','ok');
+  }catch(error){
+    if(CFG.email!==previous.cfg.email || CFG.usageMode!==previous.cfg.usageMode) return;
+    Object.assign(CFG,previous.cfg);
+    residents=previous.residents;allReceiptRows=previous.allReceiptRows;financeRows=previous.financeRows;
+    serviceAllocations=previous.serviceAllocations;remoteFutureIncomeRows=previous.remoteFutureIncomeRows;cancelledScheduleRows=previous.cancelledScheduleRows;
+    persistCurrentAccountCfg();applyBranding();
+    if(previous.resident) restoreReceiptResidentSelection(previous.resident);
+    refreshRecentResidents();
+    await showAppAlert('לא ניתן לטעון את שנת '+year+': '+(error.result?.error?.message||error.message||error),'⚠️');
+  }finally{
+    yearSwitchBusy=false;
+    const currentSelect=document.getElementById('homeYearSelect');
+    if(currentSelect) currentSelect.disabled=false;
+    if(status) status.textContent='';
+    renderYearSelector();validateForm();
+  }
+}
 
-    if(!navigator.onLine || !accessToken){
-      await showAppAlert('כדי לעבור בין שנות נתונים יש להתחבר ל-Google ולהיות מחוברים לאינטרנט.','⚠️');
-      renderYearSelector();
-      return;
-    }
-
-    select.disabled = true;
-    try{
-      await activateYearWorkspace(year, workspace, true);
-      showMsg(`מציג נתונים לשנת ${year}.`,'ok');
-    }catch(e){
-      console.warn('[קבקליק] מעבר בין שנים נכשל:', e);
-      await showAppAlert('לא ניתן היה לטעון את שנת '+year+'.','⚠️');
-    }finally{
-      select.disabled = false;
-      renderYearSelector();
-    }
-  });
+async function loadYearDataForSwitch(){
+  const spreadsheetId=CFG.spreadsheetId,year=Number(CFG.activeYear),account=CFG.email,mode=CFG.usageMode;
+  const requireCurrent=()=>{if(CFG.email!==account || CFG.usageMode!==mode || CFG.spreadsheetId!==spreadsheetId) throw new Error('החשבון השתנה בזמן טעינת השנה.');};
+  const meta=await gapi.client.sheets.spreadsheets.get({spreadsheetId,fields:'sheets(properties)'});
+  const titles=new Set((meta.result.sheets||[]).map(s=>s.properties.title));
+  const required=[residentsSheetName(),RECEIPTS_SHEET,FINANCE_SHEET];
+  if(required.some(title=>!titles.has(title))) throw new Error('חסרה לשונית חובה בגיליון של השנה שנבחרה.');
+  const specs=[[residentsSheetName(),'A:Z'],[RECEIPTS_SHEET,'A2:J'],[FINANCE_SHEET,'A2:Q']];
+  if(titles.has(SERVICE_ALLOCATIONS_SHEET)) specs.push([SERVICE_ALLOCATIONS_SHEET,'A2:J']);
+  if(titles.has(CANCELLATIONS_SHEET)) specs.push([CANCELLATIONS_SHEET,'A2:F']);
+  const result=await gapi.client.sheets.spreadsheets.values.batchGet({spreadsheetId,ranges:specs.map(([title,range])=>`'${title}'!${range}`)});
+  const data=new Map(specs.map(([title],i)=>[title,result.result.valueRanges?.[i]?.values||[]]));
+  const annualData=new Map([[year,{spreadsheetId,receipts:data.get(RECEIPTS_SHEET),finance:data.get(FINANCE_SHEET)}]]);
+  // One combined request per other year supports cross-year cancellation,
+  // future income and allocation-source verification without repeated loads.
+  for(const [otherYear,other] of Object.entries(CFG.yearWorkspaces||{})){
+    if(other.spreadsheetId===spreadsheetId) continue;
+    const read=await gapi.client.sheets.spreadsheets.values.batchGet({spreadsheetId:other.spreadsheetId,ranges:[`'${RECEIPTS_SHEET}'!A2:J`,`'${FINANCE_SHEET}'!A2:Q`]});
+    annualData.set(Number(otherYear),{spreadsheetId:other.spreadsheetId,receipts:read.result.valueRanges?.[0]?.values||[],finance:read.result.valueRanges?.[1]?.values||[]});
+  }
+  requireCurrent();
+  const settingsRows=await readWorkspaceSettingsRows(spreadsheetId,[...titles]);
+  requireCurrent();
+  if(!settingsRows.length) throw new Error('לא נמצאו הגדרות שנת העבודה שנבחרה.');
+  await syncSettingsFromSheet({strict:true,metadata:meta,prefetchedRows:settingsRows});
+  requireCurrent();
+  await loadAllReceiptRows({strict:true,prefetched:{result:{values:data.get(RECEIPTS_SHEET)}}});
+  await loadFinanceRows({prepare:false,includeRemote:false,prefetched:{meta,rows:data.get(FINANCE_SHEET)}});
+  cancelledScheduleRows=(data.get(CANCELLATIONS_SHEET)||[]).map(row=>({planId:String(row[0]||''),sourceReceipt:String(row[1]||''),year:Number(row[2])||0,monthIndex:Number(row[3]),date:String(row[4]||''),cancelledAt:String(row[5]||'')}));
+  await loadServiceAllocations({prefetched:{meta,rows:data.get(SERVICE_ALLOCATIONS_SHEET)||[]},annualData});
+  requireCurrent();
+  remoteFutureIncomeRows=[];
+  for(const [otherYear,other] of annualData){
+    if(otherYear<year || other.spreadsheetId===spreadsheetId) continue;
+    other.finance.forEach((r,i)=>{
+      if(r[1]!=='הכנסה' || !r[10] || r[11]==='בוטל' || String(r[0])<=todayIsoLocal()) return;
+      remoteFutureIncomeRows.push({date:String(r[0]),type:'income',title:String(r[2]||''),amount:Number(r[4])||0,paymethod:String(r[5]||''),planId:String(r[10]),status:String(r[11]||'פעיל'),sourceReceipt:String(r[14]||''),serviceKey:String(r[16]||''),sheetRow:i+2,spreadsheetId:other.spreadsheetId});
+    });
+  }
+  await loadResidents({strict:true,prefetched:{meta,rows:data.get(residentsSheetName())}});
+  refreshRecentResidents();saveOfflineDataSnapshot();
 }
 
 async function discoverAnnualWorkspacesFromDrive(){
@@ -3555,7 +3608,9 @@ async function activateYearWorkspace(year, workspace, loadData){
   applyBranding();
   refreshWorkspaceOpenButtons();
 
-  if(loadData==='receipt'){
+  if(loadData==='year'){
+    await loadYearDataForSwitch();
+  }else if(loadData==='receipt'){
     await syncSettingsFromSheet({strict:true});
     await loadResidents();
   }else if(loadData){
@@ -5880,7 +5935,9 @@ async function refreshUpcomingPayments(){
   list.innerHTML = '<div class="home-residents-loading">⏳ טוען נתונים מהגיליון…</div>';
 
   try{
-    await Promise.all([loadResidents(), loadAllReceiptRows()]);
+    await loadYearDataForSwitch();
+    const selected=currentResident();
+    if(selected) restoreReceiptResidentSelection(selected);
     refreshRecentResidents();
     status.textContent = 'עודכן עכשיו';
   }catch(e){
@@ -5957,7 +6014,9 @@ async function validateServiceMonthAvailability(snap){
     const meta=await gapi.client.sheets.spreadsheets.get({spreadsheetId,fields:'sheets(properties)'});
     if((meta.result.sheets||[]).some(s=>s.properties.title===SERVICE_ALLOCATIONS_SHEET)){
       const alloc=await gapi.client.sheets.spreadsheets.values.get({spreadsheetId,range:`'${SERVICE_ALLOCATIONS_SHEET}'!A2:J`});
-      (alloc.result.values||[]).filter(r=>String(r[1])===snap.resident.name && String(r[2]||'')===(snap.resident.phone||'') && String(r[3]||'')===(snap.resident.apartment||'') && r[9]!=='בוטל').forEach(r=>paid.add(Number(r[5])));
+      const allocations=(alloc.result.values||[]).map(serviceAllocationFromRow).filter(a=>a.name===snap.resident.name && a.phone===(snap.resident.phone||'') && a.apartment===(snap.resident.apartment||''));
+      await verifyServiceAllocationSources(allocations,null,snap.yearTargets);
+      allocations.filter(a=>!a.cancelled && !a.orphaned).forEach(a=>paid.add(a.monthIndex));
     }
     const duplicates=snap.serviceMonths.filter(m=>m.year===year && paid.has(m.monthIndex));
     if(duplicates.length) throw new Error('החודשים הבאים כבר רשומים כשולמו: '+duplicates.map(serviceMonthLabel).join(', '));
@@ -6027,6 +6086,12 @@ function renderServicePeriod(){
   document.getElementById(id).addEventListener('input',renderServicePeriod);
 });
 document.getElementById('servicePeriodStart').value=todayIsoLocal().slice(0,7);
+document.getElementById('servicePeriodStart').addEventListener('click',event=>{
+  const input=event.currentTarget;
+  if(typeof input.showPicker==='function'){
+    try{input.showPicker();}catch(error){input.focus();}
+  }else input.focus();
+});
 
 
 function receiptHTML(forPdf=false, opts={}){
@@ -6992,7 +7057,7 @@ function clearDeadDataConnection(message){
   refreshRecentResidents();
   showMsg(message, 'error');
 }
-async function loadResidents(){
+async function loadResidents({prefetched=null,strict=false}={}){
   // Reloading the Google Sheet must not discard the resident/customer that
   // was already selected in the receipt wizard.  Keep the stable sheet-row
   // identity before replacing the in-memory list, then restore the picker
@@ -7007,7 +7072,7 @@ async function loadResidents(){
     // Trash is emptied — so a plain "did the request fail" check misses
     // exactly this case, which otherwise looks identical to a healthy
     // connection. Checking the actual `trashed` flag catches it directly.
-    try{
+    if(!prefetched) try{
       const [sheetChk, folderChk] = await Promise.all([
         gapi.client.drive.files.get({fileId:CFG.spreadsheetId, fields:'trashed'}),
         gapi.client.drive.files.get({fileId:CFG.folderId, fields:'trashed'})
@@ -7022,12 +7087,12 @@ async function loadResidents(){
       // handling a few lines down.
     }
 
-    await ensureResidentsSheetName();
+    if(!prefetched) await ensureResidentsSheetName();
     try{
-      const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:CFG.spreadsheetId});
+      const meta = prefetched?.meta || await gapi.client.sheets.spreadsheets.get({spreadsheetId:CFG.spreadsheetId});
       const sheetMeta = (meta.result.sheets||[]).find(s=>s.properties.title===residentsSheetName());
       residentsGid = sheetMeta ? sheetMeta.properties.sheetId : null;
-      if(sheetMeta && sheetMeta.properties.rightToLeft !== true){
+      if(!prefetched && sheetMeta && sheetMeta.properties.rightToLeft !== true){
         try{
           await gapi.client.sheets.spreadsheets.batchUpdate({
             spreadsheetId:CFG.spreadsheetId,
@@ -7039,7 +7104,7 @@ async function loadResidents(){
         }catch(e){}
       }
     }catch(e){ residentsGid = null; } // non-fatal — delete-row just won't be available
-    const res = await gapi.client.sheets.spreadsheets.values.get({
+    const res = prefetched ? {result:{values:prefetched.rows}} : await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId:CFG.spreadsheetId, range:`'${residentsSheetName()}'!A:Z`
     });
     const rows=res.result.values||[];
@@ -7161,6 +7226,7 @@ async function loadResidents(){
     // Keep the latest successful Google data available for offline use.
     saveOfflineDataSnapshot();
   }catch(e){
+    if(strict) throw e;
     if(e.status===401||e.result?.error?.code===401){
       // Cached token turned out to be invalid (revoked/expired) — clear it and ask
       // the person to reconnect, rather than showing a confusing raw error.
@@ -7674,23 +7740,26 @@ async function ensureSettingsStorage(spreadsheetId, mode){
   return {settingsFileId,rows};
 }
 
-async function syncSettingsFromSheet({strict=false}={}){
+async function syncSettingsFromSheet({strict=false,metadata=null,prefetchedRows=null}={}){
   if(!CFG.spreadsheetId) return;
   const account = CFG.email, mode = CFG.usageMode, spreadsheetId = CFG.spreadsheetId;
   const stillCurrent = ()=>CFG.email===account && CFG.usageMode===mode && CFG.spreadsheetId===spreadsheetId;
   try{
-    const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId});
+    const meta = metadata || await gapi.client.sheets.spreadsheets.get({spreadsheetId});
     if(!stillCurrent()) return;
     const titles = (meta.result.sheets||[]).map(s=>s.properties.title);
     if((mode==='business' && titles.includes('אנשי קשר') && !titles.includes('לקוחות')) ||
        (mode==='vaad' && titles.includes('לקוחות') && !titles.includes('אנשי קשר'))) return;
-    const storage = await ensureSettingsStorage(spreadsheetId,mode);
+    let rows=prefetchedRows;
+    if(rows===null){
+      const storage = await ensureSettingsStorage(spreadsheetId,mode);
+      if(!stillCurrent()) return;
+      const res = await gapi.client.sheets.spreadsheets.values.get({
+        spreadsheetId:storage.settingsFileId, range:`'${SETTINGS_SHEET}'!A:B`
+      });
+      rows=res.result.values||[];
+    }
     if(!stillCurrent()) return;
-    const res = await gapi.client.sheets.spreadsheets.values.get({
-      spreadsheetId:storage.settingsFileId, range:`'${SETTINGS_SHEET}'!A:B`
-    });
-    if(!stillCurrent()) return;
-    const rows = res.result.values || [];
     if(!rows.length) return; // tab exists but is empty — keep local values as-is
 
     let changed = false;
@@ -8216,18 +8285,50 @@ async function appendServiceAllocations(snap){
     if(rows.length) await gapi.client.sheets.spreadsheets.values.append({spreadsheetId,range:`'${SERVICE_ALLOCATIONS_SHEET}'!A:I`,valueInputOption:'RAW',insertDataOption:'INSERT_ROWS',resource:{values:rows}});
   }
 }
-async function loadServiceAllocations(){
-  const meta=await gapi.client.sheets.spreadsheets.get({spreadsheetId:CFG.spreadsheetId,fields:'sheets(properties)'});
-  if(!(meta.result.sheets||[]).some(s=>s.properties.title===SERVICE_ALLOCATIONS_SHEET)){serviceAllocations=[];return;}
-  const res=await gapi.client.sheets.spreadsheets.values.get({spreadsheetId:CFG.spreadsheetId,range:`'${SERVICE_ALLOCATIONS_SHEET}'!A2:J`});
-  serviceAllocations=(res.result.values||[]).map(r=>({name:String(r[1]||''),phone:String(r[2]||''),apartment:String(r[3]||''),year:Number(r[4]),monthIndex:Number(r[5]),sourceReceipt:String(r[6]||''),planId:String(r[8]||''),cancelled:r[9]==='בוטל'}));
-  const cancelled=new Set();
-  for(const workspace of Object.values(CFG.yearWorkspaces||{})){
-    const result=await gapi.client.sheets.spreadsheets.values.get({spreadsheetId:workspace.spreadsheetId,range:`'${FINANCE_SHEET}'!K2:Q`});
-    (result.result.values||[]).filter(r=>r[1]==='בוטל' && r[6]).forEach(r=>cancelled.add(String(r[0])+':'+String(r[6])));
+function serviceAllocationFromRow(r){
+  return {name:String(r[1]||''),phone:String(r[2]||''),apartment:String(r[3]||''),year:Number(r[4]),monthIndex:Number(r[5]),sourceReceipt:String(r[6]||''),receiptYear:Number(r[7])||Number(String(r[0]||'').split(':')[0]),planId:String(r[8]||''),cancelled:r[9]==='בוטל',orphaned:false};
+}
+async function verifyServiceAllocationSources(allocations,annualData=null,yearTargets=null){
+  const sources=new Map();
+  for(const allocation of allocations){
+    if(allocation.cancelled) continue;
+    const year=allocation.receiptYear;
+    if(!year || !allocation.sourceReceipt) throw new Error('חסר מזהה הקבלה המקורית ברישום החודשים. לא ניתן לאמת את התשלום.');
+    if(!sources.has(year)){
+      const prefetched=annualData?.get(year);
+      if(prefetched) sources.set(year,prefetched.receipts);
+      else{
+        const workspace=yearTargets?.[year] || CFG.yearWorkspaces?.[String(year)] || (year===Number(CFG.activeYear)?{spreadsheetId:CFG.spreadsheetId}:null);
+        if(!workspace?.spreadsheetId) throw new Error('לא נמצא גיליון שנת הקבלה '+year+' לצורך בדיקת החודשים ששולמו.');
+        const result=await gapi.client.sheets.spreadsheets.values.get({spreadsheetId:workspace.spreadsheetId,range:`'${RECEIPTS_SHEET}'!A2:J`});
+        sources.set(year,result.result.values||[]);
+      }
+    }
+    const matches=sources.get(year).filter(r=>String(r[7]||'')===allocation.sourceReceipt);
+    allocation.orphaned=matches.length===0;
+    if(matches.length && !matches.some(r=>String(r[1]||'').trim()===allocation.name.trim() || (allocation.phone.trim() && String(r[2]||'').trim()===allocation.phone.trim()))){
+      throw new Error('פרטי הדייר ברישום החודשים אינם תואמים לקבלה '+allocation.sourceReceipt+' משנת '+year+'. נדרשת בדיקת הרשומות.');
+    }
   }
-  serviceAllocations.forEach(a=>{const key=a.year+'-'+String(a.monthIndex+1).padStart(2,'0');if(cancelled.has(a.planId+':'+key)) a.cancelled=true;});
-
+  return allocations;
+}
+async function loadServiceAllocations({prefetched=null,annualData=null}={}){
+  const meta=prefetched?.meta || await gapi.client.sheets.spreadsheets.get({spreadsheetId:CFG.spreadsheetId,fields:'sheets(properties)'});
+  if(!(meta.result.sheets||[]).some(s=>s.properties.title===SERVICE_ALLOCATIONS_SHEET)){serviceAllocations=[];return;}
+  const res=prefetched?{result:{values:prefetched.rows}}:await gapi.client.sheets.spreadsheets.values.get({spreadsheetId:CFG.spreadsheetId,range:`'${SERVICE_ALLOCATIONS_SHEET}'!A2:J`});
+  const allocations=(res.result.values||[]).map(serviceAllocationFromRow);
+  const cancelled=new Set();
+  if(annualData){
+    for(const workspace of annualData.values()) workspace.finance.filter(r=>r[11]==='בוטל' && r[16]).forEach(r=>cancelled.add(String(r[10])+':'+String(r[16])));
+  }else{
+    for(const workspace of Object.values(CFG.yearWorkspaces||{})){
+      const result=await gapi.client.sheets.spreadsheets.values.get({spreadsheetId:workspace.spreadsheetId,range:`'${FINANCE_SHEET}'!K2:Q`});
+      (result.result.values||[]).filter(r=>r[1]==='בוטל' && r[6]).forEach(r=>cancelled.add(String(r[0])+':'+String(r[6])));
+    }
+  }
+  allocations.forEach(a=>{const key=a.year+'-'+String(a.monthIndex+1).padStart(2,'0');if(cancelled.has(a.planId+':'+key)) a.cancelled=true;});
+  await verifyServiceAllocationSources(allocations,annualData);
+  serviceAllocations=allocations;
 }
 
 async function loadRemoteFutureIncomeRows(){
@@ -8244,16 +8345,18 @@ async function loadRemoteFutureIncomeRows(){
   remoteFutureIncomeRows=rows;
 }
 
-async function loadFinanceRows(){
+async function loadFinanceRows({prefetched=null,prepare=true,includeRemote=true}={}){
   try{
-    await refreshAnnualCarryForwardIfPristine(Number(CFG.activeYear));
-    await ensureFinanceSheet();
+    if(prepare){
+      await refreshAnnualCarryForwardIfPristine(Number(CFG.activeYear));
+      await ensureFinanceSheet();
+    }
     try{
-      const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:CFG.spreadsheetId});
+      const meta = prefetched?.meta || await gapi.client.sheets.spreadsheets.get({spreadsheetId:CFG.spreadsheetId});
       const sheetMeta = (meta.result.sheets||[]).find(s=>s.properties.title===FINANCE_SHEET);
       financeSheetGid = sheetMeta ? sheetMeta.properties.sheetId : null;
     }catch(e){ financeSheetGid = null; } // non-fatal — delete-row just won't be available
-    const res = await gapi.client.sheets.spreadsheets.values.get({
+    const res = prefetched ? {result:{values:prefetched.rows}} : await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId:CFG.spreadsheetId, range:`'${FINANCE_SHEET}'!A2:Q`
     });
     const raw = res.result.values || [];
@@ -8285,7 +8388,7 @@ async function loadFinanceRows(){
           sheetRow: o.sheetRow
         };
       });
-    try{await loadRemoteFutureIncomeRows();}catch(e){
+    try{if(includeRemote) await loadRemoteFutureIncomeRows();}catch(e){
       remoteFutureIncomeRows=[];
       showMsg("לא ניתן לטעון את כל התשלומים משנות העבודה האחרות. הנתונים של השנה הפעילה נשמרו. נסו לרענן.","error");
       console.error(e);
@@ -9231,10 +9334,10 @@ function loadOfflineDataSnapshot(){
     return false;
   }
 }
-async function loadAllReceiptRows({strict=false}={}){
+async function loadAllReceiptRows({strict=false,prefetched=null}={}){
   try{
     const layout = receiptSheetLayout();
-    const res = await gapi.client.sheets.spreadsheets.values.get({
+    const res = prefetched || await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId:CFG.spreadsheetId, range:`'${RECEIPTS_SHEET}'!A2:${layout.lastCol}`
     });
     allReceiptRows = res.result.values||[];
@@ -9496,7 +9599,7 @@ document.addEventListener('click', e=>{
 function getPaidMonthsForResident(resident){
   const paid = new Set();
   if(!resident) return paid;
-  serviceAllocations.filter(a=>a.name===resident.name && a.phone===(resident.phone||'') && a.apartment===(resident.apartment||'') && a.year===Number(CFG.activeYear) && !a.cancelled).forEach(a=>paid.add(a.monthIndex));
+  serviceAllocations.filter(a=>a.name===resident.name && a.phone===(resident.phone||'') && a.apartment===(resident.apartment||'') && a.year===Number(CFG.activeYear) && !a.cancelled && !a.orphaned).forEach(a=>paid.add(a.monthIndex));
   const year = Number(CFG.activeYear) || currentCalendarYear();
   const receiptNumberIndex = receiptSheetLayout().receiptNumIdx;
 
@@ -9939,7 +10042,11 @@ function installSheetsReadGuard(){
           if(wait) await delay(wait);
           if(CFG.email!==account || CFG.usageMode!==mode) throw new Error('החשבון או סוג החשבון השתנה בזמן הפעולה. יש לנסות שוב.');
           nextReadAt=Date.now()+1500;
-          try{return await original(args);}catch(error){
+          try{
+            const result=await original(args);
+            if(CFG.email!==account || CFG.usageMode!==mode) throw new Error('החשבון או סוג החשבון השתנה בזמן הפעולה. יש לנסות שוב.');
+            return result;
+          }catch(error){
             if(!isSheetsReadQuotaError(error) || attempt>=4) throw error;
             const seconds=Math.min(64,8*(2**attempt))+Math.floor(Math.random()*3);
             const resumeAt=Date.now()+seconds*1000;
