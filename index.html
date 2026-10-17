@@ -419,6 +419,7 @@ body.home-active .finance-screen{height:auto;overflow:visible;}
   0%{opacity:1;transform:translate(0,0) rotate(0deg);}
   100%{opacity:0;transform:translate(var(--dx,0px),120px) rotate(360deg);}
 }
+#receiptDialogActions[hidden],#receiptDialogIcon[hidden],#successNewBtn[hidden],#receiptProgress[hidden]{display:none!important;}
 .success-check{width:52px;height:52px;border-radius:50%;background:var(--good);color:#fff;font-size:26px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;position:relative;z-index:1;}
 .success-title{font-size:17px;font-weight:800;color:var(--ink);margin-bottom:6px;position:relative;z-index:1;}
 .success-sub{font-size:12.5px;color:var(--slate);margin-bottom:16px;position:relative;z-index:1;}
@@ -1652,11 +1653,6 @@ body.setup-incomplete #homeResidentsSection{display:none !important;}
       <div class="receipt-preview-wrap" id="receiptPaper">
         <div class="empty-hint">בחרו דייר, אמצעי תשלום וחודשים — התצוגה המקדימה תופיע כאן.</div>
       </div>
-      <div id="receiptProgress" role="status" aria-live="polite" hidden style="padding:14px;margin:12px 0;border:1px solid #bfdbfe;border-radius:12px;background:#eff6ff;color:#1e40af;">
-        <span class="receipt-progress-spinner" aria-hidden="true"></span>
-        <span id="receiptProgressText"></span>
-        <div id="receiptProgressElapsed" style="font-size:12px;margin-top:6px;"></div>
-      </div>
       <div class="msg" id="msgBox"></div>
     </div>
 
@@ -1836,16 +1832,23 @@ body.setup-incomplete #homeResidentsSection{display:none !important;}
 
 <!-- RECEIPT SUCCESS POPUP (shown after a receipt is generated) -->
 <div class="modal-bg" id="receiptSuccessModalBg" style="z-index:400;">
-  <div class="modal" style="text-align:center;position:relative;">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="receiptDialogTitle" style="text-align:center;position:relative;">
     <button type="button" id="receiptSuccessCloseBtn" class="account-modal-close" aria-label="סגירה" style="position:absolute;top:10px;left:10px;">✕</button>
     <div class="confetti-wrap" id="confettiWrap"></div>
-    <div class="success-check">✓</div>
-    <div class="success-title">הקבלה הופקה בהצלחה!</div>
+    <div class="success-check" id="receiptDialogIcon">✓</div>
+    <div class="success-title" id="receiptDialogTitle" aria-live="polite">הקבלה הופקה בהצלחה!</div>
+      <div id="receiptProgress" role="status" aria-live="polite" hidden style="padding:14px;margin:12px 0;border:1px solid #bfdbfe;border-radius:12px;background:#eff6ff;color:#1e40af;">
+        <span class="receipt-progress-spinner" aria-hidden="true"></span>
+        <span id="receiptProgressText"></span>
+        <div id="receiptProgressElapsed" style="font-size:12px;margin-top:6px;"></div>
+      </div>
+
     <div class="success-sub" id="successSub"></div>
-    <div class="post-actions">
+    <div class="post-actions" id="receiptDialogActions">
       <button id="downloadBtn">⬇ הורדת PDF</button>
       <button id="shareBtn">↗ שיתוף PDF</button>
     </div>
+    <div id="receiptSaveStatus" role="status" style="font-size:13px;margin-top:12px;white-space:pre-line;"></div>
     <button class="success-new-btn" id="successNewBtn" style="margin-top:12px;">➕ הפקת קבלה נוספת</button>
   </div>
 </div>
@@ -2140,7 +2143,7 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '272';
+const APP_BUILD = '273';
 let yearSwitchBusy=false;
 let receiptGenerationBusy=false;
 let receiptProgressTimer=null;
@@ -5936,12 +5939,14 @@ document.getElementById('homeSettingsBtn').addEventListener('click', ()=>documen
 document.getElementById('homeHistoryBtn').addEventListener('click', ()=>document.getElementById('historyBtn').click());
 document.getElementById('homeTourBtn').addEventListener('click', tourStart);
 document.getElementById('successNewBtn').addEventListener('click', ()=>{
+  if(receiptGenerationBusy) return;
   document.getElementById('receiptSuccessModalBg').classList.remove('show');
   document.getElementById('receiptDoneHomeBtn').style.display = 'none';
   hideMsg();
   clearResidentSelection(); // clears fields and returns to step 0 for a new receipt — wizard stays open
 });
 document.getElementById('receiptSuccessCloseBtn').addEventListener('click', ()=>{
+  if(receiptGenerationBusy) return;
   document.getElementById('receiptSuccessModalBg').classList.remove('show');
 });
 document.getElementById('receiptDoneHomeBtn').addEventListener('click', ()=>{
@@ -10032,6 +10037,34 @@ async function sendPaymentReminderEmail(residentName, email, lastPaidMonthName){
   return res.json();
 }
 
+let receiptDialogJobId='';
+function setReceiptDialogState(state,detail=''){
+  const modal=document.getElementById('receiptSuccessModalBg');
+  modal.dataset.state=state;
+  modal.classList.add('show');
+  const busy=state==='busy',ready=state==='ready';
+  document.getElementById('receiptDialogIcon').hidden=!ready;
+  document.getElementById('receiptDialogTitle').textContent=busy?'מפיק את הקבלה…':ready?'הקבלה הופקה בהצלחה!':'לא ניתן להפיק את הקבלה';
+  document.getElementById('successSub').textContent=detail;
+  document.getElementById('receiptDialogActions').hidden=!ready;
+  document.getElementById('successNewBtn').hidden=!ready;
+  document.getElementById('receiptSuccessCloseBtn').disabled=busy;
+  document.getElementById('receiptProgress').hidden=!busy;
+  if(!ready) document.getElementById('receiptSaveStatus').textContent='';
+  if(busy){receiptDialogJobId='';document.getElementById('confettiWrap').innerHTML='';}
+}
+function receiptDialogJobKey(snap){
+  return [snap.account,snap.usageMode,snap.targetSpreadsheetId,snap.receiptNumber].join('|');
+}
+function showReceiptSaveMessage(snap,text,type){
+  if(receiptDialogJobId===receiptDialogJobKey(snap)){
+    const status=document.getElementById('receiptSaveStatus');
+    status.textContent=text;
+    status.style.color=type==='error'?'#A33E3E':'#64748B';
+  }
+  showMsg(text,type);
+}
+
 function setReceiptProgress(text){
   if(!receiptGenerationBusy) return;
   document.getElementById('receiptProgressText').textContent=text;
@@ -10043,6 +10076,8 @@ function setReceiptProgress(text){
 function startReceiptProgress(){
   receiptGenerationBusy=true;
   receiptProgressStarted=Date.now();
+  document.getElementById('receiptProgressElapsed').textContent='';
+  setReceiptDialogState('busy');
   setReceiptProgress('בודק את שנת ההפקה…');
   const back=document.getElementById('wizardBackBtn');
   if(back) back.disabled=true;
@@ -10055,6 +10090,9 @@ function stopReceiptProgress(){
   clearInterval(receiptProgressTimer);
   document.getElementById('receiptProgress').hidden=true;
   document.getElementById('receiptProgressElapsed').textContent='';
+  document.getElementById('receiptSuccessCloseBtn').disabled=false;
+  const modal=document.getElementById('receiptSuccessModalBg');
+  if(modal.dataset.state==='busy') modal.classList.remove('show');
   const back=document.getElementById('wizardBackBtn');
   if(back) back.disabled=false;
   const button=document.getElementById('wizardCancelBtn');
@@ -10262,8 +10300,9 @@ async function performGenerateReceipt(){
     // sit and wait on network calls just to see a receipt that's already
     // fully ready.
     const total = snap.totalAmount;
-    document.getElementById('successSub').textContent = `${r.name} · ${total.toLocaleString('he-IL')} ₪`;
-    document.getElementById('receiptSuccessModalBg').classList.add('show');
+    setReceiptDialogState('ready',`${r.name} · ${total.toLocaleString('he-IL')} ₪`);
+    receiptDialogJobId=receiptDialogJobKey(snap);
+    document.getElementById('receiptSaveStatus').textContent='שומר את הקבלה ב-Drive ובגיליון…';
     // The generate action's job is done — the popup (with its own
     // "another receipt" / close choice) takes over from here.
     btn.style.display = 'none';
@@ -10273,7 +10312,9 @@ async function performGenerateReceipt(){
 
     finalizeReceiptInBackground(snap, blob, filename);
   }catch(e){
-    showMsg(isSheetsReadQuotaError(e)?'Google עדיין מגביל את הקריאות לגיליונות. לא הופקה קבלה. יש להמתין דקה ולנסות שוב.':'שגיאה בהפקת הקבלה: '+(e.result?.error?.message||e.message||e),'error');
+    const errorText=isSheetsReadQuotaError(e)?'Google עדיין מגביל את הקריאות לגיליונות. לא הופקה קבלה. יש להמתין דקה ולנסות שוב.':'שגיאה בהפקת הקבלה: '+(e.result?.error?.message||e.message||e);
+    setReceiptDialogState('error',errorText);
+    showMsg(errorText,'error');
     btn.disabled=false; btn.textContent='🧾 הפק קבלה';
   }finally{
     stopReceiptProgress();
@@ -10435,6 +10476,7 @@ document.getElementById('repairReceiptIncomeBtn').addEventListener('click',async
 async function finalizeReceiptInBackground(snap, blob, filename, attempt){
   attempt = attempt || 0;
   try{
+    showReceiptSaveMessage(snap,attempt?'מנסה שוב לשמור את הקבלה…':'שומר את הקבלה ב-Drive…','info');
     const driveFile = await uploadToDrive(blob, filename, snap.targetFolderId);
     const r = snap.resident;
     const total = snap.totalAmount;
@@ -10445,6 +10487,7 @@ async function finalizeReceiptInBackground(snap, blob, filename, attempt){
     const rowValues = snap.usageMode==='business'
       ? [todayStr(),r.name,r.phone||'',monthsCell,total,snap.payMethod,snap.receiptNumber,filename,driveFile.webViewLink||'']
       : [todayStr(),r.name,r.phone||'',monthsCell,snap.isOtherPurpose?0:snap.months.length,total,snap.payMethod,snap.receiptNumber,filename,driveFile.webViewLink||''];
+    showReceiptSaveMessage(snap,'מתעד את הקבלה בגיליון…','info');
     await appendReceiptRow(
       rowValues,
       snap.targetSpreadsheetId
@@ -10461,6 +10504,7 @@ async function finalizeReceiptInBackground(snap, blob, filename, attempt){
       paintMonthsGrid();
     }
 
+    showReceiptSaveMessage(snap,'מעדכן את רישום ההכנסות…','info');
     let incomeResult;
     try{incomeResult=await completeReceiptIncome(queueReceiptIncome(snap,monthsCell));}
     catch(e){incomeResult={ok:false,errors:[receiptIncomeError('שמירת רישום להשלמה',e)]};}
@@ -10469,16 +10513,17 @@ async function finalizeReceiptInBackground(snap, blob, filename, attempt){
 
     if(snap.wantsEmail){
       try{
+        showReceiptSaveMessage(snap,'שולח את הקבלה למייל…','info');
         await sendReceiptByEmail(r, blob, filename, total, {
           isOtherPurpose:snap.isOtherPurpose,
           purposeText:snap.purposeText
         });
-        showMsg('✅ הקבלה נשמרה ב-Drive ונשלחה למייל '+snap.email+'.'+incomeWarning,'ok');
+        showReceiptSaveMessage(snap,'✅ הקבלה נשמרה ב-Drive ונשלחה למייל '+snap.email+'.'+incomeWarning,'ok');
       }catch(emailErr){
-        showMsg('הקבלה נשמרה ב-Drive, אך שליחת המייל נכשלה: '+(emailErr.message||emailErr),'error');
+        showReceiptSaveMessage(snap,'הקבלה נשמרה ב-Drive, אך שליחת המייל נכשלה: '+(emailErr.message||emailErr),'error');
       }
     } else {
-      showMsg('✅ הקבלה נשמרה ב-Drive ותועדה בגיליון "קבלות".'+incomeWarning, financeLogFailed?'error':'ok');
+      showReceiptSaveMessage(snap,'✅ הקבלה נשמרה ב-Drive ותועדה בגיליון "קבלות".'+incomeWarning, financeLogFailed?'error':'ok');
     }
   }catch(e){
     console.warn('[קבקליק] שמירת קבלה ברקע נכשלה:', e);
@@ -10494,7 +10539,7 @@ async function finalizeReceiptInBackground(snap, blob, filename, attempt){
       document.getElementById('authDot').classList.remove('on');
       document.getElementById('authLabel').textContent='התחברות עם Google';
 
-      showMsg(
+      showReceiptSaveMessage(snap,
         ' הקבלה הופקה, אך השמירה ב-Google Drive / Sheets לא הושלמה. יש להתחבר מחדש ל-Google.',
         'error'
       );
@@ -10508,7 +10553,7 @@ async function finalizeReceiptInBackground(snap, blob, filename, attempt){
       CFG.folderId = '';
       persistCurrentAccountCfg();
       updateSetupChecklist();
-      showMsg('⚠️ הקבלה הופקה בהצלחה (ניתן להוריד/לשתף), אך התיקייה ב-Drive שהייתה מוגדרת נמחקה. יש לפתוח את ⚙ ההגדרות וליצור תיקייה חדשה, או לחבר אחת קיימת.','error');
+      showReceiptSaveMessage(snap,'⚠️ הקבלה הופקה בהצלחה (ניתן להוריד/לשתף), אך התיקייה ב-Drive שהייתה מוגדרת נמחקה. יש לפתוח את ⚙ ההגדרות וליצור תיקייה חדשה, או לחבר אחת קיימת.','error');
       return;
     }
     if(!navigator.onLine){
@@ -10518,7 +10563,7 @@ async function finalizeReceiptInBackground(snap, blob, filename, attempt){
     } else if(attempt < 4){
       setTimeout(()=>finalizeReceiptInBackground(snap, blob, filename, attempt+1), 4000*(attempt+1));
     } else {
-      showMsg('⚠️ הקבלה הופקה בהצלחה (ניתן להוריד/לשתף), אך השמירה ב-Drive עדיין נכשלת. יש לבדוק את החיבור ולנסות שוב מאוחר יותר.','error');
+      showReceiptSaveMessage(snap,'⚠️ הקבלה הופקה בהצלחה (ניתן להוריד/לשתף), אך השמירה ב-Drive עדיין נכשלת. יש לבדוק את החיבור ולנסות שוב מאוחר יותר.','error');
     }
   }
 }
