@@ -2140,7 +2140,7 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '271';
+const APP_BUILD = '272';
 let yearSwitchBusy=false;
 let receiptGenerationBusy=false;
 let receiptProgressTimer=null;
@@ -4620,10 +4620,11 @@ document.getElementById('openSheetBtn').addEventListener('click', async ()=>{
   // Reserve the tab synchronously so mobile popup blockers do not discard the
   // opening after the Google API call finishes.
   const tab=window.open('about:blank','_blank');
+  try{if(tab?.document.body) tab.document.body.textContent='פותח את הגיליון…';}catch(_){}
   try{
     const meta=await gapi.client.sheets.spreadsheets.get({spreadsheetId:workspace.spreadsheetId});
     const sheets=(meta.result.sheets||[]).map(sheet=>sheet.properties);
-    await ensureSettingsStorage(workspace.spreadsheetId,CFG.usageMode);
+    await hideSettingsTabInSpreadsheet(workspace.spreadsheetId,sheets);
     const firstVisible=sheets.find(sheet=>sheet.title===RECEIPTS_SHEET && !sheet.hidden)
       || sheets.find(sheet=>sheet.title!==SETTINGS_SHEET && !sheet.hidden);
     if(!firstVisible) throw new Error('NO_VISIBLE_WORKSPACE_SHEET');
@@ -4631,9 +4632,11 @@ document.getElementById('openSheetBtn').addEventListener('click', async ()=>{
     if(tab){ tab.opener=null; tab.location.replace(url); }
     else window.open(url,'_blank','noopener');
   }catch(e){
-    if(tab) tab.close();
+    if(tab){
+      try{tab.document.body.textContent='פתיחת הגיליון לא הושלמה. חזרו לקבקליק להצגת פרטי השגיאה.';tab.close();}catch(_){}
+    }
     console.warn('[קבקליק] הסתרת לשונית ההגדרות לפני הצגת הגיליון נכשלה:',e);
-    await showAppAlert('לא ניתן לוודא כעת שלשונית ההגדרות מוסתרת. בדקו את החיבור לגוגל ונסו שוב.','⚠️');
+    await showAppAlert('פתיחת הגיליון לא הושלמה: '+(e.result?.error?.message||e.message||String(e)),'⚠️');
   }
 });
 document.getElementById('openFolderBtn').addEventListener('click', ()=>{
@@ -7612,13 +7615,26 @@ async function readWorkspaceSettingsRows(spreadsheetId, knownTitles){
 function sameSettingsValues(a,b){
   const normalize=rows=>rows.map(row=>[
     String(row[0]??'').trim(),String(row[1]??'').trim()
-  ]).filter(row=>row[0]);
+  ]).filter(row=>row[0]).sort((x,y)=>x[0].localeCompare(y[0]) || x[1].localeCompare(y[1]));
   return JSON.stringify(normalize(a))===JSON.stringify(normalize(b));
+}
+
+function settingsStorageError(code){
+  return new Error('לא ניתן לאמת את קובץ ההגדרות המחובר. ההגדרות הקיימות נשמרו. '+code);
+}
+
+const settingsStorageRuns=new Map();
+async function ensureSettingsStorage(spreadsheetId,mode){
+  const key=[CFG.email,mode,spreadsheetId].join('|');
+  if(settingsStorageRuns.has(key)) return await settingsStorageRuns.get(key);
+  const running=ensureSettingsStorageInternal(spreadsheetId,mode);
+  settingsStorageRuns.set(key,running);
+  try{return await running;}finally{settingsStorageRuns.delete(key);}
 }
 
 // Copy then verify the legacy tab before linking to the new file. This is
 // repeatable after an interrupted run and never changes the settings values.
-async function ensureSettingsStorage(spreadsheetId, mode){
+async function ensureSettingsStorageInternal(spreadsheetId, mode){
   const [meta,file]=await Promise.all([
     gapi.client.sheets.spreadsheets.get({spreadsheetId}),
     gapi.client.drive.files.get({fileId:spreadsheetId,fields:'id,appProperties,parents'})
@@ -7631,6 +7647,33 @@ async function ensureSettingsStorage(spreadsheetId, mode){
   const legacy=meta.result.sheets.find(s=>s.properties.title===SETTINGS_SHEET);
   const properties=file.result.appProperties||{};
   let settingsFileId=properties.settingsFileId||'';
+  // A successfully linked settings file is the live source used by normal
+  // settings reads/writes. A leftover legacy tab is only a migration copy;
+  // it must not invalidate later legitimate settings changes.
+  if(settingsFileId){
+    const target=await gapi.client.drive.files.get({fileId:settingsFileId,fields:'id,mimeType,trashed,appProperties'});
+    const targetProperties=target.result.appProperties||{};
+    if(target.result.trashed || target.result.mimeType!=='application/vnd.google-apps.spreadsheet' ||
+      targetProperties.kabclick!=='1' || targetProperties.kind!=='settings' ||
+      targetProperties.workspaceId!==spreadsheetId || targetProperties.mode!==mode ||
+      (properties.seriesId && targetProperties.seriesId!==properties.seriesId) ||
+      (properties.year && targetProperties.year!==properties.year)){
+      throw settingsStorageError('SETTINGS_STORAGE_IDENTITY_MISMATCH');
+    }
+    const rows=await readSettingsFileRows(settingsFileId);
+    const values=new Map(rows.map(row=>[String(row[0]??'').trim(),String(row[1]??'').trim()]));
+    const expectedFolder=Object.values(CFG.yearWorkspaces||{}).find(workspace=>workspace.spreadsheetId===spreadsheetId)?.folderId ||
+      (CFG.spreadsheetId===spreadsheetId?CFG.folderId:'');
+    if(values.get('KabClick')!=='1' || values.get('סוג חשבון')!==mode ||
+      !values.get('FolderId') || (expectedFolder && values.get('FolderId')!==expectedFolder) ||
+      (properties.year && values.get('שנת עבודה')!==properties.year) ||
+      !Number.isInteger(Number(values.get('מספר הקבלה הבא'))) || Number(values.get('מספר הקבלה הבא'))<1){
+      throw settingsStorageError('SETTINGS_MIGRATION_VERIFICATION_FAILED');
+    }
+    // Preserve the old tab for recovery rather than overwriting either copy.
+    if(legacy) await hideSettingsTabInSpreadsheet(spreadsheetId,meta.result.sheets.map(sheet=>sheet.properties));
+    return {settingsFileId,rows};
+  }
   const legacyRows=legacy ? await readSettingsFileRows(spreadsheetId) : [];
   const seriesId=properties.seriesId||seriesIdFromSpreadsheetId(spreadsheetId);
   const year=properties.year ||
@@ -7672,7 +7715,7 @@ async function ensureSettingsStorage(spreadsheetId, mode){
     rows=await readSettingsFileRows(settingsFileId);
   }
   if(!rows.length || (legacyRows.length && !sameSettingsValues(rows,legacyRows))){
-    throw new Error('SETTINGS_MIGRATION_VERIFICATION_FAILED');
+    throw settingsStorageError('SETTINGS_MIGRATION_VERIFICATION_FAILED');
   }
   if(properties.settingsFileId!==settingsFileId){
     await gapi.client.drive.files.update({
