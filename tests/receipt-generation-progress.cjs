@@ -1,15 +1,16 @@
 const fs=require('fs'),vm=require('vm'),assert=require('assert/strict');
 const html=fs.readFileSync(require('path').join(__dirname,'../index.html'),'utf8');
 const extract=n=>html.match(new RegExp('^(?:async )?function '+n+'\\([^]*?^\\}', 'm'))[0];
-const elements=new Map();const get=id=>{if(!elements.has(id))elements.set(id,{value:'',textContent:'',disabled:false,hidden:true,checked:false,style:{},classList:{add:()=>{}}});return elements.get(id)};
+const elements=new Map();const get=id=>{if(!elements.has(id))elements.set(id,{value:'',textContent:'',disabled:false,hidden:true,checked:false,style:{},dataset:{},classList:{add:()=>{},remove:()=>{}}});return elements.get(id)};
 const resident={name:'Resident',phone:'050',apartment:'5'};
 let pdfs=0,writes=0,blocked=false;
 const ctx={console,Date,Number,Math,Promise,receiptGenerationBusy:false,receiptProgressTimer:null,receiptProgressStarted:0,CFG:{activeYear:2026,usageMode:'vaad',nextReceiptNumber:1000,email:'user'},navigator:{onLine:true},document:{getElementById:get},currentResident:()=>resident,manualAmount:()=>0,isOtherPurpose:false,businessVatEnabled:()=>false,paymentPlanIsValid:()=>true,selectedServiceMonths:()=>[{year:2026,monthIndex:8}],hideMsg:()=>{},showMsg:(text)=>ctx.lastMessage=text,setInterval:()=>1,clearInterval:()=>{},validateForm:()=>{get('wizardCancelBtn').disabled=ctx.receiptGenerationBusy;},currentCalendarYear:()=>2026,ensureYearWorkspaceForWrite:async()=>{throw {status:429,result:{error:{message:'Quota exceeded'}}};},residents:[resident],residentSelect:{value:'0'},buildPdfBlob:async()=>{pdfs++;},finalizeReceiptInBackground:()=>writes++,showAppAlert:async()=>{},loadAllReceiptRows:async opts=>{assert.equal(opts.strict,true);throw Error('receipt read failed');},syncSettingsFromSheet:async()=>{},restoreReceiptResidentSelection:()=>{},setTimeout,clearTimeout};
-vm.createContext(ctx);vm.runInContext(['setReceiptProgress','startReceiptProgress','stopReceiptProgress','isSheetsReadQuotaError','performGenerateReceipt'].map(extract).join('\n'),ctx);
+vm.createContext(ctx);vm.runInContext(['setReceiptDialogState','receiptDialogJobKey','showReceiptSaveMessage','setReceiptProgress','startReceiptProgress','stopReceiptProgress','isSheetsReadQuotaError','performGenerateReceipt'].map(extract).join('\n'),ctx);
 (async()=>{
- await ctx.performGenerateReceipt();assert(ctx.lastMessage.includes('Google'));assert.equal(ctx.receiptGenerationBusy,false);assert.equal(get('receiptProgress').hidden,true);assert.equal(get('wizardBackBtn').disabled,false);assert.equal(get('wizardCancelBtn').disabled,false);assert.equal(pdfs,0);assert.equal(writes,0);
+ await ctx.performGenerateReceipt();assert(ctx.lastMessage.includes('Google'));assert.equal(get('receiptSuccessModalBg').dataset.state,'error');assert.equal(get('receiptDialogActions').hidden,true);assert.equal(ctx.receiptGenerationBusy,false);assert.equal(get('receiptProgress').hidden,true);assert.equal(get('wizardBackBtn').disabled,false);assert.equal(get('wizardCancelBtn').disabled,false);assert.equal(pdfs,0);assert.equal(writes,0);
  ctx.ensureYearWorkspaceForWrite=async()=>true;
  await ctx.performGenerateReceipt();assert(ctx.lastMessage.includes('receipt read failed'));assert.equal(ctx.receiptGenerationBusy,false);assert.equal(pdfs,0);
+ ctx.startReceiptProgress();assert.equal(get('receiptSuccessModalBg').dataset.state,'busy');assert.equal(get('receiptDialogActions').hidden,true);assert.equal(get('receiptSuccessCloseBtn').disabled,true);ctx.stopReceiptProgress();
  // A second click while preparing must do nothing.
  ctx.receiptGenerationBusy=true;ctx.ensureYearWorkspaceForWrite=async()=>{blocked=true;return true;};await ctx.performGenerateReceipt();assert.equal(blocked,false);
  // Known annual targets do not activate or reload the receipt workspace.
@@ -28,6 +29,7 @@ vm.createContext(ctx);vm.runInContext(['setReceiptProgress','startReceiptProgres
  ctx.validateServiceMonthAvailability=async()=>{};ctx.receiptHTML=()=> 'receipt';
  ctx.persistCurrentAccountCfg=()=>{};ctx.spawnConfetti=()=>{};
  ctx.buildPdfBlob=async()=>{pdfs++;return {};};
- await ctx.performGenerateReceipt();assert.equal(pdfs,1);assert.equal(writes,1);assert.equal(ctx.receiptGenerationBusy,false);assert.equal(ctx.CFG.nextReceiptNumber,1001);
+ await ctx.performGenerateReceipt();assert.equal(pdfs,1);assert.equal(writes,1);assert.equal(ctx.receiptGenerationBusy,false);assert.equal(ctx.CFG.nextReceiptNumber,1001);assert.equal(get('receiptSuccessModalBg').dataset.state,'ready');assert.equal(get('receiptDialogActions').hidden,false);assert.equal(get('receiptProgress').hidden,true);
+ const snap={account:'user',usageMode:'vaad',targetSpreadsheetId:'s26',receiptNumber:1000};ctx.showReceiptSaveMessage(snap,'saved','ok');assert.equal(get('receiptSaveStatus').textContent,'saved');ctx.showReceiptSaveMessage({...snap,receiptNumber:999},'stale','error');assert.equal(get('receiptSaveStatus').textContent,'saved');
  console.log('PASS: quota and critical-read failures stop before PDF/writes, progress and controls recover, double generation blocked, known annual targets avoid reloads');
 })().catch(e=>{console.error(e);process.exit(1)});
