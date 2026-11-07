@@ -367,27 +367,28 @@ body.home-active .finance-screen{height:auto;overflow:visible;}
 #appDialogCancelBtn{background:#fff;color:var(--ink-soft);border:1.5px solid var(--card-line);}
 #appDialogCancelBtn:hover{background:var(--app-bg);}
 .home-section-title{font-size:13.5px;font-weight:800;color:var(--ink);margin-bottom:10px;}
-.home-resident-row{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--card-line);}
+.home-resident-row{display:flex;align-items:center;gap:7px;padding:10px 8px;margin-bottom:8px;border:1px solid var(--card-line);border-radius:14px;}
 .home-resident-avatar{width:34px;height:34px;border-radius:50%;background:var(--blue-soft);color:var(--blue-dark);display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:800;flex:none;}
 .home-resident-info{flex:1;min-width:0;}
 .home-resident-name-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
-.home-resident-name{font-size:13px;font-weight:700;color:var(--ink);}
+.home-resident-name{font-size:13px;font-weight:700;color:var(--ink);overflow-wrap:anywhere;}
 .home-resident-badge{font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;}
 .home-resident-badge.debt{background:#FBEAEA;color:var(--bad);}
 .home-resident-badge.due{background:var(--gold-soft);color:#92650A;}
 .home-resident-badge.paid{background:var(--good-soft);color:var(--good);}
-.home-resident-sub{font-size:11px;color:var(--slate);margin-top:2px;}
-.home-resident-receipt-btn{flex:none;background:#fff;border:1.5px solid var(--blue);color:var(--blue);border-radius:10px;padding:7px 12px;font-family:inherit;font-weight:700;font-size:11.5px;cursor:pointer;transition:.15s;}
-.home-resident-receipt-btn:hover{background:var(--blue-soft);}
-.home-resident-menu-wrap{position:relative;flex:none;}
-.home-resident-menu-btn{background:none;border:none;color:var(--slate);font-size:16px;font-weight:800;cursor:pointer;padding:4px 6px;line-height:1;}
-.home-resident-menu-btn:hover{color:var(--ink);}
-.home-resident-menu-dropdown{position:absolute;top:100%;left:0;z-index:70;background:#fff;border:1.5px solid var(--card-line);border-radius:10px;box-shadow:var(--card-shadow);white-space:nowrap;overflow:hidden;margin-top:2px;}
-.home-resident-menu-dropdown.open-up{top:auto;bottom:100%;margin-top:0;margin-bottom:2px;}
-.home-resident-menu-remind{display:block;width:100%;background:#fff;border:none;border-bottom:1px solid var(--card-line);color:var(--ink-soft);font-family:inherit;font-weight:600;font-size:12px;padding:10px 14px;cursor:pointer;text-align:right;}
-.home-resident-menu-remind:hover{background:var(--blue-soft);color:var(--blue-dark);}
-.home-resident-menu-delete{display:block;width:100%;background:#fff;border:none;color:var(--bad);font-family:inherit;font-weight:600;font-size:12px;padding:10px 14px;cursor:pointer;text-align:right;}
-.home-resident-menu-delete:hover{background:#FBEAEA;}
+.home-resident-sub{font-size:11px;color:var(--slate);margin-top:2px;overflow-wrap:anywhere;}
+.home-resident-actions{display:flex;align-items:center;gap:5px;flex:none;}
+.home-resident-action{box-sizing:border-box;width:42px;height:42px;min-width:42px;flex:0 0 42px;border:0;border-radius:50%;padding:0;display:flex;align-items:center;justify-content:center;font-family:inherit;cursor:pointer;transition:filter .15s;}
+.home-resident-action:hover{filter:brightness(.95);}
+.home-resident-action:focus-visible{outline:2px solid var(--blue-dark);outline-offset:3px;}
+.home-resident-action:disabled{opacity:.55;cursor:wait;}
+.home-resident-action svg{width:20px;height:20px;pointer-events:none;}
+.home-resident-receipt-btn{background:var(--blue);color:#fff;flex-direction:column;gap:1px;box-shadow:0 2px 5px #2563eb22;}
+.home-resident-receipt-plus{font-size:18px;font-weight:800;line-height:16px;}
+.home-resident-receipt-label{font-size:8px;line-height:9px;font-weight:800;}
+.home-resident-menu-remind{background:var(--blue-soft);color:var(--blue);font-size:9px;}
+.home-resident-menu-delete{background:#FBEAEA;color:var(--bad);}
+@media(max-width:360px){.home-resident-row{gap:4px;padding-inline:5px;}.home-resident-avatar{width:28px;height:28px;font-size:11px;}.home-resident-actions{gap:3px;}.home-resident-name-row{gap:3px;}.home-resident-badge{padding-inline:5px;}}
 .home-residents-loading{padding:16px 0;text-align:center;font-size:12.5px;color:var(--slate);}
 .home-greeting{font-size:26px;font-weight:900;color:var(--ink);margin-bottom:6px;display:flex;flex-direction:column;align-items:center;width:100%;}
 .home-greeting-wave{font-size:28px;line-height:1;margin-bottom:2px;}
@@ -2143,7 +2144,7 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '273';
+const APP_BUILD = '274';
 let yearSwitchBusy=false;
 let receiptGenerationBusy=false;
 let receiptProgressTimer=null;
@@ -9465,7 +9466,7 @@ function refreshRecentResidents(){
   // unrelated purpose (a repair, not rent) shouldn't be flagged as "בחוב"
   // just because they don't have monthly data yet.
   //
-  // A resident dismissed via the ⋮ menu for a specific due month stays
+  // A resident dismissed via the remove action for a specific due month stays
   // hidden for exactly that month. If a new receipt later shifts their due
   // month, the old dismissal no longer applies and they can reappear.
   const dismissed = loadDismissedReminders();
@@ -9511,13 +9512,10 @@ function refreshRecentResidents(){
           </div>
           <div class="home-resident-sub">${escapeHtml2(monthTxt)}${apt?' · '+escapeHtml2(apt):''}</div>
         </div>
-        <button type="button" class="home-resident-receipt-btn" data-name="${escapeHtml2(row.name)}">הפק קבלה</button>
-        <div class="home-resident-menu-wrap">
-          <button type="button" class="home-resident-menu-btn" data-name="${escapeHtml2(row.name)}" data-nextdue="${row.nextDue}" aria-label="עוד אפשרויות">⋮</button>
-          <div class="home-resident-menu-dropdown" style="display:none;">
-            <button type="button" class="home-resident-menu-remind" data-name="${escapeHtml2(row.name)}" data-email="${escapeHtml2(row.email||'')}" data-lastpaid="${row.lastPaid}">📧 תזכורת לתשלום</button>
-            <button type="button" class="home-resident-menu-delete" data-name="${escapeHtml2(row.name)}" data-nextdue="${row.nextDue}">🗑 הסר מהרשימה</button>
-          </div>
+        <div class="home-resident-actions">
+          <button type="button" class="home-resident-action home-resident-receipt-btn" data-name="${escapeHtml2(row.name)}" aria-label="הפק קבלה" title="הפק קבלה"><span class="home-resident-receipt-plus" aria-hidden="true">+</span><span class="home-resident-receipt-label">הפק<br>קבלה</span></button>
+          <button type="button" class="home-resident-action home-resident-menu-remind" data-name="${escapeHtml2(row.name)}" data-email="${escapeHtml2(row.email||'')}" data-lastpaid="${row.lastPaid}" aria-label="תזכורת לתשלום" title="תזכורת לתשלום"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4M12 2V1"/></svg></button>
+          <button type="button" class="home-resident-action home-resident-menu-delete" data-name="${escapeHtml2(row.name)}" data-nextdue="${row.nextDue}" aria-label="הסר מהרשימה" title="הסר מהרשימה"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg></button>
         </div>
       </div>`;
   }).join('');
@@ -9573,7 +9571,6 @@ function showAppAlert(message, icon){
 document.getElementById('homeResidentsList').addEventListener('click', async e=>{
   const remindBtn = e.target.closest('.home-resident-menu-remind');
   if(remindBtn){
-    document.querySelectorAll('.home-resident-menu-dropdown').forEach(d=>d.style.display='none');
     const email = remindBtn.dataset.email;
     if(!email){
       await showAppAlert('לדייר הזה אין כתובת מייל שמורה בגיליון "אנשי קשר" - לא ניתן לשלוח תזכורת.', '✉️');
@@ -9581,7 +9578,7 @@ document.getElementById('homeResidentsList').addEventListener('click', async e=>
     }
     const lastPaidIdx = +remindBtn.dataset.lastpaid;
     const lastPaidMonthName = lastPaidIdx>=0 ? MONTH_NAMES[lastPaidIdx] : null;
-    const originalLabel = remindBtn.textContent;
+    const originalLabel = remindBtn.innerHTML;
     remindBtn.disabled = true;
     remindBtn.textContent = 'שולח…';
     try{
@@ -9591,36 +9588,19 @@ document.getElementById('homeResidentsList').addEventListener('click', async e=>
       await showAppAlert('שגיאה בשליחת התזכורת: ' + (err.message||err), '⚠️');
     }finally{
       remindBtn.disabled = false;
-      remindBtn.textContent = originalLabel;
+      remindBtn.innerHTML = originalLabel;
     }
     return;
   }
 
   const deleteBtn = e.target.closest('.home-resident-menu-delete');
   if(deleteBtn){
-    document.querySelectorAll('.home-resident-menu-dropdown').forEach(d=>d.style.display='none');
     const confirmed = await showAppConfirm(`האם למחוק את ${deleteBtn.dataset.name} מהרשימה?`, '🗑️');
     if(!confirmed) return;
     const dismissed = loadDismissedReminders();
     dismissed[deleteBtn.dataset.name] = +deleteBtn.dataset.nextdue;
     saveDismissedReminders(dismissed);
     refreshRecentResidents();
-    return;
-  }
-
-  const menuBtn = e.target.closest('.home-resident-menu-btn');
-  if(menuBtn){
-    const dropdown = menuBtn.nextElementSibling;
-    const wasOpen = dropdown.style.display === 'block';
-    document.querySelectorAll('.home-resident-menu-dropdown').forEach(d=>{ d.style.display='none'; d.classList.remove('open-up'); });
-    if(!wasOpen){
-      dropdown.style.display = 'block';
-      const btnRect  = menuBtn.getBoundingClientRect();
-      const dropH    = dropdown.offsetHeight;
-      const footerH  = 90; // approx height of the fixed footer nav, kept clear of
-      const spaceBelow = window.innerHeight - btnRect.bottom - footerH;
-      if(spaceBelow < dropH) dropdown.classList.add('open-up');
-    }
     return;
   }
 
@@ -9634,11 +9614,6 @@ document.getElementById('homeResidentsList').addEventListener('click', async e=>
     residentSearchInput.value = residents[idx].name;
     toggleResidentClearBtn();
     showWizardFromHome();
-  }
-});
-document.addEventListener('click', e=>{
-  if(!e.target.closest('.home-resident-menu-wrap')){
-    document.querySelectorAll('.home-resident-menu-dropdown').forEach(d=>d.style.display='none');
   }
 });
 
