@@ -2144,7 +2144,7 @@ const APP_CLIENT_ID = '891490642034-cgb0hjmqpv89co9a2jbh2a5isb2c3k3r.apps.google
 // device (especially an installed PWA shortcut, which can cache the page
 // shell more stubbornly than a regular browser tab) is actually running the
 // latest version or a stale cached copy.
-const APP_BUILD = '274';
+const APP_BUILD = '275';
 let yearSwitchBusy=false;
 let receiptGenerationBusy=false;
 let receiptProgressTimer=null;
@@ -9576,6 +9576,8 @@ document.getElementById('homeResidentsList').addEventListener('click', async e=>
       await showAppAlert('לדייר הזה אין כתובת מייל שמורה בגיליון "אנשי קשר" - לא ניתן לשלוח תזכורת.', '✉️');
       return;
     }
+    const confirmed = await showAppConfirm(`האם לשלוח מייל תזכורת לתשלום ל-${remindBtn.dataset.name}?`, '🔔', 'שלח תזכורת', 'ביטול');
+    if(!confirmed) return;
     const lastPaidIdx = +remindBtn.dataset.lastpaid;
     const lastPaidMonthName = lastPaidIdx>=0 ? MONTH_NAMES[lastPaidIdx] : null;
     const originalLabel = remindBtn.innerHTML;
