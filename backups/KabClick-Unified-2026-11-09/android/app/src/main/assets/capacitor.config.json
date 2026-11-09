@@ -1,0 +1,19 @@
+{
+	"appId": "app.kabclick.twa",
+	"appName": "קבקליק",
+	"webDir": "www",
+	"loggingBehavior": "none",
+	"server": {
+		"androidScheme": "https"
+	},
+	"android": {
+		"allowMixedContent": false,
+		"backgroundColor": "#FFFFFF",
+		"webContentsDebuggingEnabled": false
+	},
+	"ios": {
+		"contentInset": "never",
+		"backgroundColor": "#FFFFFF",
+		"preferredContentMode": "mobile"
+	}
+}

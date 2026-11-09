@@ -1,0 +1,21 @@
+{
+  "name": "kabclick-unified",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "sync:ios": "node scripts/native.cjs sync ios",
+    "sync:android": "node scripts/native.cjs sync android",
+    "open:ios": "node scripts/native.cjs open ios",
+    "open:android": "node scripts/native.cjs open android",
+    "test": "node scripts/test.cjs"
+  },
+  "dependencies": {
+    "@capacitor/core": "7.6.10",
+    "@capacitor/cli": "7.6.10",
+    "@capacitor/android": "7.6.10",
+    "@capacitor/ios": "7.6.10"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}

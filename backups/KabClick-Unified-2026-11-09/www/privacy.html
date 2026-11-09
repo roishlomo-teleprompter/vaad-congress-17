@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מדיניות פרטיות - קבקליק</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@700;900&family=Heebo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#101828; --ink-soft:#3a3a3a;
+  --gold:#2563EB; --gold-soft:#EAF1FE;
+  --paper:#FFFFFF; --paper-dark:#F5F8FB;
+  --line:#E3E9F0; --slate:#667085;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;background:var(--paper-dark);color:var(--ink);font-family:'Heebo',sans-serif;min-height:100vh;}
+.wrap{max-width:760px;margin:0 auto;padding:40px 20px 80px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 32px -12px rgba(0,0,0,.2);padding:36px 32px;}
+h1{font-family:'Frank Ruhl Libre',serif;font-weight:900;font-size:26px;margin:0 0 4px;color:var(--ink);}
+.updated{font-size:12.5px;color:var(--slate);margin:0 0 28px;}
+h2{font-family:'Frank Ruhl Libre',serif;font-size:17px;font-weight:700;margin:28px 0 8px;color:var(--ink);border-bottom:2px solid var(--paper-dark);padding-bottom:6px;}
+p,li{font-size:14px;line-height:1.8;color:var(--ink-soft);}
+ul{margin:8px 0;padding-inline-start:22px;}
+li{margin-bottom:6px;}
+a{color:var(--gold);font-weight:600;text-decoration:none;}
+a:hover{text-decoration:underline;}
+.back{display:inline-block;margin-bottom:20px;font-size:13px;color:var(--slate);text-decoration:none;}
+.contact-box{background:var(--paper-dark);border-radius:10px;padding:14px 16px;margin-top:8px;font-size:14px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./">← חזרה לאפליקציה</a>
+  <div class="card">
+    <h1>מדיניות פרטיות - קבקליק</h1>
+    <p class="updated">עדכון אחרון: יולי 2026</p>
+
+    <p>קבקליק ("האפליקציה") היא כלי להפקת קבלות דמי ועד בית, המחובר ישירות לחשבון ה-Google של המשתמש. מדיניות זו מסבירה אילו נתונים האפליקציה ניגשת אליהם, כיצד הם נשמרים, ומי יכול לראות אותם.</p>
+
+    <h2>1. עקרון מפתח: אין שרת מרכזי לנתונים העסקיים שלכם</h2>
+    <p>קבקליק היא אפליקציה לכל דבר - ניתנת להתקנה על מסך הבית של הטלפון או המחשב ופועלת כמו כל אפליקציה אחרת. ההבדל הטכני הוא שהיא אינה נשענת על שרת מרכזי או מסד נתונים לניהול הנתונים העסקיים שלכם: כל הפעולות (רשימת דיירים, קבלות, קבצי PDF) מתבצעות ישירות מהמכשיר שלך מול חשבון ה-Google שלך, ונשמרות אך ורק ב-Google Sheets וב-Google Drive <strong>של המשתמש עצמו</strong>. יש חריג מצומצם אחד לעיקרון הזה - שרת קטן לבדיקת רישיון ושליחת מיילים - המתואר בפירוט בסעיף 4 למטה.</p>
+
+    <h2>2. אילו הרשאות Google האפליקציה מבקשת, ולמה</h2>
+    <p>קבקליק מבקשת את שתי ההרשאות הבאות בלבד - שתיהן מהסוג המצומצם ביותר האפשרי עבור התפקוד הנדרש:</p>
+    <ul>
+      <li><strong>Google Drive - קבצים שנוצרו על ידי האפליקציה בלבד (drive.file)</strong> - האפליקציה יוצרת עבור המשתמש, בלחיצת כפתור אחת, גיליון Google Sheets ייעודי ותיקיית Drive ייעודית. הרשאה זו מאפשרת לאפליקציה לקרוא ולכתוב <strong>רק</strong> לקבצים שהיא עצמה יצרה (רשימת הדיירים/לקוחות, לשונית הקבלות, וקובצי ה-PDF שנוצרים) - היא <strong>אינה</strong> מאפשרת גישה לשום קובץ אחר ב-Drive של המשתמש, כולל גיליונות או תיקיות שהמשתמש יצר בעצמו באופן עצמאי. אין אפשרות בקבקליק לחבר גיליון קיים באמצעות הדבקת קישור.</li>
+      <li><strong>כתובת המייל של המשתמש (userinfo.email)</strong> - משמשת אך ורק לזיהוי החשבון לצורך בקרת גישה (בדיקה אם מדובר בלקוח רשום ופעיל).</li>
+    </ul>
+
+    <h2>3. הגנה על המידע</h2>
+    <ul>
+      <li><strong>הצפנה בתעבורה</strong> - כל התקשורת בין הדפדפן שלכם לבין שרתי Google (Sheets API, Drive API) מתבצעת דרך HTTPS מוצפן בלבד.</li>
+      <li><strong>ללא אחסון מרכזי</strong> - כאמור בסעיף 1, אין לקבקליק שרת או מסד נתונים משלה; אין "עותק" של הנתונים שלכם שיושב אצל מפתח האפליקציה ועלול לדלוף משם.</li>
+      <li><strong>טוקן גישה מוגבל בזמן</strong> - אסימון ההרשאה (access token) שמאפשר לאפליקציה לפעול מול חשבון ה-Google שלכם מאוחסן מקומית בדפדפן שלכם בלבד (לא בשרת), ופג תוקף באופן אוטומטי לאחר פרק זמן קצר; חידושו דורש אישור Google מחדש.</li>
+      <li><strong>הרשאה מצומצמת לפי עיצוב (least privilege)</strong> - כפי שפורט למעלה, ההרשאות המבוקשות מוגבלות לקבצים שהאפליקציה יצרה בעצמה, ואינן מקנות גישה רחבה יותר ל-Drive או ל-Sheets של המשתמש.</li>
+    </ul>
+
+    <h2>4. שרת בדיקת רישיון ושליחת מיילים</h2>
+    <p>מעבר לחיבור הישיר בין הדפדפן שלכם לבין Google Sheets/Drive (המתואר למעלה), יש לקבקליק שרת קטן ונפרד (Google Apps Script, בבעלות מפתח האפליקציה) המשמש לשני צרכים בלבד:</p>
+    <ul>
+      <li><strong>בדיקת רישיון פעיל</strong> - בכל התחברות, כתובת המייל שלכם נשלחת לשרת זה כדי לוודא שאתם לקוח רשום ופעיל. השרת שומר רשימת לקוחות (מייל, שם בניין/עסק, תאריך תפוגה, סטטוס) - זהו המידע היחיד שנשמר אצל מפתח האפליקציה מעבר לחשבון ה-Google שלכם עצמו.</li>
+      <li><strong>שליחת מיילים (קבלות ותזכורות)</strong> - אם תבחרו לשלוח קבלה או תזכורת תשלום במייל, פרטי הקבלה (שם, סכום, כתובת מייל של הנמען, קובץ ה-PDF) עוברים דרך שרת זה לצורך השליחה בלבד - הם אינם נשמרים שם לאחר השליחה.</li>
+    </ul>
+    <p>תעבורה זו מוצפנת (HTTPS), והשרת רץ תחת דומיין Google (script.google.com).</p>
+
+    <h2>5. מי רואה את הנתונים שלך</h2>
+    <p>הנתונים שאתה מזין (שמות דיירים, טלפונים, סכומים, קבלות) נשארים ב-Google Sheets וב-Drive שלך בלבד. מפתח האפליקציה <strong>אינו</strong> מקבל, שומר, או ניגש לנתונים האלה במהלך השימוש הרגיל באפליקציה - למעט המידע המצומצם המתואר בסעיף 4 לעיל (מייל לבדיקת רישיון, ותוכן קבלה בודדת בזמן שליחתה במייל).</p>
+
+    <h2>6. אחסון מקומי בדפדפן</h2>
+    <p>האפליקציה שומרת בדפדפן שלך (ב-localStorage, מקומי למכשיר) הגדרות כמו שם הבניין, קישורי הגיליון והתיקייה, וטוקן גישה זמני ל-Google (על מנת לא לדרוש התחברות מחדש בכל טעינה). מידע זה לא נשלח לשום שרת חיצוני.</p>
+
+    <h2>7. שיתוף עם צדדים שלישיים</h2>
+    <p>האפליקציה אינה מוכרת, משתפת, או מעבירה את נתוני המשתמשים לצדדים שלישיים למטרות פרסום, שיווק, או כל מטרה אחרת שאינה הפעלת האפליקציה עצמה.</p>
+
+    <h2>8. מחיקת נתונים וביטול גישה</h2>
+    <p>יש לכם כמה דרכים לשלוט במידע שלכם, בלי צורך לבטל את כל הגישה:</p>
+    <ul>
+      <li><strong>מחיקת פריט ספציפי</strong> - ניתן למחוק דייר/לקוח, קבלה, או תנועת הוצאה/הכנסה בודדת ישירות מתוך האפליקציה (או ישירות בגיליון Google Sheets) בכל עת - זה לא דורש מחיקת החשבון או ביטול ההרשאה כולה.</li>
+      <li><strong>מחיקת כל הנתונים העסקיים</strong> - מכיוון שהם מאוחסנים אך ורק ב-Google Sheets וב-Drive שלכם, מחיקתם נעשית ישירות משם (מחיקת הגיליון/התיקייה, או ריקון סל המיחזור ב-Drive).</li>
+      <li><strong>ביטול גישת האפליקציה לחשבון Google</strong> - בכל עת דרך <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">הגדרות ההרשאות של Google</a>.</li>
+      <li><strong>מחיקה מרשימת הרישיונות</strong> (הפריט היחיד שנשמר אצל מפתח האפליקציה, ראו סעיף 4) - ניתן לבקש בכל עת בפנייה לכתובת המייל בסעיף 9 למטה; הבקשה תטופל בתוך זמן סביר.</li>
+    </ul>
+
+    <h2>9. יצירת קשר</h2>
+    <div class="contact-box">
+      לשאלות בנוגע למדיניות פרטיות זו, ניתן ליצור קשר בכתובת:<br>
+      <a href="mailto:Rsh.team1@gmail.com">Rsh.team1@gmail.com</a>
+    </div>
+  </div>
+</div>
+</body>
+</html>

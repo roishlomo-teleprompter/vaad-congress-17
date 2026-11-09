@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">קבקליק</string>
+    <string name="title_activity_main">קבקליק</string>
+    <string name="package_name">app.kabclick.twa</string>
+    <string name="custom_url_scheme">app.kabclick.twa</string>
+</resources>

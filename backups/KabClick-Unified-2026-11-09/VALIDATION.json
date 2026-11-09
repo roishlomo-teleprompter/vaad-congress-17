@@ -1,0 +1,16 @@
+{
+  "regressionSuitesPassed": 9,
+  "platformIsolationPassed": true,
+  "nativeGoogleTransportMockTestsPassed": true,
+  "androidOriginalCssAndBusinessLogicPreserved": true,
+  "androidNativeFilesPreserved": 40,
+  "iosEffectiveCssDeclarationsPreserved": 28,
+  "iosGoogleAndSigningSettingsPreserved": true,
+  "syncAndroid": "passed",
+  "syncIos": "passed",
+  "androidCompilation": "blocked: Gradle dependencies unavailable; network unreachable",
+  "iosCompilation": "not run: requires Xcode on Mac",
+  "realDeviceValidation": "required",
+  "published": false,
+  "iosFocusZoomCss": "16px important on editable controls, iOS only; device verification required"
+}

@@ -1,0 +1,17 @@
+{
+	"appId": "app.kabclick.iospreview",
+	"appName": "קבקליק בדיקה",
+	"webDir": "www",
+	"loggingBehavior": "none",
+	"android": {
+		"allowMixedContent": false,
+		"backgroundColor": "#FFFFFF",
+		"webContentsDebuggingEnabled": false
+	},
+	"ios": {
+		"contentInset": "never",
+		"backgroundColor": "#FFFFFF",
+		"preferredContentMode": "mobile"
+	},
+	"packageClassList": []
+}

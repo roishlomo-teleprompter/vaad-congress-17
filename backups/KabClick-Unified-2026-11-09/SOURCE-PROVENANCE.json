@@ -1,0 +1,21 @@
+{
+  "sharedWebBuild": 282,
+  "android": {
+    "baselineWebBuild": 276,
+    "package": "app.kabclick.twa",
+    "versionCode": 6,
+    "versionName": "1.0.6",
+    "source": "private Android production snapshot"
+  },
+  "ios": {
+    "source": "KabClick-iOS-Latest.zip provided by user",
+    "sourceSha256": "10da0c958822efc8b266878c1474d606068a401f8076a95f84b9b07423f9fb63",
+    "sourceWebBuild": 279,
+    "sourceNativeBuild": 3,
+    "package": "app.kabclick.iospreview",
+    "version": "1.0",
+    "build": 7
+  },
+  "upstreamCommit": "240901006ee3d793df5f859f873528669bb6de1f",
+  "remoteWrites": false
+}

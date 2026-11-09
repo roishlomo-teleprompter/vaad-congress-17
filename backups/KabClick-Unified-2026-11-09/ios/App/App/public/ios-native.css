@@ -1,0 +1,23 @@
+/* Native iOS only. This file is loaded only on iOS. */
+.ios-native body{overscroll-behavior:none;-webkit-text-size-adjust:100%;}
+.ios-native input,.ios-native select,.ios-native textarea{font-size:16px;}
+.ios-native .account-modal{height:100%;max-height:100dvh;}
+.ios-native .topbar{padding-top:calc(14px + env(safe-area-inset-top,0px));}
+.ios-native #signOutBtn,
+.ios-native #wizardHomeBtn{top:calc(14px + env(safe-area-inset-top,0px));}
+.ios-native body:not(.home-active){height:var(--app-vh,100dvh);min-height:0;overflow:hidden;}
+.ios-native body:not(.home-active) .app-frame{height:var(--app-vh,100dvh);min-height:0;overflow:hidden;}
+.ios-native body:not(.home-active) .wrap{min-height:0;grid-template-rows:minmax(0,1fr);padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));}
+.ios-native .wizard-card{min-height:0;height:100%;}
+.ios-native .wizard-step{min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.ios-native .wizard-nav{flex:0 0 auto;padding-bottom:2px;}
+.ios-native .wizard-nav button{min-width:0;min-height:46px;}
+
+/* iOS focus zoom - Build 281. Must override later inline application styles. */
+.ios-native input:not([type=checkbox]):not([type=radio]),
+.ios-native select,
+.ios-native textarea{font-size:16px !important;}
+
+/* iOS finance footer clearance - Build 282. */
+.ios-native #financeScreen{padding-bottom:calc(260px + env(safe-area-inset-bottom,0px));}
+.ios-native #financeScreen > .finance-card{flex-shrink:0;}

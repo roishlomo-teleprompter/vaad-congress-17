@@ -1,0 +1,13 @@
+node_modules/
+android/.gradle/
+android/**/build/
+android/local.properties
+ios/**/xcuserdata/
+ios/**/DerivedData/
+*.log
+*.keystore
+*.jks
+*.p12
+*.pfx
+*.mobileprovision
+.DS_Store
